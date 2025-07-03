@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DialogueEdGraph.h"
 #include "DialogueGraph.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
@@ -9,7 +10,8 @@ class FDialogueGraphEditor : public FWorkflowCentricApplication, public FEditorU
 public:
 	virtual void RegisterTabSpawners  (const TSharedRef<FTabManager>&) override;
 	void InitEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, class UDialogueGraph* InGraph);
-	class UDialogueGraph* GetWorkingAsset() const { return Graph; }
+	UDialogueGraph* GetWorkingAsset() const { return Graph; }
+	UEdGraph* GetWorkingGraph() const { return EdGraph; }
 	
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
@@ -27,6 +29,8 @@ private:
 	/** 데이터 */
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UDialogueGraph> Graph;
+	UPROPERTY()
+	TObjectPtr<UEdGraph> EdGraph;
 	
 	const FName GraphTabID = FName("DialogueMaker_GraphEditor");  // "DialogueGraph_Tab"
 	const FName DetailsTabID = FName("DialogueMaker_Details");	// "DialogueGraph_Tab"

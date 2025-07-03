@@ -18,7 +18,7 @@ class DIALOGUEMAKEREDITOR_API UDialogueEdGraphNode : public UEdGraphNode
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	FDialogueStructure Dialogue;
-
+	
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 };

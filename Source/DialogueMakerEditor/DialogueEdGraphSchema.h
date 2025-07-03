@@ -17,3 +17,16 @@ class DIALOGUEMAKEREDITOR_API UDialogueEdGraphSchema : public UEdGraphSchema
 	virtual const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
 };
+
+
+USTRUCT()
+struct FNewNodeAction : public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+	
+	FNewNodeAction() {};
+	FNewNodeAction(FText InNodeCategory, FText InMenuDesc, FText InMenuTooltip, const int32 InGrouping)
+	: FEdGraphSchemaAction(InNodeCategory, InMenuDesc, InMenuTooltip, InGrouping) {};
+
+	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, TArray<UEdGraphPin*>& FromPins, const FVector2D Location, bool bSelectNewNode = true) override;
+};

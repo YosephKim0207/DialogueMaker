@@ -3,6 +3,8 @@
 #include "IDetailsView.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
+#include "Editor/UnrealEd/Public/Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
 
 
 DialoguePrimaryTabFactory::DialoguePrimaryTabFactory(TSharedPtr<FDialogueGraphEditor> InApp) : FWorkflowTabFactory(FName("DialoguePrimaryTab"), InApp)
@@ -20,7 +22,7 @@ TSharedRef<SWidget> DialoguePrimaryTabFactory::CreateTabBody(const FWorkflowTabS
 	
 	return SNew(SVerticalBox) + SVerticalBox::Slot().FillHeight(1.0f).HAlign(HAlign_Fill)
 		[
-			SNew(STextBlock).Text(FText::FromString(InApp->GetWorkingAsset()->Title))
+			SNew(SGraphEditor).IsEditable(true).GraphToEdit(InApp->GetWorkingGraph())
 		];
 }
 

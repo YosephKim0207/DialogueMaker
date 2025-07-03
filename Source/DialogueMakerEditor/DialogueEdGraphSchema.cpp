@@ -31,14 +31,38 @@ const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const U
 
 void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
-	TSharedPtr<FEdGraphSchemaAction_NewNode> NewNodeAction = MakeShareable(new FEdGraphSchemaAction_NewNode(
-		FText::FromString("Dialogue"),
-		FText::FromString("새 대화 노드"),
-		FText::FromString("새로운 대화 노드를 추가합니다."),
-		0
-	));
+	// TODO 영상 따라서 구현한 후 FEdGraphSchemaAction이 아닌 fedGraphSchemaAction_NewNode로 직접 대체해보기(아마도 dialogueEdGraphNOd의 AllocateDefaultPin과 연계 가능성 높음?
+	// TSharedPtr<FEdGraphSchemaAction_NewNode> NewNodeAction = MakeShareable(new FEdGraphSchemaAction_NewNode(
+	// 	FText::FromString("Dialogue"),
+	// 	FText::FromString("새 대화 노드"),
+	// 	FText::FromString("새로운 대화 노드를 추가합니다."),
+	// 	0
+	// ));
+	//
+	// NewNodeAction->NodeTemplate = NewObject<UDialogueEdGraphNode>(ContextMenuBuilder.OwnerOfTemporaries);
+	// ContextMenuBuilder.AddAction(NewNodeAction);
 
-	NewNodeAction->NodeTemplate = NewObject<UDialogueEdGraphNode>(ContextMenuBuilder.OwnerOfTemporaries);
+	TSharedPtr<FNewNodeAction> NewNodeAction = MakeShareable(new FNewNodeAction(
+		FText::FromString("Dialogue"),
+		FText::FromString("New Dialogue Node"),
+		FText::FromString("Add New Dialogue Node."),
+		0));
 	ContextMenuBuilder.AddAction(NewNodeAction);
+}
+
+UEdGraphNode* FNewNodeAction::PerformAction(class UEdGraph* ParentGraph, TArray<UEdGraphPin*>& FromPins, const FVector2D Location, bool bSelectNewNode)
+{
+	UEdGraphNode* Result = NewObject<UEdGraphNode>(ParentGraph);
+	Result->NodePosX = Location.X;
+	Result->NodePosY = Location.Y;
+
+	Result->CreatePin(EGPD_Input, TEXT("Inputs"), TEXT("In"));
+	Result->CreatePin(EGPD_Output, TEXT("Outputs"), TEXT("Out1"));
+	Result->CreatePin(EGPD_Output, TEXT("Outputs"), TEXT("Out2"));
+
+	ParentGraph->Modify();
+	ParentGraph->AddNode(Result, true, true);
 	
+	
+	return Result;
 }

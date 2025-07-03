@@ -105,7 +105,10 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     //         ];
     // }));
 
-    Graph = Cast<UDialogueGraph>(InGraph);
+    Graph = InGraph;
+    EdGraph = FBlueprintEditorUtils::CreateNewGraph(Graph, NAME_None, UEdGraph::StaticClass(), UDialogueEdGraphSchema::StaticClass());
+
+    
     InitAssetEditor(Mode, InitToolkitHost, FName("DialogueGraphEditor"), FTabManager::FLayout::NullLayout, true, true, InGraph);
 
     // Editor의 Mode를 DialogueGraphEditorMode로 설정
