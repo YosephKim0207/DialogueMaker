@@ -1,0 +1,15 @@
+{
+  "projectName": "DialogueMaker",
+  "projectType": "Unreal Engine",
+  "languages": ["C++"],
+  "sourceDirectories": [
+    "Source/DialogueMaker",
+    "Source/DialogueMakerEditor"
+  ],
+  "configFilePaths": [
+    "Config/DefaultEngine.ini",
+    "Config/DefaultGame.ini",
+    "DialogueMaker.uproject"
+  ],
+  "buildSystem": "UnrealBuildTool"
+}

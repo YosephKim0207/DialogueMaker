@@ -1,0 +1,29 @@
+# Unreal Engine 4 and 5 Git Ignore
+#
+# This file is based on the official gitignore provided by Epic Games, with additions from the community.
+# https://github.com/github/gitignore/blob/main/community/UnrealEngine/UnrealEngine.gitignore
+
+# Visual Studio files
+.vs/
+.vscode/
+.idea/
+
+# Build products
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+
+# Saved data
+Saved/
+
+# Other
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.suo
+*.xcodeproj
+*.xcworkspace
+*.sln
+*.sln.DotSettings.user
