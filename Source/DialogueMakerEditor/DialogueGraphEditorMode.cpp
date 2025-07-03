@@ -2,11 +2,13 @@
 
 #include "DialogueGraphEditor.h"
 #include "DialoguePrimaryTabFactory.h"
+#include "DialoguePropertyTabFactory.h"
 
 DialogueGraphEditorMode::DialogueGraphEditorMode(TSharedPtr<FDialogueGraphEditor> InApp) : FApplicationMode(TEXT("DialogueGraphMode"))
 {
 	App = InApp;
 	Tabs.RegisterFactory(MakeShareable(new DialoguePrimaryTabFactory(InApp)));
+	Tabs.RegisterFactory(MakeShareable(new DialoguePropertyTabFactory(InApp)));
 
 	TabLayout = FTabManager::NewLayout(TEXT("DialogueGraphEditorMode_Layout_v1"))
 	->AddArea
@@ -24,13 +26,13 @@ DialogueGraphEditorMode::DialogueGraphEditorMode(TSharedPtr<FDialogueGraphEditor
 			(
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.75f)
-				->AddTab(FName(TEXT("DialoguePrimaryTabFactory")), ETabState::OpenedTab)
+				->AddTab(FName(TEXT("DialoguePrimaryTab")), ETabState::OpenedTab)
 			)
 			->Split
 			(
 				FTabManager::NewStack()
 				->SetSizeCoefficient(0.25f)
-				->AddTab(FName(TEXT("DialoguePropertyTabFactory")), ETabState::OpenedTab)
+				->AddTab(FName(TEXT("DialoguePropertyTab")), ETabState::OpenedTab)
 				)
 		)
 	);

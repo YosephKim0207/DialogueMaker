@@ -8,7 +8,7 @@
 #include "PropertyEditorModule.h"
 #include "Widgets/SBoxPanel.h"
 #include "GraphEditor.h"
-#include "DialogueMaker/DialogueGraph.h"
+#include "DialogueGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 

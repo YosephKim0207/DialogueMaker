@@ -9,7 +9,7 @@
  * 
  */
 UCLASS(BlueprintType)
-class DIALOGUEMAKER_API UDialogueGraph : public UObject
+class DIALOGUEMAKEREDITOR_API UDialogueGraph : public UObject
 {
 	GENERATED_BODY()
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueMaker/DialogueStructure.h"
+#include "DialogueStructure.h"
 #include "EdGraph/EdGraphNode.h"
 #include "DialogueEdGraphNode.generated.h"
 

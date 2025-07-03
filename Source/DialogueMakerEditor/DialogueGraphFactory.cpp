@@ -6,7 +6,7 @@
 #include "DialogueEdGraph.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
-#include "DialogueMaker/DialogueGraph.h"
+#include "DialogueGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 UDialogueGraphFactory::UDialogueGraphFactory(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
