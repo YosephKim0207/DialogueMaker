@@ -8,25 +8,30 @@
 const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const UEdGraphPin* A,
                                                                          const UEdGraphPin* B) const
 {
+	if (A == nullptr || B == nullptr)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Pin is nullptr"));
+	}
+	
 	// 서로 같은 노드끼리 연결하려는 경우
 	if (A->GetOwningNode() == B->GetOwningNode())
 	{
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("같은 노드에 연결할 수 없습니다."));
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Can't self connect."));
 	}
 
 	// Input pin끼리 연결하려는 경우
 	if (A->Direction == EGPD_Input && B->Direction == EGPD_Input)
 	{
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("입력 핀끼리 연결할 수 없습니다."));
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Can't connect with inputs"));
 	}
 
 	// Output pin끼리 연결하려는 경우
 	if (A->Direction == EGPD_Output && B->Direction == EGPD_Output)
 	{
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("출력 핀끼리 연결할 수 없습니다."));
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Can't connect with outputs."));
 	}
 	
-	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, TEXT("연결 가능"));
+	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, TEXT("Connect possible."));
 }
 
 void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
@@ -50,19 +55,25 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 	ContextMenuBuilder.AddAction(NewNodeAction);
 }
 
-UEdGraphNode* FNewNodeAction::PerformAction(class UEdGraph* ParentGraph, TArray<UEdGraphPin*>& FromPins, const FVector2D Location, bool bSelectNewNode)
+UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
-	UEdGraphNode* Result = NewObject<UEdGraphNode>(ParentGraph);
+	UDialogueEdGraphNode* Result = NewObject<UDialogueEdGraphNode>(ParentGraph);
+	Result->CreateNewGuid();
 	Result->NodePosX = Location.X;
 	Result->NodePosY = Location.Y;
 
-	Result->CreatePin(EGPD_Input, TEXT("Inputs"), TEXT("In"));
-	Result->CreatePin(EGPD_Output, TEXT("Outputs"), TEXT("Out1"));
-	Result->CreatePin(EGPD_Output, TEXT("Outputs"), TEXT("Out2"));
-
+	UEdGraphPin* InputPin = Result->CreateCustomPin(EGPD_Input, TEXT("Input Dialogue"));
+	
+	Result->CreateCustomPin(EGPD_Output, TEXT("Out1"));
+	Result->CreateCustomPin(EGPD_Output, TEXT("Out1"));
+	
 	ParentGraph->Modify();
 	ParentGraph->AddNode(Result, true, true);
-	
+
+	if (FromPin != nullptr)
+	{
+		Result->GetSchema()->TryCreateConnection(FromPin, InputPin);
+	}
 	
 	return Result;
 }

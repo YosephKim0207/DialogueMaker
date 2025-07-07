@@ -21,7 +21,8 @@ public class DialogueMakerEditor : ModuleRules
 			"PropertyEditor",
 			"EditorStyle",
 			"AssetDefinition",
-			"Projects"
+			"Projects",
+			"ToolMenus"
 		});
 		
 		// Uncomment if you are using Slate UI

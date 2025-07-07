@@ -19,6 +19,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
 	FDialogueStructure Dialogue;
 	
-	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual bool CanUserDeleteNode() const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual void AllocateDefaultPins() override;
+
+	UEdGraphPin* CreateCustomPin(EEdGraphPinDirection Direction, FName Name);
 };
