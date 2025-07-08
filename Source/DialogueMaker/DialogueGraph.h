@@ -3,13 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DialogueRuntimeGraph.h"
 #include "DialogueGraph.generated.h"
 
 /**
  * 
  */
 UCLASS(BlueprintType)
-class DIALOGUEMAKEREDITOR_API UDialogueGraph : public UObject
+class DIALOGUEMAKER_API UDialogueGraph : public UObject
 {
 	GENERATED_BODY()
 
@@ -17,7 +18,8 @@ public:
 	UPROPERTY(EditAnywhere)
 	FString Title = FString("Title");
 	UPROPERTY(EditAnywhere)
-	TObjectPtr<UEdGraph> EdGraph;
+	TObjectPtr<UDialogueRuntimeGraph> Graph;
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UDataTable> ConvertedDataTable;
 };
+

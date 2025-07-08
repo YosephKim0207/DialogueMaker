@@ -3,7 +3,7 @@
 #include "AssetDefinition_DialogueGraph.h"
 
 #include "DialogueGraphEditor.h"
-#include "DialogueGraph.h"
+#include "DialogueMaker/DialogueGraph.h"
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyleRegistry.h"
 

@@ -1,6 +1,7 @@
 #include "DialogueGraphEditor.h"
 
 #include "DialogueEdGraph.h"
+#include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
 #include "DialogueGraphEditorMode.h"
 #include "EdGraph/EdGraph.h"
@@ -8,7 +9,7 @@
 #include "PropertyEditorModule.h"
 #include "Widgets/SBoxPanel.h"
 #include "GraphEditor.h"
-#include "DialogueGraph.h"
+#include "DialogueMaker/DialogueGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 
@@ -105,8 +106,8 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     //         ];
     // }));
 
-    Graph = InGraph;
-    EdGraph = FBlueprintEditorUtils::CreateNewGraph(Graph, NAME_None, UEdGraph::StaticClass(), UDialogueEdGraphSchema::StaticClass());
+    WorkingAsset = InGraph;
+    WorkingGraph = FBlueprintEditorUtils::CreateNewGraph(WorkingAsset, NAME_None, UEdGraph::StaticClass(), UDialogueEdGraphSchema::StaticClass());
 
     
     InitAssetEditor(Mode, InitToolkitHost, FName("DialogueGraphEditor"), FTabManager::FLayout::NullLayout, true, true, InGraph);
@@ -114,12 +115,151 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     // Editor의 Mode를 DialogueGraphEditorMode로 설정
     AddApplicationMode(TEXT("DialogueGraphEditorMode"), MakeShareable(new DialogueGraphEditorMode(SharedThis(this))));
     SetCurrentMode(TEXT("DialogueGraphEditorMode"));
+
+    UpdateEditorGraphFromWorkingAsset();
+
+    GraphChangeListenerHandle = WorkingGraph->AddOnGraphChangedHandler(
+        FOnGraphChanged::FDelegate::CreateSP(this, &FDialogueGraphEditor::OnGraphChanged)
+    );
 }
 
 void FDialogueGraphEditor::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection)
 {
     TArray<UObject*> Array = NewSelection.Array();
     // DetailsView->SetObjects(Array.Num() ? Array : TArray<UObject*>{ GraphAsset });
+}
+
+void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
+{
+    if (WorkingAsset == nullptr || WorkingGraph == nullptr)
+    {
+        return;
+    }
+
+    UDialogueRuntimeGraph* RuntimeGraph = NewObject<UDialogueRuntimeGraph>(WorkingAsset);
+    WorkingAsset->Graph = RuntimeGraph;
+
+    TArray<std::pair<FGuid, FGuid>> Connections;
+    TMap<FGuid, UDialogueRuntimePin*> IdToPinMap;
+
+    // Node Data 정리
+    for (UEdGraphNode* Node : WorkingGraph->Nodes)
+    {
+        UDialogueRuntimeNode* RuntimeNode = NewObject<UDialogueRuntimeNode>(WorkingGraph);
+        RuntimeNode->Position = FVector2D(Node->NodePosX, Node->NodePosY);
+
+        for (UEdGraphPin* Pin : Node->Pins)
+        {
+            UDialogueRuntimePin* RuntimePin = NewObject<UDialogueRuntimePin>(RuntimeNode);
+            RuntimePin->PinName = Pin->PinName;
+            RuntimePin->PinId = Pin->PinId;
+
+            // Pin 연결 관계 캐싱
+            if (Pin->HasAnyConnections() && Pin->Direction == EGPD_Output)
+            {
+                for (UEdGraphPin* LinkToPin : Pin->LinkedTo)
+                {
+                    std::pair<FGuid, FGuid> Connection = std::make_pair(Pin->PinId, LinkToPin->PinId);
+                    Connections.Add(Connection);
+                }
+            }
+            
+            IdToPinMap.Add(Pin->PinId, RuntimePin);
+
+            if (Pin->Direction == EGPD_Input)
+            {
+                RuntimeNode->InputPin = RuntimePin;
+            }
+            else
+            {
+                RuntimeNode->OutputPins.Add(RuntimePin);
+            }
+        }
+
+        RuntimeGraph->Nodes.Add(RuntimeNode);
+    }
+
+    for (std::pair<FGuid, FGuid> Connection : Connections)
+    {
+        UDialogueRuntimePin* Pin1 = IdToPinMap[Connection.first];
+        UDialogueRuntimePin* Pin2 = IdToPinMap[Connection.second];
+        Pin1->Connections.Add(Pin2);
+    }
+}
+
+void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
+{
+    if (WorkingAsset->Graph == nullptr)
+    {
+        return;
+    }
+
+    TArray<std::pair<FGuid, FGuid>> Connections;
+    TMap<FGuid, UEdGraphPin*> IdToPinMap;
+
+    for (UDialogueRuntimeNode* RuntimeNode : WorkingAsset->Graph->Nodes)
+    {
+        UDialogueEdGraphNode* NewNode = NewObject<UDialogueEdGraphNode>(WorkingGraph);
+        NewNode->CreateNewGuid();
+        NewNode->NodePosX = RuntimeNode->Position.X;
+        NewNode->NodePosY = RuntimeNode->Position.Y;
+
+        if (RuntimeNode->InputPin != nullptr)
+        {
+            UDialogueRuntimePin* RuntimeInputPin = RuntimeNode->InputPin;
+            UEdGraphPin* Pin = NewNode->CreateCustomPin(EGPD_Input, RuntimeInputPin->PinName);
+            Pin->PinId = RuntimeInputPin->PinId;
+
+            if (RuntimeInputPin->Connections.Num() > 0)
+            {
+                for (UDialogueRuntimePin* ConnectPin : RuntimeInputPin->Connections)
+                {
+                    Connections.Add(std::make_pair(RuntimeInputPin->PinId, ConnectPin->PinId));
+                }
+            }
+
+            IdToPinMap.Add(RuntimeInputPin->PinId, Pin);
+
+            for (UDialogueRuntimePin* RuntimeOutputPin : RuntimeNode->OutputPins)
+            {
+                UEdGraphPin* OutputPin = NewNode->CreateCustomPin(EGPD_Output, RuntimeOutputPin->PinName);
+                OutputPin->PinId = RuntimeOutputPin->PinId;
+
+                if (RuntimeOutputPin->Connections.Num() > 0)
+                {
+                    for (UDialogueRuntimePin* ConnectPin : RuntimeOutputPin->Connections)
+                    {
+                        Connections.Add(std::make_pair(RuntimeOutputPin->PinId, ConnectPin->PinId));
+                    }
+                }
+                
+                IdToPinMap.Add(RuntimeOutputPin->PinId, OutputPin);
+            }
+
+            WorkingGraph->AddNode(NewNode, true, true);
+        }
+    }
+
+    for (std::pair<FGuid, FGuid> Connection : Connections)
+    {
+        UEdGraphPin* FromPin = IdToPinMap[Connection.first];
+        UEdGraphPin* ToPin = IdToPinMap[Connection.second];
+        FromPin->LinkedTo.Add(ToPin);
+        ToPin->LinkedTo.Add(FromPin);
+    }
+}
+
+void FDialogueGraphEditor::OnClose()
+{
+    UpdateWorkingAssetFromGraph();
+    WorkingGraph->RemoveOnGraphChangedHandler(GraphChangeListenerHandle);
+
+    FAssetEditorToolkit::OnClose();
+}
+
+void FDialogueGraphEditor::OnGraphChanged(const FEdGraphEditAction& EditAction)
+{
+   UpdateWorkingAssetFromGraph();
 }
 
 FName FDialogueGraphEditor::GetToolkitFName() const
