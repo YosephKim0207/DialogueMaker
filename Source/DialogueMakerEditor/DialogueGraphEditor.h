@@ -25,14 +25,15 @@ public:
 
 	virtual void OnClose() override;
 	void OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event);
-	void OnGraphChanged(const FEdGraphEditAction& EditAction);
+	void OnWorkingAssetPreSave();
 	
 	// void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection);
 		
 protected:
 	void UpdateWorkingAssetFromGraph();
 	void UpdateEditorGraphFromWorkingAsset();
-
+	class UDialogueEdGraphNode* GetSelectedNode(const FGraphPanelSelectionSet& Selection);
+	
 private:
 	TSharedPtr<SGraphEditor> GraphEditor;
 	TSharedPtr<IDetailsView> DetailsView;
@@ -45,8 +46,7 @@ private:
 	
 	const FName GraphTabID = FName("DialogueMaker_GraphEditor");  // "DialogueGraph_Tab"
 	const FName DetailsTabID = FName("DialogueMaker_Details");	// "DialogueGraph_Tab"
-
-	FDelegateHandle GraphChangeListenerHandle;
+	
 	// Graph가 그려지는 Slate Widget
 	TSharedPtr<SGraphEditor> WorkingGraphUI;
 	TSharedPtr<IDetailsView> SelectedDetailView;

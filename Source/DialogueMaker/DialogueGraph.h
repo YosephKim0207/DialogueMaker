@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "CoreMinimal.h"
 #include "DialogueRuntimeGraph.h"
 #include "DialogueGraph.generated.h"
@@ -15,6 +17,13 @@ class DIALOGUEMAKER_API UDialogueGraph : public UObject
 	GENERATED_BODY()
 
 public:
+	void SetPreSaveListener(std::function<void()> NewOnPreSaveListener);
+
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
+public:
+	std::function<void()> OnPreSaveListener;
+
+public:	// Properties
 	UPROPERTY(EditAnywhere)
 	FString Title = FString("Enter Dialogue Name Here");
 	UPROPERTY(EditAnywhere)

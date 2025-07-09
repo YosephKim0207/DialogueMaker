@@ -107,8 +107,10 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     // }));
 
     WorkingAsset = InGraph;
-    WorkingGraph = FBlueprintEditorUtils::CreateNewGraph(WorkingAsset, NAME_None, UEdGraph::StaticClass(), UDialogueEdGraphSchema::StaticClass());
+    WorkingAsset->SetPreSaveListener([this] () { OnWorkingAssetPreSave(); });
 
+    WorkingGraph = FBlueprintEditorUtils::CreateNewGraph(WorkingAsset, NAME_None, UEdGraph::StaticClass(), UDialogueEdGraphSchema::StaticClass());
+    
     
     InitAssetEditor(Mode, InitToolkitHost, FName("DialogueGraphEditor"), FTabManager::FLayout::NullLayout, true, true, InGraph);
 
@@ -117,10 +119,6 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     SetCurrentMode(TEXT("DialogueGraphEditorMode"));
 
     UpdateEditorGraphFromWorkingAsset();
-
-    GraphChangeListenerHandle = WorkingGraph->AddOnGraphChangedHandler(
-        FOnGraphChanged::FDelegate::CreateSP(this, &FDialogueGraphEditor::OnGraphChanged)
-    );
 }
 //
 // void FDialogueGraphEditor::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection)
@@ -143,18 +141,15 @@ void FDialogueGraphEditor::SetSelectedDetailView(TSharedPtr<IDetailsView> NewDet
 
 void FDialogueGraphEditor::OnGraphSelectionChanged(const FGraphPanelSelectionSet& NewSelection)
 {
-    // 첫번째 노드 정보 가져오기
-	for (UObject* Object : NewSelection)
-	{
-	    UDialogueEdGraphNode* Node = Cast<UDialogueEdGraphNode>(Object);
-	    if (Node != nullptr)
-	    {
-	        SelectedDetailView->SetObject(Node->GetDialogueNodeInfo());
-	        return;
-	    }
-	}
-
-    SelectedDetailView->SetObject(nullptr);
+    UDialogueEdGraphNode* SelectedNode = GetSelectedNode(NewSelection);
+    if (SelectedNode != nullptr)
+    {
+        SelectedDetailView->SetObject(SelectedNode->GetDialogueNodeInfo());
+    }
+    else
+    {
+        SelectedDetailView->SetObject(nullptr);
+    }
 }
 
 // Graph UI로부터 Data Asset 저장
@@ -292,10 +287,25 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
     }
 }
 
+class UDialogueEdGraphNode* FDialogueGraphEditor::GetSelectedNode(const FGraphPanelSelectionSet& Selection)
+{
+    // 첫번째 노드 정보 가져오기
+    for (UObject* Object : Selection)
+    {
+        UDialogueEdGraphNode* Node = Cast<UDialogueEdGraphNode>(Object);
+        if (Node != nullptr)
+        {
+            return Node;
+        }
+    }
+
+    return nullptr;
+}
+
 void FDialogueGraphEditor::OnClose()
 {
     UpdateWorkingAssetFromGraph();
-    WorkingGraph->RemoveOnGraphChangedHandler(GraphChangeListenerHandle);
+    WorkingAsset->SetPreSaveListener(nullptr);
 
     FAssetEditorToolkit::OnClose();
 }
@@ -305,11 +315,17 @@ void FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated(const FPropertyChan
 {
     if (WorkingGraphUI != nullptr)
     {
+        UDialogueEdGraphNode* DialogueEdGraphNode = GetSelectedNode(WorkingGraphUI->GetSelectedNodes());
+        if (DialogueEdGraphNode != nullptr)
+        {
+                DialogueEdGraphNode->SyncPinWithResponses();
+        }
+        
         WorkingGraphUI->NotifyGraphChanged();
     }
 }
 
-void FDialogueGraphEditor::OnGraphChanged(const FEdGraphEditAction& EditAction)
+void FDialogueGraphEditor::OnWorkingAssetPreSave()
 {
    UpdateWorkingAssetFromGraph();
 }

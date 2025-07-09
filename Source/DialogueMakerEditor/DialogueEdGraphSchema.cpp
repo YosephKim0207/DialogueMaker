@@ -65,10 +65,11 @@ UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* 
 	Result->NodePosY = Location.Y;
 	Result->SetDialogueNodeInfo(NewObject<UDialogueNodeInfo>(Result));
 	
-	UEdGraphPin* InputPin = Result->CreateCustomPin(EGPD_Input, TEXT("Input Dialogue"));
-	
-	Result->CreateCustomPin(EGPD_Output, TEXT("Out1"));
-	Result->CreateCustomPin(EGPD_Output, TEXT("Out1"));
+	UEdGraphPin* InputPin = Result->CreateCustomPin(EGPD_Input, TEXT("Display"));
+
+	FString DefaultResponse = TEXT("Continue");
+	Result->CreateCustomPin(EGPD_Output, FName(DefaultResponse));
+	Result->GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(DefaultResponse));
 	
 	ParentGraph->Modify();
 	ParentGraph->AddNode(Result, true, true);
