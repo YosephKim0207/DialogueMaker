@@ -26,4 +26,14 @@ public:
 	virtual void AllocateDefaultPins() override;
 
 	UEdGraphPin* CreateCustomPin(EEdGraphPinDirection Direction, FName Name);
+
+	void SetDialogueNodeInfo(class UDialogueNodeInfo* NewDialogueNodeInfo) { DialogueNodeInfo = NewDialogueNodeInfo; };
+	class UDialogueNodeInfo* GetDialogueNodeInfo() const
+	{
+		return DialogueNodeInfo;
+	}
+	
+protected:
+	UPROPERTY()
+	class UDialogueNodeInfo* DialogueNodeInfo = nullptr;
 };

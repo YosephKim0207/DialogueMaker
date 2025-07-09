@@ -4,6 +4,7 @@
 #include "DialogueEdGraphNode.h"
 
 #include "EditorStyleSet.h"
+#include "DialogueMaker/DialogueNodeInfo.h"
 
 void UDialogueEdGraphNode::AllocateDefaultPins()
 {
@@ -28,11 +29,17 @@ UEdGraphPin* UDialogueEdGraphNode::CreateCustomPin(EEdGraphPinDirection Directio
 FText UDialogueEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	// 노드 제목을 대사의 첫 부분으로 간략하게 보여줌
-	if (Dialogue.DialogueText.IsEmpty())
+	// if (Dialogue.DialogueText.IsEmpty())
+	// {
+	// 	return FText::FromString(TEXT("Dialogue"));
+	// }
+	// return FText::FromString(Dialogue.DialogueText.ToString().Left(20) + TEXT("..."));
+
+	if (DialogueNodeInfo->DialogueResponses.IsEmpty())
 	{
 		return FText::FromString(TEXT("Dialogue"));
 	}
-	return FText::FromString(Dialogue.DialogueText.ToString().Left(20) + TEXT("..."));
+	return FText::FromString(DialogueNodeInfo->DialogueText.ToString().Left(20) + TEXT("..."));
 }
 
 FLinearColor UDialogueEdGraphNode::GetNodeTitleColor() const

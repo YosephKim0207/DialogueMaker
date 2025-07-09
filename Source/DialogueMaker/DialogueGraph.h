@@ -16,10 +16,8 @@ class DIALOGUEMAKER_API UDialogueGraph : public UObject
 
 public:
 	UPROPERTY(EditAnywhere)
-	FString Title = FString("Title");
+	FString Title = FString("Enter Dialogue Name Here");
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UDialogueRuntimeGraph> Graph;
-	UPROPERTY(EditAnywhere)
-	TObjectPtr<UDataTable> ConvertedDataTable;
 };
 

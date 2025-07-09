@@ -122,13 +122,42 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
         FOnGraphChanged::FDelegate::CreateSP(this, &FDialogueGraphEditor::OnGraphChanged)
     );
 }
+//
+// void FDialogueGraphEditor::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection)
+// {
+//     TArray<UObject*> Array = NewSelection.Array();
+//     // DetailsView->SetObjects(Array.Num() ? Array : TArray<UObject*>{ GraphAsset });
+// }
 
-void FDialogueGraphEditor::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection)
+void FDialogueGraphEditor::SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorkingGraphUI)
 {
-    TArray<UObject*> Array = NewSelection.Array();
-    // DetailsView->SetObjects(Array.Num() ? Array : TArray<UObject*>{ GraphAsset });
+    WorkingGraphUI = NewWorkingGraphUI;
 }
 
+// 선택한 Node로 DetailView 정보 변경하기 위한 작업
+void FDialogueGraphEditor::SetSelectedDetailView(TSharedPtr<IDetailsView> NewDetailsView)
+{
+    SelectedDetailView = NewDetailsView;
+    SelectedDetailView->OnFinishedChangingProperties().AddRaw(this, &FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated);
+}
+
+void FDialogueGraphEditor::OnGraphSelectionChanged(const FGraphPanelSelectionSet& NewSelection)
+{
+    // 첫번째 노드 정보 가져오기
+	for (UObject* Object : NewSelection)
+	{
+	    UDialogueEdGraphNode* Node = Cast<UDialogueEdGraphNode>(Object);
+	    if (Node != nullptr)
+	    {
+	        SelectedDetailView->SetObject(Node->GetDialogueNodeInfo());
+	        return;
+	    }
+	}
+
+    SelectedDetailView->SetObject(nullptr);
+}
+
+// Graph UI로부터 Data Asset 저장
 void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
 {
     if (WorkingAsset == nullptr || WorkingGraph == nullptr)
@@ -145,9 +174,13 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
     // Node Data 정리
     for (UEdGraphNode* Node : WorkingGraph->Nodes)
     {
+        UDialogueEdGraphNode* EdGraphNode = Cast<UDialogueEdGraphNode>(Node);
+        if (EdGraphNode == nullptr) continue;
+        
         UDialogueRuntimeNode* RuntimeNode = NewObject<UDialogueRuntimeNode>(WorkingGraph);
         RuntimeNode->Position = FVector2D(Node->NodePosX, Node->NodePosY);
-
+        RuntimeNode->NodeInfo = EdGraphNode->GetDialogueNodeInfo();
+        
         for (UEdGraphPin* Pin : Node->Pins)
         {
             UDialogueRuntimePin* RuntimePin = NewObject<UDialogueRuntimePin>(RuntimeNode);
@@ -187,6 +220,7 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
     }
 }
 
+// Asset Data로부터 Graph UI 시각화 
 void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
 {
     if (WorkingAsset->Graph == nullptr)
@@ -203,6 +237,15 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
         NewNode->CreateNewGuid();
         NewNode->NodePosX = RuntimeNode->Position.X;
         NewNode->NodePosY = RuntimeNode->Position.Y;
+        
+        if (RuntimeNode->NodeInfo != nullptr)
+        {
+            NewNode->SetDialogueNodeInfo(DuplicateObject(RuntimeNode->NodeInfo, RuntimeNode));
+        }
+        else
+        {
+            NewNode->SetDialogueNodeInfo(NewObject<UDialogueNodeInfo>(RuntimeNode));
+        }
 
         if (RuntimeNode->InputPin != nullptr)
         {
@@ -255,6 +298,15 @@ void FDialogueGraphEditor::OnClose()
     WorkingGraph->RemoveOnGraphChangedHandler(GraphChangeListenerHandle);
 
     FAssetEditorToolkit::OnClose();
+}
+
+// 선택한 Node 정보로 업데이트
+void FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event)
+{
+    if (WorkingGraphUI != nullptr)
+    {
+        WorkingGraphUI->NotifyGraphChanged();
+    }
 }
 
 void FDialogueGraphEditor::OnGraphChanged(const FEdGraphEditAction& EditAction)

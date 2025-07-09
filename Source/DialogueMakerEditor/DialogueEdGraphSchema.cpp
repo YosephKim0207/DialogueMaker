@@ -4,6 +4,7 @@
 #include "DialogueEdGraphSchema.h"
 
 #include "DialogueEdGraphNode.h"
+#include "DialogueMaker/DialogueNodeInfo.h"
 
 const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const UEdGraphPin* A,
                                                                          const UEdGraphPin* B) const
@@ -55,13 +56,15 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 	ContextMenuBuilder.AddAction(NewNodeAction);
 }
 
+// Dialogue Graph Node 정보 초기화
 UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
 	UDialogueEdGraphNode* Result = NewObject<UDialogueEdGraphNode>(ParentGraph);
 	Result->CreateNewGuid();
 	Result->NodePosX = Location.X;
 	Result->NodePosY = Location.Y;
-
+	Result->SetDialogueNodeInfo(NewObject<UDialogueNodeInfo>(Result));
+	
 	UEdGraphPin* InputPin = Result->CreateCustomPin(EGPD_Input, TEXT("Input Dialogue"));
 	
 	Result->CreateCustomPin(EGPD_Output, TEXT("Out1"));

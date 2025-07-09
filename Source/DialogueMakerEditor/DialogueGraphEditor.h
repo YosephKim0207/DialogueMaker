@@ -12,6 +12,9 @@ public:
 	void InitEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, class UDialogueGraph* InGraph);
 	UDialogueGraph* GetWorkingAsset() const { return WorkingAsset; }
 	UEdGraph* GetWorkingGraph() const { return WorkingGraph; }
+	void SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorkingGraphUI);
+	void SetSelectedDetailView(TSharedPtr<IDetailsView> NewDetailsView);
+	void OnGraphSelectionChanged(const FGraphPanelSelectionSet& NewSelection);
 	
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
@@ -21,10 +24,11 @@ public:
 	virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override { };
 
 	virtual void OnClose() override;
+	void OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event);
 	void OnGraphChanged(const FEdGraphEditAction& EditAction);
 	
-	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection);
-
+	// void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection);
+		
 protected:
 	void UpdateWorkingAssetFromGraph();
 	void UpdateEditorGraphFromWorkingAsset();
@@ -32,16 +36,20 @@ protected:
 private:
 	TSharedPtr<SGraphEditor> GraphEditor;
 	TSharedPtr<IDetailsView> DetailsView;
-	/** 데이터 */
+	
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UDialogueGraph> WorkingAsset;
+	
 	UPROPERTY()
-	TObjectPtr<UEdGraph> WorkingGraph;
+	TObjectPtr<UEdGraph> WorkingGraph;	// 작업 중인 Graph의 Data
 	
 	const FName GraphTabID = FName("DialogueMaker_GraphEditor");  // "DialogueGraph_Tab"
 	const FName DetailsTabID = FName("DialogueMaker_Details");	// "DialogueGraph_Tab"
 
 	FDelegateHandle GraphChangeListenerHandle;
+	// Graph가 그려지는 Slate Widget
+	TSharedPtr<SGraphEditor> WorkingGraphUI;
+	TSharedPtr<IDetailsView> SelectedDetailView;
 };
 
 

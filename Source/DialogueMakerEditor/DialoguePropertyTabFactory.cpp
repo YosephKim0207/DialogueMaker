@@ -19,8 +19,8 @@ DialoguePropertyTabFactory::DialoguePropertyTabFactory(TSharedPtr<FDialogueGraph
 TSharedRef<SWidget> DialoguePropertyTabFactory::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
 	TSharedPtr<FDialogueGraphEditor> InApp = App.Pin();
-	FPropertyEditorModule& PropertyEditorModuleModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+	
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.bHideSelectionTip = true;
@@ -32,10 +32,16 @@ TSharedRef<SWidget> DialoguePropertyTabFactory::CreateTabBody(const FWorkflowTab
 	DetailsViewArgs.bShowModifiedPropertiesOption = false;
 	DetailsViewArgs.bShowScrollBar = false;
 
-	TSharedPtr<IDetailsView> DetailsView = PropertyEditorModuleModule.CreateDetailView(DetailsViewArgs);
+	TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObject(InApp->GetWorkingAsset());
+
+	TSharedPtr<IDetailsView> SelectedNodeDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	SelectedNodeDetailsView->SetObject(nullptr);
+	InApp->SetSelectedDetailView(SelectedNodeDetailsView);
 	
-	return SNew(SVerticalBox) + SVerticalBox::Slot().FillHeight(1.0f).HAlign(HAlign_Fill)[DetailsView.ToSharedRef()];
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot().FillHeight(1.0f).HAlign(HAlign_Fill)[DetailsView.ToSharedRef()]
+		+ SVerticalBox::Slot().FillHeight(1.0f).HAlign(HAlign_Fill)[SelectedNodeDetailsView.ToSharedRef()];
 }
 
 FText DialoguePropertyTabFactory::GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const
