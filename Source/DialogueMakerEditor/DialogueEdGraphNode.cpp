@@ -35,7 +35,7 @@ FText UDialogueEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	// }
 	// return FText::FromString(Dialogue.DialogueText.ToString().Left(20) + TEXT("..."));
 
-	if (DialogueNodeInfo->DialogueResponses.IsEmpty())
+	if (DialogueNodeInfo->DialogueText.IsEmpty())
 	{
 		return FText::FromString(TEXT("Dialogue"));
 	}
