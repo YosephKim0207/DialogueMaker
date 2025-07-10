@@ -3,7 +3,9 @@
 
 #include "DialogueEdGraphSchema.h"
 
+#include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
+#include "DialogueEdStartGraphNode.h"
 #include "DialogueMaker/DialogueNodeInfo.h"
 
 const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const UEdGraphPin* A,
@@ -49,35 +51,55 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 	// ContextMenuBuilder.AddAction(NewNodeAction);
 
 	TSharedPtr<FNewNodeAction> NewNodeAction = MakeShareable(new FNewNodeAction(
-		FText::FromString("Dialogue"),
+		UDialogueEdGraphNode::StaticClass(),
+		FText::FromString("Nodes"),
 		FText::FromString("New Dialogue Node"),
 		FText::FromString("Add New Dialogue Node."),
 		0));
+
+	TSharedPtr<FNewNodeAction> NewEndNodeAction = MakeShareable(new FNewNodeAction(
+		UDialogueEdEndGraphNode::StaticClass(),
+		FText::FromString("Nodes"),
+		FText::FromString("New End Node"),
+		FText::FromString("Add New End Node."),
+		0));
+	
 	ContextMenuBuilder.AddAction(NewNodeAction);
+	ContextMenuBuilder.AddAction(NewEndNodeAction);
+}
+
+void UDialogueEdGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
+{
+	UDialogueEdStartGraphNode* StartNode = NewObject<UDialogueEdStartGraphNode>(&Graph);
+	StartNode->CreateNewGuid();
+	StartNode->NodePosX = 0;
+	StartNode->NodePosY = 0;
+
+	StartNode->CreateCustomPin(EGPD_Output, FName(TEXT("Start")));
+
+	Graph.AddNode(StartNode);
+	Graph.Modify();
 }
 
 // Dialogue Graph Node 정보 초기화
 UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
-	UDialogueEdGraphNode* Result = NewObject<UDialogueEdGraphNode>(ParentGraph);
+	UDialogueEdGraphNodeBase* Result = NewObject<UDialogueEdGraphNodeBase>(ParentGraph, ClassTemplate);
 	Result->CreateNewGuid();
 	Result->NodePosX = Location.X;
 	Result->NodePosY = Location.Y;
-	Result->SetDialogueNodeInfo(NewObject<UDialogueNodeInfo>(Result));
+	Result->InitNodeInfo(Result);
 	
-	UEdGraphPin* InputPin = Result->CreateCustomPin(EGPD_Input, TEXT("Display"));
-
-	FString DefaultResponse = TEXT("Continue");
-	Result->CreateCustomPin(EGPD_Output, FName(DefaultResponse));
-	Result->GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(DefaultResponse));
+	UEdGraphPin* InputPin = Result->CreateDefaultInputPin();
+	Result->CreateDefaultOutputPin();
 	
-	ParentGraph->Modify();
-	ParentGraph->AddNode(Result, true, true);
-
 	if (FromPin != nullptr)
 	{
 		Result->GetSchema()->TryCreateConnection(FromPin, InputPin);
 	}
-	
+
+	ParentGraph->Modify();
+	ParentGraph->AddNode(Result, true, true);
+
 	return Result;
 }

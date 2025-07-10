@@ -32,7 +32,7 @@ public:
 protected:
 	void UpdateWorkingAssetFromGraph();
 	void UpdateEditorGraphFromWorkingAsset();
-	class UDialogueEdGraphNode* GetSelectedNode(const FGraphPanelSelectionSet& Selection);
+	class UDialogueEdGraphNodeBase* GetSelectedNode(const FGraphPanelSelectionSet& Selection);
 	
 private:
 	TSharedPtr<SGraphEditor> GraphEditor;

@@ -5,6 +5,7 @@
 
 #include "EditorStyleSet.h"
 #include "DialogueMaker/DialogueNodeInfo.h"
+#include "DialogueMaker/DialogueNodeType.h"
 
 void UDialogueEdGraphNode::AllocateDefaultPins()
 {
@@ -13,6 +14,28 @@ void UDialogueEdGraphNode::AllocateDefaultPins()
 	// 출력핀, 선택지가 없는 경우 사용
 	CreatePin(EGPD_Output, TEXT("SingleNode"), FName(), TEXT("Out"));
 	
+}
+
+UEdGraphPin* UDialogueEdGraphNode::CreateDefaultInputPin()
+{
+	return CreateCustomPin(EGPD_Input, FName(TEXT("Display")));
+}
+
+void UDialogueEdGraphNode::CreateDefaultOutputPin()
+{
+	FString DefaultResponse = TEXT("Continue");
+	CreateCustomPin(EGPD_Output, FName(DefaultResponse));
+	GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(DefaultResponse));
+}
+
+EDialogueType UDialogueEdGraphNode::GetDialogueNodeType() const
+{
+	return EDialogueType::DialogueNode;
+}
+
+void UDialogueEdGraphNode::OnPropertiesChanged()
+{
+	SyncPinWithResponses();
 }
 
 UEdGraphPin* UDialogueEdGraphNode::CreateCustomPin(EEdGraphPinDirection Direction, FName Name)
@@ -24,11 +47,6 @@ UEdGraphPin* UDialogueEdGraphNode::CreateCustomPin(EEdGraphPinDirection Directio
 	Pin->PinType.PinSubCategory = SubCategory;
 
 	return Pin;
-}
-
-void UDialogueEdGraphNode::SetDialogueNodeInfo(class UDialogueNodeInfo* NewDialogueNodeInfo)
-{
-	DialogueNodeInfo = NewDialogueNodeInfo;	
 }
 
 /* Dialogue Graph Editor에서 DialogueNode의 DialogueNodeInfo 내 Responses를 수정하면
@@ -59,17 +77,33 @@ void UDialogueEdGraphNode::SyncPinWithResponses()
 	}
 }
 
-class UDialogueNodeInfo* UDialogueEdGraphNode::GetDialogueNodeInfo() const
+void UDialogueEdGraphNode::InitNodeInfo(UObject* Outer)
 {
-	return DialogueNodeInfo;	
+	DialogueNodeInfo = NewObject<UDialogueNodeInfo>(Outer);
+}
+
+void UDialogueEdGraphNode::SetDialogueNodeInfo(class UDialogueNodeInfoBase* NewDialogueNodeInfo)
+{
+	DialogueNodeInfo = Cast<UDialogueNodeInfo>(NewDialogueNodeInfo);
+}
+
+UDialogueNodeInfoBase* UDialogueEdGraphNode::GetNodeInfo() const
+{
+	return DialogueNodeInfo;
+}
+
+UDialogueNodeInfo* UDialogueEdGraphNode::GetDialogueNodeInfo() const
+{
+	return DialogueNodeInfo;
 }
 
 FText UDialogueEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
+	UDialogueNodeInfo* NodeInfo = Cast<UDialogueNodeInfo>(DialogueNodeInfo);
 	// 노드 제목이 없는 경우 대사의 첫 부분으로 간략하게 보여준다
-	if (DialogueNodeInfo->Title.IsEmpty())
+	if (NodeInfo->Title.IsEmpty())
 	{
-		FString DialogueTextString = DialogueNodeInfo->DialogueText.ToString();
+		FString DialogueTextString = NodeInfo->DialogueText.ToString();
 		if (DialogueTextString.Len() > 15)
 		{
 			DialogueTextString = DialogueTextString.Left(15) + TEXT("...");
@@ -77,7 +111,7 @@ FText UDialogueEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		return FText::FromString(DialogueTextString);
 	}
 	
-	return DialogueNodeInfo->Title;
+	return NodeInfo->Title;
 }
 
 FLinearColor UDialogueEdGraphNode::GetNodeTitleColor() const
@@ -93,13 +127,13 @@ bool UDialogueEdGraphNode::CanUserDeleteNode() const
 void UDialogueEdGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu,
 	class UGraphNodeContextMenuContext* Context) const
 {
-	FToolMenuSection& Section = Menu->AddSection(TEXT("Section Name"), FText::FromString(TEXT("Custom Node Actions")));
+	FToolMenuSection& Section = Menu->AddSection(TEXT("Section Name"), FText::FromString(TEXT("Dialogue Node Actions")));
 	UDialogueEdGraphNode* Node = (UDialogueEdGraphNode*)this;
 	Section.AddMenuEntry(
 		TEXT("Pin Entry"),
 		FText::FromString(TEXT("Add Response")),
 		FText::FromString(TEXT("Create a new Response")),
-		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeDeletePinIcon")),
+		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeAddPinIcon")),
 		FUIAction(FExecuteAction::CreateLambda(
 			[Node] (){
 				Node->GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(TEXT("Response")));

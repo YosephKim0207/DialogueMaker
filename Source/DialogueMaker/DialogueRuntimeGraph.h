@@ -1,7 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueNodeInfo.h"
+#include "DialogueNodeInfoBase.h"
+#include "DialogueNodeType.h"
 #include "DialogueRuntimeGraph.generated.h"
 
 UCLASS()
@@ -27,6 +28,9 @@ class DIALOGUEMAKER_API UDialogueRuntimeNode : public UObject
 	
 public:
 	UPROPERTY()
+	EDialogueType DialogueNodeType = EDialogueType::DialogueNode;
+	
+	UPROPERTY()
 	UDialogueRuntimePin* InputPin;
 
 	UPROPERTY()
@@ -36,7 +40,7 @@ public:
 	FVector2D Position;
 
 	UPROPERTY()
-	UDialogueNodeInfo* NodeInfo;
+	UDialogueNodeInfoBase * NodeInfo;
 };
 
 UCLASS()

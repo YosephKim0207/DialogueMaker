@@ -1,8 +1,10 @@
 #include "DialogueGraphEditor.h"
 
+#include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraph.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
+#include "DialogueEdStartGraphNode.h"
 #include "DialogueGraphEditorMode.h"
 #include "EdGraph/EdGraph.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -10,8 +12,10 @@
 #include "Widgets/SBoxPanel.h"
 #include "GraphEditor.h"
 #include "DialogueMaker/DialogueGraph.h"
+#include "DialogueMaker/DialogueNodeInfo.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
+DEFINE_LOG_CATEGORY_STATIC(DialogueMakerEditorSub, Log, All);
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
@@ -141,10 +145,10 @@ void FDialogueGraphEditor::SetSelectedDetailView(TSharedPtr<IDetailsView> NewDet
 
 void FDialogueGraphEditor::OnGraphSelectionChanged(const FGraphPanelSelectionSet& NewSelection)
 {
-    UDialogueEdGraphNode* SelectedNode = GetSelectedNode(NewSelection);
+    UDialogueEdGraphNodeBase* SelectedNode = GetSelectedNode(NewSelection);
     if (SelectedNode != nullptr)
     {
-        SelectedDetailView->SetObject(SelectedNode->GetDialogueNodeInfo());
+        SelectedDetailView->SetObject(SelectedNode->GetNodeInfo());
     }
     else
     {
@@ -169,12 +173,8 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
     // Node Data 정리
     for (UEdGraphNode* Node : WorkingGraph->Nodes)
     {
-        UDialogueEdGraphNode* EdGraphNode = Cast<UDialogueEdGraphNode>(Node);
-        if (EdGraphNode == nullptr) continue;
-        
         UDialogueRuntimeNode* RuntimeNode = NewObject<UDialogueRuntimeNode>(WorkingGraph);
         RuntimeNode->Position = FVector2D(Node->NodePosX, Node->NodePosY);
-        RuntimeNode->NodeInfo = EdGraphNode->GetDialogueNodeInfo();
         
         for (UEdGraphPin* Pin : Node->Pins)
         {
@@ -203,7 +203,11 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
                 RuntimeNode->OutputPins.Add(RuntimePin);
             }
         }
-
+        
+        UDialogueEdGraphNodeBase* EdGraphNode = Cast<UDialogueEdGraphNodeBase>(Node);
+        RuntimeNode->NodeInfo = DuplicateObject(EdGraphNode->GetNodeInfo(), RuntimeNode);
+        RuntimeNode->DialogueNodeType = EdGraphNode->GetDialogueNodeType();
+        
         RuntimeGraph->Nodes.Add(RuntimeNode);
     }
 
@@ -220,6 +224,7 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
 {
     if (WorkingAsset->Graph == nullptr)
     {
+        WorkingGraph->GetSchema()->CreateDefaultNodesForGraph(*WorkingGraph.Get());
         return;
     }
 
@@ -228,18 +233,36 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
 
     for (UDialogueRuntimeNode* RuntimeNode : WorkingAsset->Graph->Nodes)
     {
-        UDialogueEdGraphNode* NewNode = NewObject<UDialogueEdGraphNode>(WorkingGraph);
+        UDialogueEdGraphNodeBase* NewNode = nullptr;
+        if (RuntimeNode->DialogueNodeType == EDialogueType::DialogueNode)
+        {
+            NewNode = NewObject<UDialogueEdGraphNode>(WorkingGraph);
+        }
+        else if (RuntimeNode->DialogueNodeType == EDialogueType::StartNode)
+        {
+            NewNode = NewObject<UDialogueEdStartGraphNode>(WorkingGraph);
+        }
+        else if (RuntimeNode->DialogueNodeType == EDialogueType::EndNode)
+        {
+            NewNode = NewObject<UDialogueEdEndGraphNode>(WorkingGraph);
+        }
+        else
+        {
+            UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : Unknown Node Type"));
+            continue;
+        }
+        
         NewNode->CreateNewGuid();
         NewNode->NodePosX = RuntimeNode->Position.X;
         NewNode->NodePosY = RuntimeNode->Position.Y;
         
         if (RuntimeNode->NodeInfo != nullptr)
         {
-            NewNode->SetDialogueNodeInfo(DuplicateObject(RuntimeNode->NodeInfo, RuntimeNode));
+            NewNode->SetDialogueNodeInfo(DuplicateObject(RuntimeNode->NodeInfo, NewNode));
         }
         else
         {
-            NewNode->SetDialogueNodeInfo(NewObject<UDialogueNodeInfo>(RuntimeNode));
+            NewNode->InitNodeInfo(NewNode);
         }
 
         if (RuntimeNode->InputPin != nullptr)
@@ -257,25 +280,25 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
             }
 
             IdToPinMap.Add(RuntimeInputPin->PinId, Pin);
+        }
 
-            for (UDialogueRuntimePin* RuntimeOutputPin : RuntimeNode->OutputPins)
+        for (UDialogueRuntimePin* RuntimeOutputPin : RuntimeNode->OutputPins)
+        {
+            UEdGraphPin* OutputPin = NewNode->CreateCustomPin(EGPD_Output, RuntimeOutputPin->PinName);
+            OutputPin->PinId = RuntimeOutputPin->PinId;
+
+            if (RuntimeOutputPin->Connections.Num() > 0)
             {
-                UEdGraphPin* OutputPin = NewNode->CreateCustomPin(EGPD_Output, RuntimeOutputPin->PinName);
-                OutputPin->PinId = RuntimeOutputPin->PinId;
-
-                if (RuntimeOutputPin->Connections.Num() > 0)
+                for (UDialogueRuntimePin* ConnectPin : RuntimeOutputPin->Connections)
                 {
-                    for (UDialogueRuntimePin* ConnectPin : RuntimeOutputPin->Connections)
-                    {
-                        Connections.Add(std::make_pair(RuntimeOutputPin->PinId, ConnectPin->PinId));
-                    }
+                    Connections.Add(std::make_pair(RuntimeOutputPin->PinId, ConnectPin->PinId));
                 }
-                
-                IdToPinMap.Add(RuntimeOutputPin->PinId, OutputPin);
             }
 
-            WorkingGraph->AddNode(NewNode, true, true);
+            IdToPinMap.Add(RuntimeOutputPin->PinId, OutputPin);
         }
+
+        WorkingGraph->AddNode(NewNode, true, true);
     }
 
     for (std::pair<FGuid, FGuid> Connection : Connections)
@@ -287,12 +310,12 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
     }
 }
 
-class UDialogueEdGraphNode* FDialogueGraphEditor::GetSelectedNode(const FGraphPanelSelectionSet& Selection)
+class UDialogueEdGraphNodeBase* FDialogueGraphEditor::GetSelectedNode(const FGraphPanelSelectionSet& Selection)
 {
     // 첫번째 노드 정보 가져오기
     for (UObject* Object : Selection)
     {
-        UDialogueEdGraphNode* Node = Cast<UDialogueEdGraphNode>(Object);
+        UDialogueEdGraphNodeBase* Node = Cast<UDialogueEdGraphNodeBase>(Object);
         if (Node != nullptr)
         {
             return Node;
@@ -315,10 +338,10 @@ void FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated(const FPropertyChan
 {
     if (WorkingGraphUI != nullptr)
     {
-        UDialogueEdGraphNode* DialogueEdGraphNode = GetSelectedNode(WorkingGraphUI->GetSelectedNodes());
+        UDialogueEdGraphNodeBase* DialogueEdGraphNode = GetSelectedNode(WorkingGraphUI->GetSelectedNodes());
         if (DialogueEdGraphNode != nullptr)
         {
-                DialogueEdGraphNode->SyncPinWithResponses();
+                DialogueEdGraphNode->OnPropertiesChanged();
         }
         
         WorkingGraphUI->NotifyGraphChanged();

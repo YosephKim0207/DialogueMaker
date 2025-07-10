@@ -26,6 +26,43 @@ public:
 	};
 };
 
+class SDialogueStartGraphPin : public SGraphPin
+{
+public:
+	SLATE_BEGIN_ARGS(SDialogueStartGraphPin) {};
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+	{
+		SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
+	};
+
+protected:
+	virtual FSlateColor GetPinColor() const override
+	{
+		return FSlateColor(FLinearColor(1.0f, 0.2f, 0.2f));
+	};
+};
+
+
+class SDialogueEndGraphPin : public SGraphPin
+{
+public:
+	SLATE_BEGIN_ARGS(SDialogueEndGraphPin) {};
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+	{
+		SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
+	};
+
+protected:
+	virtual FSlateColor GetPinColor() const override
+	{
+		return FSlateColor(FLinearColor(0.2f, 0.2f, 1.0f));
+	};
+};
+
 struct FDialoguePinFactory : FGraphPanelPinFactory
 {
 	virtual ~FDialoguePinFactory() {};
@@ -34,6 +71,14 @@ struct FDialoguePinFactory : FGraphPanelPinFactory
 		if (FName(TEXT("DialoguePin")) == Pin->PinType.PinSubCategory)
 		{
 			return SNew(SDialogueGraphPin, Pin);
+		}
+		else if (FName(TEXT("StartPin")) == Pin->PinType.PinSubCategory)
+		{
+			return SNew(SDialogueStartGraphPin, Pin);
+		}
+		else if (FName(TEXT("EndPin")) == Pin->PinType.PinSubCategory)
+		{
+			return SNew(SDialogueEndGraphPin, Pin);
 		}
 
 		return nullptr;
