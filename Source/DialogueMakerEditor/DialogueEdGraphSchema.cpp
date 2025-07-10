@@ -1,12 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "DialogueEdGraphSchema.h"
-
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdStartGraphNode.h"
-#include "DialogueMaker/DialogueNodeInfo.h"
 
 const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const UEdGraphPin* A,
                                                                          const UEdGraphPin* B) const

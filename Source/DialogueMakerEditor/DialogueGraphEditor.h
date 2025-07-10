@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueEdGraph.h"
 #include "DialogueMaker/DialogueGraph.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
@@ -26,9 +25,7 @@ public:
 	virtual void OnClose() override;
 	void OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event);
 	void OnWorkingAssetPreSave();
-	
-	// void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection);
-		
+
 protected:
 	void UpdateWorkingAssetFromGraph();
 	void UpdateEditorGraphFromWorkingAsset();
