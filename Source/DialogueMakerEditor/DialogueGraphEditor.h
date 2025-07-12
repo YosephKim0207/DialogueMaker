@@ -30,6 +30,13 @@ protected:
 	void UpdateWorkingAssetFromGraph();
 	void UpdateEditorGraphFromWorkingAsset();
 	class UDialogueEdGraphNodeBase* GetSelectedNode(const FGraphPanelSelectionSet& Selection);
+
+	// Toolbar
+	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+	bool CanConvertToDataTable() const;
+	
+	// Convert To DataTable
+	void OnConvertToDataTableButtonClicked();
 	
 private:
 	TSharedPtr<SGraphEditor> GraphEditor;
@@ -47,6 +54,9 @@ private:
 	// Graph가 그려지는 Slate Widget
 	TSharedPtr<SGraphEditor> WorkingGraphUI;
 	TSharedPtr<IDetailsView> SelectedDetailView;
+
+	// Toolbar
+	TSharedPtr<FUICommandList> GraphEditorCommands;
 };
 
 

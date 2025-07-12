@@ -4,7 +4,9 @@
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
 #include "DialogueEdStartGraphNode.h"
+#include "DialogueGraphEditorCommands.h"
 #include "DialogueGraphEditorMode.h"
+#include "EditorStyleSet.h"
 #include "EdGraph/EdGraph.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "PropertyEditorModule.h"
@@ -14,6 +16,7 @@
 #include "DialogueMaker/DialogueNodeInfo.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
+#define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 DEFINE_LOG_CATEGORY_STATIC(DialogueMakerEditorSub, Log, All);
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -31,6 +34,26 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     
     InitAssetEditor(Mode, InitToolkitHost, FName("DialogueGraphEditor"), FTabManager::FLayout::NullLayout, true, true, InGraph);
 
+    // Toolbar Button 초기화
+    GraphEditorCommands = MakeShareable(new FUICommandList);
+    const FDialogueGraphEditorCommands& Commands = FDialogueGraphEditorCommands::Get();
+    GraphEditorCommands->MapAction(
+        Commands.ConvertToDataTable,
+        FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnConvertToDataTableButtonClicked),
+        FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertToDataTable)
+        );
+
+    // Toolbar 생성
+    TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender());
+    ToolbarExtender->AddToolBarExtension(
+        "Asset",
+        EExtensionHook::After,
+        GraphEditorCommands,
+        FToolBarExtensionDelegate::CreateSP(this, &FDialogueGraphEditor::FillToolbar)
+        );
+    
+    AddToolbarExtender(ToolbarExtender);
+    
     // Editor의 Mode를 DialogueGraphEditorMode로 설정
     AddApplicationMode(TEXT("DialogueGraphEditorMode"), MakeShareable(new DialogueGraphEditorMode(SharedThis(this))));
     SetCurrentMode(TEXT("DialogueGraphEditorMode"));
@@ -261,6 +284,31 @@ void FDialogueGraphEditor::OnWorkingAssetPreSave()
    UpdateWorkingAssetFromGraph();
 }
 
+// Toolbar에 Convert to DataTable을 위한 버튼 생성
+void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
+{
+    ToolbarBuilder.BeginSection("DialogueFunctions");
+    ToolbarBuilder.AddToolBarButton(
+        FDialogueGraphEditorCommands::Get().ConvertToDataTable,
+        NAME_None,
+        LOCTEXT("ConvertToDataTable_Toolbar", "Convert to DataTable"),
+        LOCTEXT("ConvertToDataTable_Toolbar_Tooltip", "Convert to DataTable"),
+        FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.DataLayers")
+        );
+    ToolbarBuilder.EndSection();
+}
+
+bool FDialogueGraphEditor::CanConvertToDataTable() const
+{
+    return true;
+}
+
+// Convert to DataTable 로직
+void FDialogueGraphEditor::OnConvertToDataTableButtonClicked()
+{
+    UE_LOG(LogTemp, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
+}
+
 FName FDialogueGraphEditor::GetToolkitFName() const
 {
     return FName("DialogueGraphEditor");
@@ -277,3 +325,4 @@ FLinearColor FDialogueGraphEditor::GetWorldCentricTabColorScale() const
 {
     return FLinearColor::White;
 }
+#undef LOCTEXT_NAMESPACE

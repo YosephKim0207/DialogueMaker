@@ -2,6 +2,7 @@
 
 #include "DialogueMakerEditor.h"
 
+#include "DialogueGraphEditorCommands.h"
 #include "EdGraphUtilities.h"
 #include "SGraphPin.h"
 #include "Interfaces/IPluginManager.h"
@@ -115,10 +116,12 @@ void FDialogueMakerEditorModule::StartupModule()
 
 	PinFactory = MakeShareable(new FDialoguePinFactory);
 	FEdGraphUtilities::RegisterVisualPinFactory(PinFactory);
+	FDialogueGraphEditorCommands::Register();
 }
 
 void FDialogueMakerEditorModule::ShutdownModule()
 {
 	FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet);
 	FEdGraphUtilities::UnregisterVisualPinFactory(PinFactory);
+	FDialogueGraphEditorCommands::Unregister();
 }
