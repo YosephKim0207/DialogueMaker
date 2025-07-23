@@ -37,6 +37,10 @@ protected:
 	
 	// Convert To DataTable
 	void OnConvertToDataTableButtonClicked();
+	void CreateNewDataTable();
+	void CollectDialogueData(TMap<FGuid, struct FDialogueStructure>& OutDialogueDataMap);
+	UDialogueEdGraphNodeBase* FindStartNode() const;
+	void DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap<FGuid, FDialogueStructure>& OutDialogueDataMap, TSet<FGuid>& VisitedSet);
 	
 private:
 	TSharedPtr<SGraphEditor> GraphEditor;
@@ -57,6 +61,9 @@ private:
 
 	// Toolbar
 	TSharedPtr<FUICommandList> GraphEditorCommands;
+
+	// Convert to DataTable
+	UDataTable* DataTable;
 };
 
 

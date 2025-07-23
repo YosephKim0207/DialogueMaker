@@ -1,5 +1,6 @@
 #include "DialogueGraphEditor.h"
 
+#include "AssetToolsModule.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
@@ -12,6 +13,7 @@
 #include "PropertyEditorModule.h"
 #include "Widgets/SBoxPanel.h"
 #include "GraphEditor.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DialogueMaker/DialogueGraph.h"
 #include "DialogueMaker/DialogueNodeInfo.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -307,6 +309,223 @@ bool FDialogueGraphEditor::CanConvertToDataTable() const
 void FDialogueGraphEditor::OnConvertToDataTableButtonClicked()
 {
     UE_LOG(LogTemp, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
+
+    if (DataTable == nullptr)
+    {
+        CreateNewDataTable();
+    }
+    
+
+}
+
+void FDialogueGraphEditor::CreateNewDataTable()
+{
+
+    // Check Speaker Name
+    // TODO WorkingAsset의 이름이 기본 이름("Enter Dialogue Name Here")인 경우 경고 팝업 띄우기
+
+    // Creat DataTable Asset
+    const FString DataTableRoot = TEXT("/Game/DialogueDataTable");
+    // const FString FileName = TEXT("DT_Dialogue_") + WorkingAsset->GetSpeakerName();
+    const FString FileName = FString("DT_Dialogue_") + FString("TEST");
+
+    const FString AssetPath = DataTableRoot + "/" + FileName;
+    UPackage* Package = CreatePackage(*AssetPath);
+    DataTable = NewObject<UDataTable>(Package, UDataTable::StaticClass(), *FileName, RF_Public|RF_Standalone);
+    DataTable->RowStruct = FDialogueStructure::StaticStruct();
+    
+    FAssetRegistryModule::AssetCreated(DataTable);
+    Package->MarkPackageDirty();
+
+    // Nodes를 순회하며 Node의 정보들을 DialogueStructure의 형태로 DataTable에 저장
+    TMap<FGuid, FDialogueStructure> DialogueNodeDataMap;
+    CollectDialogueData(DialogueNodeDataMap);
+    int32 DataRowIndex = 0;
+    for (TPair<FGuid, FDialogueStructure> Pair : DialogueNodeDataMap)
+    {
+        DataTable->AddRow(*Pair.Key.ToString(), Pair.Value);
+        DataRowIndex++;
+    }
+
+    // Save Asset
+    FString FilePath = FPackageName::LongPackageNameToFilename(AssetPath, FPackageName::GetAssetPackageExtension());
+    UPackage::SavePackage(Package, DataTable, RF_Public|RF_Standalone, *FilePath);
+}
+
+/* Dialogue Nodes를 outpin을 기준으로 DFS 탐색하며
+ * 대화 노드의 연결과 Dialogue Data를 추출한다.
+ * 이때 DFS를 하는 이유는 DataTable에서 대화를 살필 때 편의성을 위한다.
+*/
+void FDialogueGraphEditor::CollectDialogueData(TMap<FGuid, FDialogueStructure>& OutDialogueDataMap)
+{
+    UDialogueEdGraphNodeBase* StartNode = FindStartNode();
+    if (StartNode == nullptr)
+    {
+        return;
+    }
+
+    // Start Node에서부터 DFS 탐색하며 Dialogue 정리
+    TSet<FGuid> VisitedNodeSet;
+    DFSDialogueGraph(StartNode, OutDialogueDataMap, VisitedNodeSet);
+}
+
+UDialogueEdGraphNodeBase* FDialogueGraphEditor::FindStartNode() const
+{
+    for (auto EdGraphNode : WorkingGraph->Nodes)
+    {
+        if (UDialogueEdGraphNodeBase* DialogueEdGraphNodeBase = Cast<UDialogueEdGraphNodeBase>(EdGraphNode))
+        {
+            if (DialogueEdGraphNodeBase->GetDialogueNodeType() == EDialogueType::StartNode)
+            {
+                return DialogueEdGraphNodeBase;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap<FGuid, FDialogueStructure>& OutDialogueDataMap, TSet<FGuid>& VisitedSet)
+{
+    if (Node == nullptr)
+    {
+        UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
+        return;
+    }
+    
+    if (Node->GetDialogueNodeType() == EDialogueType::EndNode)
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
+        return;
+    }
+
+    FGuid NodeGuid = Node->NodeGuid;
+    if (VisitedSet.Contains(NodeGuid))
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
+        return;
+    }
+
+    VisitedSet.Add(NodeGuid);
+    
+    TArray<UEdGraphPin*> OutputPins;
+    for (UEdGraphPin* Pin : Node->Pins)
+    {
+        if (Pin->Direction == EGPD_Output)
+        {
+            OutputPins.Add(Pin);
+        }
+    }
+
+    if (Node->GetDialogueNodeType() == EDialogueType::StartNode)
+    {
+        if (OutputPins.Num() > 0)
+        {
+            if (OutputPins[0]->LinkedTo.Num() == 0)
+            {
+                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
+                return;
+            }
+            
+            UEdGraphPin* LinkedPin = OutputPins[0]->LinkedTo[0];
+            UEdGraphNode* LinkedNode = LinkedPin->GetOwningNode();
+            if (UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(LinkedNode))
+            {
+                DFSDialogueGraph(DialogueNode, OutDialogueDataMap, VisitedSet);
+                return;
+            }
+        }
+    }
+
+    UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(Node);
+    if (DialogueNode == nullptr)
+    {
+        UE_LOG(LogTemp, Error, TEXT(""));
+        return;
+    }
+    
+    // DialogueStruct 생성
+    UDialogueNodeInfo* DialogueNodeInfo = DialogueNode->GetDialogueNodeInfo();
+    FDialogueStructure DialogueStructure;
+    
+    DialogueStructure.CurrentDialogueId = NodeGuid;
+    DialogueStructure.SpeakerName = FText::FromString(WorkingAsset->GetSpeakerName());
+    DialogueStructure.DialogueText = DialogueNodeInfo->DialogueText;
+    
+    // 선택지 존재시 선택지 내용 입력
+    bool bHasChoices = DialogueNodeInfo->DialogueResponses.Num() > 1;
+    if (bHasChoices)
+    {
+        int32 ChoicesIndex = 0;
+        for (UEdGraphPin* OutputPin : OutputPins)
+        {
+            if (ChoicesIndex >= DialogueNodeInfo->DialogueResponses.Num())
+            {
+                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
+                    ChoicesIndex, DialogueNodeInfo->DialogueResponses.Num(), *OutputPin->PinName.ToString());
+                return;
+            }
+
+            FDialogueChoice DialogueChoice;;
+            DialogueChoice.ResponseText = DialogueNodeInfo->DialogueResponses[ChoicesIndex];
+
+            if (OutputPin->LinkedTo.Num() > 0)
+            {
+                // outputPin에 연결된 pin은 1개로 가정한다.
+                UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
+                DialogueChoice.NextDialogueId = LinkedNode->NodeGuid;
+                
+                DialogueStructure.Choices.Add(DialogueChoice);
+                ChoicesIndex++;
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+                return;
+            }
+        }
+
+        // DialogueStructure에 복수의 Response와 연결된 Node의 Guid 저장 후 Add
+        OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
+
+        for (UEdGraphPin* OutputPin : OutputPins)
+        {
+            if (OutputPin->LinkedTo.Num() == 0)
+            {
+                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+                return;
+            }
+            
+            UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
+            UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
+            DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
+        }
+    }
+    else if (OutputPins.Num() == 1)
+    {
+        UEdGraphPin* OutputPin = OutputPins[0];
+        if (OutputPin->LinkedTo.Num() > 0)
+        {
+            if (OutputPin->LinkedTo.Num() == 0)
+            {
+                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+                return;
+            }
+            
+            // outputPin에 연결된 pin은 1개로 가정한다.
+            UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
+            DialogueStructure.NextDialogueId = LinkedNode->NodeGuid;
+
+            OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
+            UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
+            DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+            return;
+        }
+    }
 }
 
 FName FDialogueGraphEditor::GetToolkitFName() const

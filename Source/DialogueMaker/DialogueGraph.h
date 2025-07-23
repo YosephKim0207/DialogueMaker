@@ -17,15 +17,18 @@ class DIALOGUEMAKER_API UDialogueGraph : public UObject
 	GENERATED_BODY()
 
 public:
+	FString GetSpeakerName() const;
 	void SetPreSaveListener(std::function<void()> NewOnPreSaveListener);
 
 	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
+
+
 public:
 	std::function<void()> OnPreSaveListener;
 
 public:	// Properties
 	UPROPERTY(EditAnywhere)
-	FString Title = FString("Enter Dialogue Name Here");
+	FString SpeakerName = FString("Enter Dialogue Name Here");
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UDialogueRuntimeGraph> Graph;
 };

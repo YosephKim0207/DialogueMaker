@@ -10,17 +10,19 @@ struct FDialogueChoice
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FText ChoiceText;
+	FText ResponseText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGuid NextDialogue;
+	FGuid NextDialogueId;
 };
 
 USTRUCT(BlueprintType)
-struct FDialogueStructure
+struct FDialogueStructure : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGuid CurrentDialogueId;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FText SpeakerName;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
