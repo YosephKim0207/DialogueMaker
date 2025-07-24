@@ -30,6 +30,7 @@ struct FDialogueStructure : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FDialogueChoice> Choices;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGuid NextDialogue;
-	//TODO 대화에서 이벤트 발생시 GameplayTag 활용하기
+	FGuid NextDialogueId;
+	// TODO 대화가 이번에 끝나고 다음 이벤트 때 재개되는 경우 bool로 쓰던지 GameplayTag 활용하던지
+	// TODO 대화에서 이벤트 발생시 GameplayTag 활용하기
 };
