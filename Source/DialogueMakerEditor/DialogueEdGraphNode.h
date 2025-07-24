@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "DialogueEdGraphNodeBase.h"
-#include "DialogueStructure.h"
 #include "DialogueMaker/DialogueNodeType.h"
 #include "EdGraph/EdGraphNode.h"
 #include "DialogueEdGraphNode.generated.h"
@@ -18,9 +17,6 @@ class DIALOGUEMAKEREDITOR_API UDialogueEdGraphNode : public UDialogueEdGraphNode
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dialogue")
-	FDialogueStructure Dialogue;
-	
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual bool CanUserDeleteNode() const override;

@@ -48,28 +48,3 @@ EAssetCommandResult UAssetDefinition_DialogueGraph::OpenAssets(const FAssetOpenA
 
 	return EAssetCommandResult::Handled;
 }
-
-// Asset Icon Image 설정
-// const FSlateBrush* UAssetDefinition_DialogueGraph::GetThumbnailBrush(const FAssetData& InAssetData,
-// 	const FName InClassName) const
-// {
-// 	
-// 	TSharedPtr<FSlateStyleSet> Style = MakeShared<FSlateStyleSet>("DialogueAssetStyle");
-//
-// 	// 아이콘이 들어 있는 'AssetIcon' 폴더 Root 지정
-// 	const FString IconRoot = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Resources/Texture/AssetIcon"));
-// 	Style->SetContentRoot(IconRoot);
-//
-// 	FSlateImageBrush* ThumbnailBrush = new FSlateImageBrush(
-// 		Style->RootToContentDir(TEXT("DialogueGraph_128"), TEXT(".png")), FVector2D(128.0f, 128.0f));
-// 	FSlateImageBrush* IconBrush = new FSlateImageBrush(
-// 		Style->RootToContentDir(TEXT("DialogueGraph_128"), TEXT(".png")), FVector2D(128.0f, 128.0f));
-// 	const FName IconKey(TEXT("ClassThumbnail.DialogueGraph"));
-// 	const FName BrushKey(TEXT("ClassIcon.DialogueGraph"));	
-// 	Style->Set(IconKey,	ThumbnailBrush);	 
-// 	Style->Set(BrushKey, IconBrush);	
-//
-// 	FSlateStyleRegistry::RegisterSlateStyle(*Style);   // 전역 등록
-//
-// 	return Style->GetBrush(IconKey);                     // 브러시 반환
-// }

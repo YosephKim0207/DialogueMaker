@@ -13,11 +13,6 @@ DialogueGraphEditorMode::DialogueGraphEditorMode(TSharedPtr<FDialogueGraphEditor
 	TabLayout = FTabManager::NewLayout(TEXT("DialogueGraphEditorMode_Layout_v1"))
 	->AddArea
 	(
-		// FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
-		// ->Split
-		// (
-		// 	FTabManager::NewStack()->AddTab(FName(TEXT("DialoguePrimaryTab")), ETabState::OpenedTab)
-		// )
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
 		->Split
 		(

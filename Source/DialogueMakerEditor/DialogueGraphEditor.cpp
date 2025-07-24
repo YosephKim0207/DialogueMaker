@@ -16,6 +16,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DialogueMaker/DialogueGraph.h"
 #include "DialogueMaker/DialogueNodeInfo.h"
+#include "DialogueMaker/DialogueStructure.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
