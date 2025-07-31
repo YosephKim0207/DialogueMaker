@@ -8,7 +8,14 @@ public class DialogueMakerEditor : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine" });
+		PublicDependencyModuleNames.AddRange(new string[] 
+		{ 
+			"Core", 
+			"CoreUObject", 
+			"Engine", 
+			"BlueprintGraph",
+			"KismetCompiler"
+		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
@@ -23,8 +30,6 @@ public class DialogueMakerEditor : ModuleRules
 			"AssetDefinition",
 			"Projects",
 			"ToolMenus",
-			"BlueprintGraph",
-			"KismetCompiler"
 		});
 		
 		// Uncomment if you are using Slate UI
