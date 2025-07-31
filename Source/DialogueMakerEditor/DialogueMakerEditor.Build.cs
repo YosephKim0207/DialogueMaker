@@ -22,7 +22,9 @@ public class DialogueMakerEditor : ModuleRules
 			"EditorStyle",
 			"AssetDefinition",
 			"Projects",
-			"ToolMenus"
+			"ToolMenus",
+			"BlueprintGraph",
+			"KismetCompiler"
 		});
 		
 		// Uncomment if you are using Slate UI

@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "DialogueEdGraphSchema.h"
+
+#include "DialogueBranchEdGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdStartGraphNode.h"
@@ -34,19 +36,9 @@ const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const U
 	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, TEXT("Connect possible."));
 }
 
+// Dialogue Graph에서 마우스 우클릭시 노출시킬 생성 가능한 노드들 제공
 void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
-	// TODO 영상 따라서 구현한 후 FEdGraphSchemaAction이 아닌 fedGraphSchemaAction_NewNode로 직접 대체해보기(아마도 dialogueEdGraphNOd의 AllocateDefaultPin과 연계 가능성 높음?
-	// TSharedPtr<FEdGraphSchemaAction_NewNode> NewNodeAction = MakeShareable(new FEdGraphSchemaAction_NewNode(
-	// 	FText::FromString("Dialogue"),
-	// 	FText::FromString("새 대화 노드"),
-	// 	FText::FromString("새로운 대화 노드를 추가합니다."),
-	// 	0
-	// ));
-	//
-	// NewNodeAction->NodeTemplate = NewObject<UDialogueEdGraphNode>(ContextMenuBuilder.OwnerOfTemporaries);
-	// ContextMenuBuilder.AddAction(NewNodeAction);
-
 	TSharedPtr<FNewNodeAction> NewNodeAction = MakeShareable(new FNewNodeAction(
 		UDialogueEdGraphNode::StaticClass(),
 		FText::FromString("Nodes"),
@@ -60,9 +52,17 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 		FText::FromString("New End Node"),
 		FText::FromString("Add New End Node."),
 		0));
+
+	TSharedPtr<FNewNodeAction> BranchNodeAction = MakeShareable(new FNewNodeAction(
+		UDialogueBranchEdGraphNode::StaticClass(),
+		FText::FromString("Flow Control"),
+		FText::FromString("Branch Node."),
+		FText::FromString("Branch Statement\nIf Condition is true, execution goes to True, otherwise it goes to False"),
+		0));
 	
 	ContextMenuBuilder.AddAction(NewNodeAction);
 	ContextMenuBuilder.AddAction(NewEndNodeAction);
+	ContextMenuBuilder.AddAction(BranchNodeAction);
 }
 
 void UDialogueEdGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
