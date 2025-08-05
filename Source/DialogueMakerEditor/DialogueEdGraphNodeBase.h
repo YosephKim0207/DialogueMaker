@@ -19,5 +19,6 @@ public:
 	virtual UDialogueNodeInfoBase* GetNodeInfo() const { /* Default에서 info 없음 */ return nullptr; };
 
 	virtual EDialogueType GetDialogueNodeType() const { return EDialogueType::Unknown; };
+	// Custom Graph에서 Node 선택시 Properties에 정보 업데이트 용도
 	virtual void OnPropertiesChanged() { /* Default에서 작업 없음 */ };
 };

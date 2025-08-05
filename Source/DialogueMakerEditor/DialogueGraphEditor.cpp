@@ -70,13 +70,14 @@ void FDialogueGraphEditor::SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorking
     WorkingGraphUI = NewWorkingGraphUI;
 }
 
-// 선택한 Node로 DetailView 정보 변경하기 위한 작업
+// 선택된 Node를 편집할 경우 Properties를 갱신하기 위한 작업
 void FDialogueGraphEditor::SetSelectedDetailView(TSharedPtr<IDetailsView> NewDetailsView)
 {
     SelectedDetailView = NewDetailsView;
     SelectedDetailView->OnFinishedChangingProperties().AddRaw(this, &FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated);
 }
 
+// Graph Editor에서 Node 선택시 Properties에 노출시킬 정보 갱신
 void FDialogueGraphEditor::OnGraphSelectionChanged(const FGraphPanelSelectionSet& NewSelection)
 {
     UDialogueEdGraphNodeBase* SelectedNode = GetSelectedNode(NewSelection);
@@ -272,7 +273,7 @@ void FDialogueGraphEditor::OnClose()
     FAssetEditorToolkit::OnClose();
 }
 
-// 선택한 Node 정보로 업데이트
+// 에디터의 Properties 상에서 편집된 NodeInfo로 업데이트
 void FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event)
 {
     if (WorkingGraphUI != nullptr)
