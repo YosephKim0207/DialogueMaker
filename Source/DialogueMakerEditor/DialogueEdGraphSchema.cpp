@@ -1,7 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "DialogueEdGraphSchema.h"
-
 #include "DialogueBranchEdGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
@@ -52,11 +51,11 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 		FText::FromString("New End Node"),
 		FText::FromString("Add New End Node."),
 		0));
-
+	
 	TSharedPtr<FNewNodeAction> BranchNodeAction = MakeShareable(new FNewNodeAction(
 		UDialogueBranchEdGraphNode::StaticClass(),
 		FText::FromString("Flow Control"),
-		FText::FromString("Branch Node."),
+		FText::FromString("Branch Node"),
 		FText::FromString("Branch Statement\nIf Condition is true, execution goes to True, otherwise it goes to False"),
 		0));
 	

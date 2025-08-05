@@ -1,6 +1,7 @@
 #include "DialogueGraphEditor.h"
 
 #include "AssetToolsModule.h"
+#include "DialogueBranchEdGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
@@ -178,6 +179,10 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
         else if (RuntimeNode->DialogueNodeType == EDialogueType::EndNode)
         {
             NewNode = NewObject<UDialogueEdEndGraphNode>(WorkingGraph);
+        }
+        else if (RuntimeNode->DialogueNodeType == EDialogueType::BranchNode)
+        {
+            NewNode = NewObject<UDialogueBranchEdGraphNode>(WorkingGraph);
         }
         else
         {

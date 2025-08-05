@@ -9,5 +9,6 @@ enum class EDialogueType
 	Unknown,
 	StartNode,
 	DialogueNode,
-	EndNode
+	EndNode,
+	BranchNode,
 };

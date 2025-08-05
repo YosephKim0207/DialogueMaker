@@ -1,6 +1,6 @@
 #pragma once
 
-#include  "CoreMinimal.h"
+#include "CoreMinimal.h"
 #include "DialogueNodeInfoBase.h"
 #include "DialogueNodeInfo.generated.h"
 

@@ -13,7 +13,6 @@ void UDialogueEdGraphNode::AllocateDefaultPins()
 	CreatePin(EGPD_Input, TEXT("MultipleNodes"), FName(), TEXT("In"));
 	// 출력핀, 선택지가 없는 경우 사용
 	CreatePin(EGPD_Output, TEXT("SingleNode"), FName(), TEXT("Out"));
-	
 }
 
 UEdGraphPin* UDialogueEdGraphNode::CreateDefaultInputPin()
