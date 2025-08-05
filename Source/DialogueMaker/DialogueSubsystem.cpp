@@ -6,7 +6,7 @@
 #include "DialogueStructure.h"
 
 // 해당 NPC Actor와 대화 시작
-void UDialogueSubsystem::StartDialogue(AActor* NPC, UDataTable* DialogueDataTable)
+void UDialogueSubsystem::StartDialogue(AActor* NPC, UDialogueGraph* DialogueGraph)
 {
 	// NPC와 대화 진행 상황 체크
 	// 첫 대화인 경우 DataTable의 첫부분 출력
@@ -51,13 +51,13 @@ bool UDialogueSubsystem::IsDialogueShowPossibleCondition()
 }
 
 // 현재 대화 진행 상황 저장
-void UDialogueSubsystem::SaveDialogueProgress(UDataTable* DialogueDataTable, FGuid CurrentDialogueGuid)
+void UDialogueSubsystem::SaveDialogueProgress(UDialogueGraph* DialogueGraph, FGuid CurrentDialogueGuid)
 {
 	
 }
 
 // StartDialogue등의 상황에서 현재까지 진행된 Dialogue를 확인하기 위해 사용
-FGuid UDialogueSubsystem::GetCurrentDialogueGuid(UDataTable* DialogueDataTable)
+FGuid UDialogueSubsystem::GetCurrentDialogueGuid(UDialogueGraph* DialogueGraph)
 {
 	return FGuid();
 }
