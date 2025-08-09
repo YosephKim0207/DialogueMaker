@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueNodeInfoBase.h"
+#include "QuestBase.h"
 #include "DialogueNodeInfo.generated.h"
 
 UCLASS(BlueprintType)
@@ -18,4 +19,10 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	TArray<FText> DialogueResponses;
+
+	UPROPERTY(EditAnywhere, Category = "Quest")
+	TSubclassOf<UQuestBase> QuestToGive;
+
+	UPROPERTY(EditAnywhere, Category = "Quest")
+	TSubclassOf<UQuestBase> QuestToClear;
 };

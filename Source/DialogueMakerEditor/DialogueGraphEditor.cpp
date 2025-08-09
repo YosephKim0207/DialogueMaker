@@ -21,6 +21,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
+
 DEFINE_LOG_CATEGORY_STATIC(DialogueMakerEditorSub, Log, All);
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -110,13 +111,15 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
     {
         UDialogueRuntimeNode* RuntimeNode = NewObject<UDialogueRuntimeNode>(WorkingGraph);
         RuntimeNode->Position = FVector2D(Node->NodePosX, Node->NodePosY);
-        
+        RuntimeNode->NodeGuid = FGuid::NewGuid();
+
         for (UEdGraphPin* Pin : Node->Pins)
         {
             UDialogueRuntimePin* RuntimePin = NewObject<UDialogueRuntimePin>(RuntimeNode);
             RuntimePin->PinName = Pin->PinName;
             RuntimePin->PinId = Pin->PinId;
-
+            RuntimePin->OwnerNodeGuid = RuntimeNode->NodeGuid;
+            
             // Pin 연결 관계 캐싱
             if (Pin->HasAnyConnections() && Pin->Direction == EGPD_Output)
             {
@@ -148,9 +151,10 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
 
     for (std::pair<FGuid, FGuid> Connection : Connections)
     {
-        UDialogueRuntimePin* Pin1 = IdToPinMap[Connection.first];
-        UDialogueRuntimePin* Pin2 = IdToPinMap[Connection.second];
-        Pin1->Connections.Add(Pin2);
+        UDialogueRuntimePin* PinFrom = IdToPinMap[Connection.first];
+        UDialogueRuntimePin* PinTo = IdToPinMap[Connection.second];
+        PinFrom->Connections.Add(PinTo);
+        PinFrom->LinkedToNodeGuid = PinTo->OwnerNodeGuid;
     }
 }
 
@@ -315,7 +319,7 @@ bool FDialogueGraphEditor::CanConvertToDataTable() const
 // Convert to DataTable 로직
 void FDialogueGraphEditor::OnConvertToDataTableButtonClicked()
 {
-    UE_LOG(LogTemp, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
+    UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
 
     if (DataTable == nullptr)
     {
@@ -396,20 +400,20 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
 {
     if (Node == nullptr)
     {
-        UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
+        UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
         return;
     }
     
     if (Node->GetDialogueNodeType() == EDialogueType::EndNode)
     {
-        UE_LOG(LogTemp, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
+        UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
         return;
     }
 
     FGuid NodeGuid = Node->NodeGuid;
     if (VisitedSet.Contains(NodeGuid))
     {
-        UE_LOG(LogTemp, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
+        UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
         return;
     }
 
@@ -430,7 +434,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
         {
             if (OutputPins[0]->LinkedTo.Num() == 0)
             {
-                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
+                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
                 return;
             }
             
@@ -447,7 +451,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(Node);
     if (DialogueNode == nullptr)
     {
-        UE_LOG(LogTemp, Error, TEXT(""));
+        UE_LOG(DialogueMakerEditorSub, Error, TEXT(""));
         return;
     }
     
@@ -468,7 +472,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
         {
             if (ChoicesIndex >= DialogueNodeInfo->DialogueResponses.Num())
             {
-                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
+                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
                     ChoicesIndex, DialogueNodeInfo->DialogueResponses.Num(), *OutputPin->PinName.ToString());
                 return;
             }
@@ -487,7 +491,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
             }
             else
             {
-                UE_LOG(LogTemp, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+                UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
                 return;
             }
         }
@@ -499,7 +503,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
         {
             if (OutputPin->LinkedTo.Num() == 0)
             {
-                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
                 return;
             }
             
@@ -515,7 +519,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
         {
             if (OutputPin->LinkedTo.Num() == 0)
             {
-                UE_LOG(LogTemp, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
                 return;
             }
             
@@ -529,7 +533,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+            UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
             return;
         }
     }
