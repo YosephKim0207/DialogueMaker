@@ -1,7 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DialogueGraph.h"
 #include "DialogueNodeInfoBase.h"
+#include "QuestBase.h"
 #include "DialogueNodeInfo.generated.h"
 
 UCLASS(BlueprintType)
@@ -10,12 +12,21 @@ class DIALOGUEMAKER_API UDialogueNodeInfo : public UDialogueNodeInfoBase
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText Title;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	ENPCID SpeakerID;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText DialogueText;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<FText> DialogueResponses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
+	TSubclassOf<UQuestBase> QuestToGive;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
+	TSubclassOf<UQuestBase> QuestToClear;
 };

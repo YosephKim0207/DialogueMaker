@@ -18,6 +18,12 @@ public:
 	FGuid PinId;
 
 	UPROPERTY()
+	FGuid OwnerNodeGuid;
+
+	UPROPERTY()
+	FGuid LinkedToNodeGuid;
+
+	UPROPERTY()
 	TArray<UDialogueRuntimePin*> Connections;
 };
 
@@ -29,6 +35,9 @@ class DIALOGUEMAKER_API UDialogueRuntimeNode : public UObject
 public:
 	UPROPERTY()
 	EDialogueType DialogueNodeType = EDialogueType::DialogueNode;
+
+	UPROPERTY()
+	FGuid NodeGuid;
 	
 	UPROPERTY()
 	UDialogueRuntimePin* InputPin;
