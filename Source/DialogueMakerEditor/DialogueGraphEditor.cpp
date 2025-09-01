@@ -398,145 +398,145 @@ UDialogueEdGraphNodeBase* FDialogueGraphEditor::FindStartNode() const
 
 void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap<FGuid, FDialogueStructure>& OutDialogueDataMap, TSet<FGuid>& VisitedSet)
 {
-    if (Node == nullptr)
-    {
-        UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
-        return;
-    }
-    
-    if (Node->GetDialogueNodeType() == EDialogueType::EndNode)
-    {
-        UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
-        return;
-    }
-
-    FGuid NodeGuid = Node->NodeGuid;
-    if (VisitedSet.Contains(NodeGuid))
-    {
-        UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
-        return;
-    }
-
-    VisitedSet.Add(NodeGuid);
-    
-    TArray<UEdGraphPin*> OutputPins;
-    for (UEdGraphPin* Pin : Node->Pins)
-    {
-        if (Pin->Direction == EGPD_Output)
-        {
-            OutputPins.Add(Pin);
-        }
-    }
-
-    if (Node->GetDialogueNodeType() == EDialogueType::StartNode)
-    {
-        if (OutputPins.Num() > 0)
-        {
-            if (OutputPins[0]->LinkedTo.Num() == 0)
-            {
-                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
-                return;
-            }
-            
-            UEdGraphPin* LinkedPin = OutputPins[0]->LinkedTo[0];
-            UEdGraphNode* LinkedNode = LinkedPin->GetOwningNode();
-            if (UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(LinkedNode))
-            {
-                DFSDialogueGraph(DialogueNode, OutDialogueDataMap, VisitedSet);
-                return;
-            }
-        }
-    }
-
-    UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(Node);
-    if (DialogueNode == nullptr)
-    {
-        UE_LOG(DialogueMakerEditorSub, Error, TEXT(""));
-        return;
-    }
-    
-    // DialogueStruct 생성
-    UDialogueNodeInfo* DialogueNodeInfo = DialogueNode->GetDialogueNodeInfo();
-    FDialogueStructure DialogueStructure;
-    
-    DialogueStructure.CurrentDialogueId = NodeGuid;
-    DialogueStructure.SpeakerName = FText::FromString(WorkingAsset->GetSpeakerName());
-    DialogueStructure.DialogueText = DialogueNodeInfo->DialogueText;
-    
-    // 선택지 존재시 선택지 내용 입력
-    bool bHasChoices = DialogueNodeInfo->DialogueResponses.Num() > 1;
-    if (bHasChoices)
-    {
-        int32 ChoicesIndex = 0;
-        for (UEdGraphPin* OutputPin : OutputPins)
-        {
-            if (ChoicesIndex >= DialogueNodeInfo->DialogueResponses.Num())
-            {
-                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
-                    ChoicesIndex, DialogueNodeInfo->DialogueResponses.Num(), *OutputPin->PinName.ToString());
-                return;
-            }
-
-            FDialogueChoice DialogueChoice;;
-            DialogueChoice.ResponseText = DialogueNodeInfo->DialogueResponses[ChoicesIndex];
-
-            if (OutputPin->LinkedTo.Num() > 0)
-            {
-                // outputPin에 연결된 pin은 1개로 가정한다.
-                UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
-                DialogueChoice.NextDialogueId = LinkedNode->NodeGuid;
-                
-                DialogueStructure.Choices.Add(DialogueChoice);
-                ChoicesIndex++;
-            }
-            else
-            {
-                UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
-                return;
-            }
-        }
-
-        // DialogueStructure에 복수의 Response와 연결된 Node의 Guid 저장 후 Add
-        OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
-
-        for (UEdGraphPin* OutputPin : OutputPins)
-        {
-            if (OutputPin->LinkedTo.Num() == 0)
-            {
-                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
-                return;
-            }
-            
-            UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
-            UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
-            DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
-        }
-    }
-    else if (OutputPins.Num() == 1)
-    {
-        UEdGraphPin* OutputPin = OutputPins[0];
-        if (OutputPin->LinkedTo.Num() > 0)
-        {
-            if (OutputPin->LinkedTo.Num() == 0)
-            {
-                UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
-                return;
-            }
-            
-            // outputPin에 연결된 pin은 1개로 가정한다.
-            UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
-            DialogueStructure.NextDialogueId = LinkedNode->NodeGuid;
-
-            OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
-            UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
-            DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
-        }
-        else
-        {
-            UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
-            return;
-        }
-    }
+    // if (Node == nullptr)
+    // {
+    //     UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
+    //     return;
+    // }
+    //
+    // if (Node->GetDialogueNodeType() == EDialogueType::EndNode)
+    // {
+    //     UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
+    //     return;
+    // }
+    //
+    // FGuid NodeGuid = Node->NodeGuid;
+    // if (VisitedSet.Contains(NodeGuid))
+    // {
+    //     UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
+    //     return;
+    // }
+    //
+    // VisitedSet.Add(NodeGuid);
+    //
+    // TArray<UEdGraphPin*> OutputPins;
+    // for (UEdGraphPin* Pin : Node->Pins)
+    // {
+    //     if (Pin->Direction == EGPD_Output)
+    //     {
+    //         OutputPins.Add(Pin);
+    //     }
+    // }
+    //
+    // if (Node->GetDialogueNodeType() == EDialogueType::StartNode)
+    // {
+    //     if (OutputPins.Num() > 0)
+    //     {
+    //         if (OutputPins[0]->LinkedTo.Num() == 0)
+    //         {
+    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
+    //             return;
+    //         }
+    //         
+    //         UEdGraphPin* LinkedPin = OutputPins[0]->LinkedTo[0];
+    //         UEdGraphNode* LinkedNode = LinkedPin->GetOwningNode();
+    //         if (UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(LinkedNode))
+    //         {
+    //             DFSDialogueGraph(DialogueNode, OutDialogueDataMap, VisitedSet);
+    //             return;
+    //         }
+    //     }
+    // }
+    //
+    // UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(Node);
+    // if (DialogueNode == nullptr)
+    // {
+    //     UE_LOG(DialogueMakerEditorSub, Error, TEXT(""));
+    //     return;
+    // }
+    //
+    // // DialogueStruct 생성
+    // UDialogueNodeInfo* DialogueNodeInfo = DialogueNode->GetDialogueNodeInfo();
+    // FDialogueStructure DialogueStructure;
+    //
+    // DialogueStructure.CurrentDialogueId = NodeGuid;
+    // DialogueStructure.SpeakerName = FText::FromString(WorkingAsset->GetSpeakerName());
+    // DialogueStructure.DialogueText = DialogueNodeInfo->DialogueText;
+    //
+    // // 선택지 존재시 선택지 내용 입력
+    // bool bHasChoices = DialogueNodeInfo->DialogueResponses.Num() > 1;
+    // if (bHasChoices)
+    // {
+    //     int32 ChoicesIndex = 0;
+    //     for (UEdGraphPin* OutputPin : OutputPins)
+    //     {
+    //         if (ChoicesIndex >= DialogueNodeInfo->DialogueResponses.Num())
+    //         {
+    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
+    //                 ChoicesIndex, DialogueNodeInfo->DialogueResponses.Num(), *OutputPin->PinName.ToString());
+    //             return;
+    //         }
+    //
+    //         FDialogueChoice DialogueChoice;;
+    //         DialogueChoice.ResponseText = DialogueNodeInfo->DialogueResponses[ChoicesIndex];
+    //
+    //         if (OutputPin->LinkedTo.Num() > 0)
+    //         {
+    //             // outputPin에 연결된 pin은 1개로 가정한다.
+    //             UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
+    //             DialogueChoice.NextDialogueId = LinkedNode->NodeGuid;
+    //             
+    //             DialogueStructure.Choices.Add(DialogueChoice);
+    //             ChoicesIndex++;
+    //         }
+    //         else
+    //         {
+    //             UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+    //             return;
+    //         }
+    //     }
+    //
+    //     // DialogueStructure에 복수의 Response와 연결된 Node의 Guid 저장 후 Add
+    //     OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
+    //
+    //     for (UEdGraphPin* OutputPin : OutputPins)
+    //     {
+    //         if (OutputPin->LinkedTo.Num() == 0)
+    //         {
+    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+    //             return;
+    //         }
+    //         
+    //         UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
+    //         UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
+    //         DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
+    //     }
+    // }
+    // else if (OutputPins.Num() == 1)
+    // {
+    //     UEdGraphPin* OutputPin = OutputPins[0];
+    //     if (OutputPin->LinkedTo.Num() > 0)
+    //     {
+    //         if (OutputPin->LinkedTo.Num() == 0)
+    //         {
+    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+    //             return;
+    //         }
+    //         
+    //         // outputPin에 연결된 pin은 1개로 가정한다.
+    //         UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
+    //         DialogueStructure.NextDialogueId = LinkedNode->NodeGuid;
+    //
+    //         OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
+    //         UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
+    //         DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
+    //     }
+    //     else
+    //     {
+    //         UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+    //         return;
+    //     }
+    // }
 }
 
 FName FDialogueGraphEditor::GetToolkitFName() const

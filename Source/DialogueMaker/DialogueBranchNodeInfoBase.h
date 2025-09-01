@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueNodeInfoBase.h"
+#include "GameplayTagContainer.h"
 #include "QuestBase.h"
 #include "DialogueBranchNodeInfoBase.generated.h"
 
@@ -15,4 +16,13 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UQuestBase> RequiredQuest;
+
+	UPROPERTY(EditAnywhere)
+	FGameplayTag RequiredTag;
+
+	UPROPERTY(EditAnywhere)
+	FGameplayTagQuery RequiredTagQuery;
+
+	UPROPERTY(EditAnywhere)
+	FGameplayTagContainer RequiredTagContainer;
 };
