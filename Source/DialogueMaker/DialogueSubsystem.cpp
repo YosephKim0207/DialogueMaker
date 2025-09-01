@@ -17,11 +17,11 @@
 DEFINE_LOG_CATEGORY_STATIC(DialogueDubsSubsystem, Log, All);
 
 // NPC의 호출로 현재 노출 가능한 Dialogue를 Show하기 위한 함수
-void UDialogueSubsystem::ShowDialogue(ENPCID NPCID)
+void UDialogueSubsystem::BeginDialogue(ENPCID NPCID)
 {
 	if (OnCurrentDialogueChanged.IsBound() == false)
 	{
-		OnCurrentDialogueChanged.BindUObject(this, &UDialogueSubsystem::RefreshCurrentDialogueNode);
+		OnCurrentDialogueChanged.BindUObject(this, &UDialogueSubsystem::UpdateCurrentDialogueNode);
 	}
 
 	if (OnDialogueReady.IsBound() == false)
@@ -112,7 +112,7 @@ void UDialogueSubsystem::StartDialogue(UDialogueGraph* DialogueGraph)
 	CurrentDialogueGraph = DialogueGraph;
 	InitializeDialogueData();
 
-	ShowDialogueUI();
+	CreateDialogueUI();
 }
 
 // Dialogue Node의 Type이 End에 도착하는 경우 호출
@@ -219,17 +219,25 @@ bool UDialogueSubsystem::HasChoicesInCurrentDialogue(UDialogueNodeInfo* Dialogue
 	return false;
 }
 
-UDialogueNodeInfo* UDialogueSubsystem::GetNextDialogueNodeInfo(const int32 SelectedChoiceIndex, const bool bIsFirstDialogue)
+UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 SelectedChoiceIndex, const bool bIsFirstDialogue)
 {
 	UDialogueRuntimeNode* NextRuntimeNode = bIsFirstDialogue ? GetFirstNode() : GetNextNode(SelectedChoiceIndex);
 	if (NextRuntimeNode == nullptr)
 	{
-		UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::GetNextDialogueNodeInfo : NextRuntimeNode is nullptr"));
+		UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::ProgressNextDialogue : NextRuntimeNode is nullptr"));
+
+		EndDialogue();
 		return nullptr;
 	}
 
 	// Current Ongoing Guid 및 DialogueNodeInfo 갱신
 	OnCurrentDialogueChanged.ExecuteIfBound(NextRuntimeNode->NodeGuid);
+
+	if (NextRuntimeNode->DialogueNodeType == EDialogueType::EndNode)
+	{
+		EndDialogue();
+		return nullptr;
+	}
 
 	return Cast<UDialogueNodeInfo>(NextRuntimeNode->NodeInfo);
 }
@@ -340,7 +348,6 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 		}
 		
 		// 현재의 Dialogue Node가 분기인 경우
-		// TODO 다음 노드가 Branch인 경우 조건 판정 후 적절한 다음 노드 다시 반환
 		if (CurrentNode->DialogueNodeType == EDialogueType::BranchNode)
 		{
 			UDialogueBranchNodeInfoBase* BranchNodeInfo = Cast<UDialogueBranchNodeInfoBase>(CurrentNode->NodeInfo);
@@ -375,13 +382,9 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 			return nullptr;
 		}
 
-		if (EndDialogue->DialogueNodeType == EDialogueType::EndNode)
+		if (CurrentNode->DialogueNodeType == EDialogueType::EndNode)
 		{
-			// TODO Quest 등의 등록해야할 정보 처리
-			// TODO 여기서 EndDialogue를 호출하나? 아니면 DialogueNodeInfo의 값이 nullptr인 경우 EndDialogue?
-			// GetNextNode의 returnValue가 null인 경우 대화 종료?
-			// TODO 이떄 발생할 수 있는 문제점은?
-			return nullptr;
+			return CurrentNode;
 		}
 	}
 	
@@ -390,8 +393,10 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 }
 
 // DialogueGraph 에셋 내부의 NodeInfo를 기반으로 Dialogue를 UI에 출력
-void UDialogueSubsystem::ShowDialogueUI()
+void UDialogueSubsystem::CreateDialogueUI()
 {
+	UE_LOG(DialogueDubsSubsystem, Display, TEXT("UDialogueSubsystem::CreateDialogueUI : Enter"));
+
 	if (CurrentDialogueGraph)
 	{
 		// UI를 생성한다.
@@ -410,7 +415,7 @@ void UDialogueSubsystem::ShowDialogueUI()
 				return;
 			}
 
-			UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::ShowDialogueUI : Create Widget fail"));
+			UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::CreateDialogueUI : Create Widget fail"));
 			return;
 		}
 
@@ -419,10 +424,10 @@ void UDialogueSubsystem::ShowDialogueUI()
 		return;
 	}
 
-	UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::ShowDialogueUI : CurrentDialogueGraph is null"));
+	UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::CreateDialogueUI : CurrentDialogueGraph is null"));
 }
 
-void UDialogueSubsystem::RefreshCurrentDialogueNode(FGuid NewDialogueNodeGuid)
+void UDialogueSubsystem::UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid)
 {
 	CurrentOngoingNodeGuid = NewDialogueNodeGuid;
 	SetCurrentDialogueInfo();

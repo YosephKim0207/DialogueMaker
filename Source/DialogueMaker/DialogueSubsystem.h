@@ -18,10 +18,10 @@ class DIALOGUEMAKER_API UDialogueSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	void ShowDialogue(ENPCID NPCID);
+	void BeginDialogue(ENPCID NPCID);
 	
 	UFUNCTION(BlueprintCallable)
-	class UDialogueNodeInfo* GetNextDialogueNodeInfo(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
+	class UDialogueNodeInfo* ProgressNextDialogue(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
 
 	UFUNCTION(BlueprintCallable)
 	const UDialogueNodeInfo* GetCurrentDialogueNodeInfo() const;
@@ -35,9 +35,9 @@ public:
 private:
 	void GetDialogueGraph(ENPCID NPCID);
 	void StartDialogue(UDialogueGraph* DialogueGraph);
-	void ShowDialogueUI();
+	void CreateDialogueUI();
 	UDialogueRuntimeNode* GetFirstNode();
-	void RefreshCurrentDialogueNode(FGuid NewDialogueNodeGuid);
+	void UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid);
 	void SetCurrentDialogueInfo();
 	void SetInputSettings(bool bIsShowUI) const;
 	void EndDialogue();
