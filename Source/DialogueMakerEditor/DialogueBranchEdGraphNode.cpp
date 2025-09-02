@@ -15,7 +15,7 @@ FText UDialogueBranchEdGraphNode::GetTooltipText() const
 
 FLinearColor UDialogueBranchEdGraphNode::GetNodeTitleColor() const
 {
-	return Super::GetNodeTitleColor();
+	return FLinearColor::Yellow;
 }
 
 void UDialogueBranchEdGraphNode::AllocateDefaultPins()
