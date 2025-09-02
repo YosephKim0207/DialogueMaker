@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueGraph.h"
+#include "PlayerEvalCondition.h"
 #include "Engine/StreamableManager.h"
 #include "Subsystems/Subsystem.h"
 #include "DialogueSubsystem.generated.h"
@@ -32,6 +33,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Choice")
 	TArray<FText> GetSelectableChoicesText(UDialogueNodeInfo* DialogueNodeInfo) const;
 
+	FPlayerEvalCondition GetPlayerEvalCondition() const;
+	
 private:
 	void GetDialogueGraph(ENPCID NPCID);
 	void StartDialogue(UDialogueGraph* DialogueGraph);
@@ -45,7 +48,7 @@ private:
 	UDialogueNodeInfo* GetDialogueNodeInfo(FGuid DialogueNodeGuid);
 	UDialogueRuntimeNode* GetNextNode(const int32 SelectedChoiceIndex);
 	TArray<FGuid> GetSelectableChoicesLinkedGuid(UDialogueRuntimeNode* DialogueRuntimeNode) const;
-	bool IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode) ;
+	bool IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode) const;
 	// void SaveDialogueProgress(FGuid CurrentDialogueGuid);
 	UDialogueRuntimeNode* GetDialogueNode(FGuid DialogueNodeGuid);
 
@@ -54,6 +57,9 @@ private:
 	void InitializeDialogueData();
 	bool IsCandidateDialogueGraphAsset(const FAssetData& AssetData) const;
 	void OnDialogueLoaded();
+
+	FGameplayTagContainer GetPlayerOwnedTags() const;
+	int32 GetPlayerLevel() const;
 	
 	const FString DialogueProgressSaveSlot = TEXT("DialogueProgressSaveSlot");
 	const int32 SaveIndex = 0;

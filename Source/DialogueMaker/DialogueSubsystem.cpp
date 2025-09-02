@@ -8,7 +8,6 @@
 #include "DialogueProgressSaveData.h"
 #include "DialogueSettings.h"
 #include "GameplayTags.h"
-#include "QuestSubsystem.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/AssetManager.h"
@@ -140,8 +139,9 @@ UDialogueNodeInfo* UDialogueSubsystem::GetDialogueNodeInfo(FGuid DialogueNodeGui
 {
 	if (DialogueNodeGuid.IsValid() == false)
 	{
-		UE_LOG(DialogueDubsSubsystem, Display, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue Guid is invalid"));
-		return Cast<UDialogueNodeInfo>(GetFirstNode());
+		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue Guid is invalid"));
+
+		return nullptr;
 	}
 
 	UDialogueRuntimeNode* DialogueNode = GetDialogueNode(DialogueNodeGuid);
@@ -149,7 +149,15 @@ UDialogueNodeInfo* UDialogueSubsystem::GetDialogueNodeInfo(FGuid DialogueNodeGui
 	if (DialogueNode == nullptr)
 	{
 		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue is not cached"));
-		return Cast<UDialogueNodeInfo>(GetFirstNode());
+
+		DialogueNode = GetFirstNode();
+		if (DialogueNode == nullptr)
+		{
+			UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : First Node is nullptr"));
+			return nullptr;
+		}
+		
+		return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
 	}
 	
 	return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
@@ -253,6 +261,15 @@ TArray<FText> UDialogueSubsystem::GetSelectableChoicesText(UDialogueNodeInfo* Di
 	return DialogueNodeInfo->DialogueResponses;
 }
 
+FPlayerEvalCondition UDialogueSubsystem::GetPlayerEvalCondition() const
+{
+	FPlayerEvalCondition PlayerEvalCondition;
+	PlayerEvalCondition.PlayerLevel = GetPlayerLevel();
+	PlayerEvalCondition.PlayerOwnedTags = GetPlayerOwnedTags();
+
+	return PlayerEvalCondition;
+}
+
 // 현재 진행 중인 Dialogue Node의 Info를 반환
 const UDialogueNodeInfo* UDialogueSubsystem::GetCurrentDialogueNodeInfo() const
 {
@@ -277,23 +294,15 @@ TArray<FGuid> UDialogueSubsystem::GetSelectableChoicesLinkedGuid(UDialogueRuntim
 }
 
 // Player가 Dialogue를 볼 수 있는 조건인지 점검
-bool UDialogueSubsystem::IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode)
+bool UDialogueSubsystem::IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode) const
 {
 	UDialogueBranchNodeInfoBase* BranchNodeInfoBase = Cast<UDialogueBranchNodeInfoBase>(BranchNode->NodeInfo);
 	if (BranchNodeInfoBase == nullptr)
 	{
 		return false;
 	}
-
-	BranchNodeInfoBase->RequiredLevel;
-	UQuestBase* Quest = NewObject<UQuestBase>(this, BranchNodeInfoBase->RequiredQuest);
-	if (Quest)
-	{
-		return Quest->IsCleared();
-	}
-
-	UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::IsPossibleToShowTrueCondition : Make Quest Instance Error"));
-	return false;
+	
+	return BranchNodeInfoBase->ConditionCheck(GetPlayerEvalCondition());
 }
 
 // // 현재 대화 진행 상황 저장
@@ -351,32 +360,30 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 		if (CurrentNode->DialogueNodeType == EDialogueType::BranchNode)
 		{
 			UDialogueBranchNodeInfoBase* BranchNodeInfo = Cast<UDialogueBranchNodeInfoBase>(CurrentNode->NodeInfo);
-			const int32 RequiredLevel = BranchNodeInfo->RequiredLevel;
-			const FName QuestID = BranchNodeInfo->RequiredQuest.GetDefaultObject()->GetQuestID();
-			if (UWorld* World = GetWorld())
+			if (BranchNodeInfo == nullptr)
 			{
-				if (UQuestSubsystem* QuestSubsystem = World->GetGameInstance()->GetSubsystem<UQuestSubsystem>())
-				{
-					// TODO RequiredLevel 이용하기
-					bool bIsPossibleToShowTrueNode = QuestSubsystem->IsClearedQuest(QuestID);
-					for (UDialogueRuntimePin* OutputPin : CurrentNode->OutputPins)
-					{
-						// 조건을 충족하는 경우 True Pin에 연결된 노드를 반환
-						if (bIsPossibleToShowTrueNode && OutputPin->PinName.IsEqual(FName(TEXT("True"))))
-						{
-							const FGuid ConnectedNodeGuid = OutputPin->LinkedToNodeGuid;
-							return GetDialogueNode(ConnectedNodeGuid);
-						}
+				UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetNextNode : BranchNodeInfo is nullptr"));
+				return nullptr;
+			}
 
-						// 조건을 충족하지 못하는 경우 False Pin에 연결된 노드를 반환
-						if (!bIsPossibleToShowTrueNode && OutputPin->PinName.IsEqual(FName(TEXT("False"))))
-						{
-							const FGuid ConnectedNodeGuid = OutputPin->LinkedToNodeGuid;
-							return GetDialogueNode(ConnectedNodeGuid);
-						}
-					}
+			bool bIsPossibleToShowTrueNode = IsPossibleToShowTrueCondition(CurrentNode);
+			for (UDialogueRuntimePin* OutputPin : CurrentNode->OutputPins)
+			{
+				// 조건을 충족하는 경우 True Pin에 연결된 노드를 반환
+				if (bIsPossibleToShowTrueNode && OutputPin->PinName.IsEqual(FName(TEXT("True"))))
+				{
+					const FGuid ConnectedNodeGuid = OutputPin->LinkedToNodeGuid;
+					return GetDialogueNode(ConnectedNodeGuid);
+				}
+
+				// 조건을 충족하지 못하는 경우 False Pin에 연결된 노드를 반환
+				if (!bIsPossibleToShowTrueNode && OutputPin->PinName.IsEqual(FName(TEXT("False"))))
+				{
+					const FGuid ConnectedNodeGuid = OutputPin->LinkedToNodeGuid;
+					return GetDialogueNode(ConnectedNodeGuid);
 				}
 			}
+			
 
 			UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetNextNode : Return Post Branch Node Error"));
 			return nullptr;
@@ -607,4 +614,16 @@ void UDialogueSubsystem::OnDialogueLoaded()
 	}
 	
 	UE_LOG(DialogueDubsSubsystem, Display, TEXT("UDialogueSubsystem::OnDialogueLoaded : PossibleDialogueGraphs Count = %d"), PossibleDialogueGraphs.Num());
+}
+
+FGameplayTagContainer UDialogueSubsystem::GetPlayerOwnedTags() const
+{
+	// TODO PlayerData를 관리하는 Subsystem으로부터 GameplayTagContainer 가져오기
+	return FGameplayTagContainer();
+}
+
+int32 UDialogueSubsystem::GetPlayerLevel() const
+{
+	// TODO PlayerData를 관리하는 Subsystem으로부터 Player Level 가져오기
+	return 1;
 }
