@@ -58,28 +58,25 @@ public:	// Properties
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UDialogueRuntimeGraph> Graph;
 
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")
 	ENPCID NPCID;
 
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")
 	EChapterID ChapterID;
-
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable)
-	EDialogueGraphType DialogueGraphType;
 	
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable)
-	int32 DialoguePriorityWeight;
-	
-	UPROPERTY(EditAnywhere, Category = "Tags", meta = (ToolTip = "해당 Tag들이 모두 있어야 노출 조건 충족"))
+	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들이 모두 있어야 노출 조건 충족"))
 	FGameplayTagContainer RequiredAllTags;
 
-	UPROPERTY(EditAnywhere, Category = "Tags", meta = (ToolTip = "해당 Tag들 중 하나라도 있으면 노출 조건 충족"))
+	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들 중 하나라도 있으면 노출 조건 충족"))
 	FGameplayTagContainer RequiredAnyTags;
 
-	UPROPERTY(EditAnywhere, Category = "Tags", meta = (ToolTip = "해당 Tag들이 하나라도 있으면 미노출"))
+	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들이 하나라도 있으면 미노출"))
 	FGameplayTagContainer BlockedAnyTags;
 	
-
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Order")
+	EDialogueGraphType DialogueGraphType;
 	
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Order")
+	int32 DialoguePriorityWeight;
 };
 
