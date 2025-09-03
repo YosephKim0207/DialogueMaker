@@ -2,7 +2,6 @@
 
 
 #include "DialogueSubsystem.h"
-
 #include "DialogueBranchNodeInfoBase.h"
 #include "DialogueEndNodeInfo.h"
 #include "DialogueNodeInfo.h"
@@ -149,37 +148,6 @@ void UDialogueSubsystem::EndDialogue()
 		UE_LOG(DialogueDubsSubsystem, Display, TEXT("UDialogueSubsystem::EndDialogue : Broadcast"));
 	}
 }
-
-// /* 현재 진행 중인 대화 정보를 반환
-//  * StartDialogue, SaveCurrentDialogue를 위해 호출
-// */
-// UDialogueNodeInfo* UDialogueSubsystem::GetDialogueNodeInfo(FGuid DialogueNodeGuid)
-// {
-// 	if (DialogueNodeGuid.IsValid() == false)
-// 	{
-// 		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue Guid is invalid"));
-//
-// 		return nullptr;
-// 	}
-//
-// 	UDialogueRuntimeNode* DialogueNode = GetDialogueNode(DialogueNodeGuid);
-// 	
-// 	if (DialogueNode == nullptr)
-// 	{
-// 		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue is not cached"));
-//
-// 		DialogueNode = GetFirstNode();
-// 		if (DialogueNode == nullptr)
-// 		{
-// 			UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : First Node is nullptr"));
-// 			return nullptr;
-// 		}
-// 		
-// 		return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
-// 	}
-// 	
-// 	return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
-// }
 
 // Guid로부터 캐싱된 DialogueRuntimeNode를 반환
 UDialogueRuntimeNode* UDialogueSubsystem::GetDialogueNode(FGuid DialogueNodeGuid)
@@ -335,25 +303,6 @@ bool UDialogueSubsystem::IsPossibleToShowTrueCondition(UDialogueRuntimeNode* Bra
 	
 	return BranchNodeInfoBase->ConditionCheck(GetPlayerEvalCondition());
 }
-
-// // 현재 대화 진행 상황 저장
-// void UDialogueSubsystem::SaveDialogueProgress(FGuid CurrentDialogueGuid)
-// {
-// 	if (CurrentDialogueGraph == nullptr)
-// 	{
-// 		UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::SaveDialogueProgress : CurrentDialogueGraph is null"));
-// 		return;
-// 	}
-// 	
-// 	if (IsPossibleToLoadDialogueProgressData() == false)
-// 	{
-// 		CachedDialogueProgressSaveData = Cast<UDialogueProgressSaveData>(UGameplayStatics::CreateSaveGameObject(UDialogueProgressSaveData::StaticClass()));
-// 	}
-//
-// 	CachedDialogueProgressSaveData->AddDialogueProgress(CurrentDialogueGraph, CurrentDialogueGuid);
-// 	
-// 	UGameplayStatics::SaveGameToSlot(CachedDialogueProgressSaveData, DialogueProgressSaveSlot, SaveIndex);
-// }
 
 // Choices가 없는 단일 Response와 연결된 경우
 UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoiceIndex)
@@ -511,20 +460,6 @@ FARFilter UDialogueSubsystem::GetDialogueGraphAssetFilter(ENPCID NPCID, EChapter
 	// 	ARFilter.TagsAndValues.Add("ChapterID", ChapterEnumName);
 	
 	return ARFilter;
-}
-
-bool UDialogueSubsystem::IsPossibleToLoadDialogueProgressData()
-{
-	if (CachedDialogueProgressSaveData == nullptr)
-	{
-		CachedDialogueProgressSaveData = Cast<UDialogueProgressSaveData>(UGameplayStatics::LoadGameFromSlot(DialogueProgressSaveSlot, SaveIndex));
-		if (CachedDialogueProgressSaveData == nullptr)
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 void UDialogueSubsystem::InitializeDialogueData()

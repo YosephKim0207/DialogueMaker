@@ -45,15 +45,12 @@ private:
 	void SetInputSettings(bool bIsShowUI) const;
 	void EndDialogue();
 
-	UDialogueNodeInfo* GetDialogueNodeInfo(FGuid DialogueNodeGuid);
 	UDialogueRuntimeNode* GetNextNode(const int32 SelectedChoiceIndex);
 	TArray<FGuid> GetSelectableChoicesLinkedGuid(UDialogueRuntimeNode* DialogueRuntimeNode) const;
 	bool IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode) const;
-	// void SaveDialogueProgress(FGuid CurrentDialogueGuid);
 	UDialogueRuntimeNode* GetDialogueNode(FGuid DialogueNodeGuid);
 
 	FARFilter GetDialogueGraphAssetFilter(ENPCID NPCID, EChapterID ChapterID) const;
-	bool IsPossibleToLoadDialogueProgressData();
 	void InitializeDialogueData();
 	bool IsCandidateDialogueGraphAsset(const FAssetData& AssetData) const;
 	void OnDialogueLoaded();
@@ -91,7 +88,4 @@ private:
 
 	UPROPERTY()
 	UUserWidget* DialogueWidget = nullptr;
-	
-	UPROPERTY()
-	class UDialogueProgressSaveData* CachedDialogueProgressSaveData;
 };
