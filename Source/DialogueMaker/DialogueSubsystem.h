@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueGraph.h"
-#include "PlayerEvalCondition.h"
+#include "Struct/DialogueConditionEvalCriteria.h"
 #include "Engine/StreamableManager.h"
 #include "Subsystems/Subsystem.h"
 #include "DialogueSubsystem.generated.h"
@@ -31,9 +31,9 @@ public:
 	bool HasChoicesInCurrentDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "Choice")
-	TArray<FText> GetSelectableChoicesText(UDialogueNodeInfo* DialogueNodeInfo) const;
+	void GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const;
 
-	FPlayerEvalCondition GetPlayerEvalCondition() const;
+	FPlayerCondition GetPlayerEvalCondition() const;
 	
 private:
 	void GetDialogueGraph(ENPCID NPCID);

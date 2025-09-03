@@ -4,7 +4,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueBranchNodeInfoBase, Log, All);
 
-bool UDialogueBranchNodeInfoBase::ConditionCheck(const FPlayerEvalCondition& PlayerEvalCondition) const
+bool UDialogueBranchNodeInfoBase::ConditionCheck(const FPlayerCondition& PlayerEvalCondition) const
 {
 	if (DialoguePassCondition.RequiredTagQuery.IsEmpty())
 	{

@@ -4,14 +4,15 @@
 #include "DialogueSubsystem.h"
 
 #include "DialogueBranchNodeInfoBase.h"
+#include "DialogueEndNodeInfo.h"
 #include "DialogueNodeInfo.h"
-#include "DialogueProgressSaveData.h"
 #include "DialogueSettings.h"
 #include "GameplayTags.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/AssetManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Struct/DialogueStructure.h"
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueDubsSubsystem, Log, All);
 
@@ -122,8 +123,25 @@ void UDialogueSubsystem::EndDialogue()
 	SetInputSettings(false);
 
 	// TODO 진행 상황 저장
-
-	// TODO UI에 Bind해둔 델리게이트 Execute(), UI에서는 위젯을 REmoveFromParent 혹은 VIsiblity만 collaps로 조절
+	UDialogueRuntimeNode* DialogueRuntimeNode = GetDialogueNode(CurrentOngoingNodeGuid);
+	if (DialogueRuntimeNode == nullptr)
+	{
+		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueRuntimeNode is nullptr"));
+	}
+	else
+	{
+		UDialogueEndNodeInfo* DialogueEndNodeInfo = Cast<UDialogueEndNodeInfo>(DialogueRuntimeNode->NodeInfo);
+		if (DialogueEndNodeInfo == nullptr)
+		{
+			UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueEndNodeInfo is nullptr"));
+		}
+		else
+		{
+			
+		}
+	}
+	
+	// UI에서 Bind해둔 델리게이트 Execute(), UI에서는 위젯의 Visibility만 collaps로 조절
 	if (OnDialogueEnded.IsBound())
 	{
 		OnDialogueEnded.Broadcast();
@@ -132,36 +150,36 @@ void UDialogueSubsystem::EndDialogue()
 	}
 }
 
-/* 현재 진행 중인 대화 정보를 반환
- * StartDialogue, SaveCurrentDialogue를 위해 호출
-*/
-UDialogueNodeInfo* UDialogueSubsystem::GetDialogueNodeInfo(FGuid DialogueNodeGuid)
-{
-	if (DialogueNodeGuid.IsValid() == false)
-	{
-		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue Guid is invalid"));
-
-		return nullptr;
-	}
-
-	UDialogueRuntimeNode* DialogueNode = GetDialogueNode(DialogueNodeGuid);
-	
-	if (DialogueNode == nullptr)
-	{
-		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue is not cached"));
-
-		DialogueNode = GetFirstNode();
-		if (DialogueNode == nullptr)
-		{
-			UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : First Node is nullptr"));
-			return nullptr;
-		}
-		
-		return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
-	}
-	
-	return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
-}
+// /* 현재 진행 중인 대화 정보를 반환
+//  * StartDialogue, SaveCurrentDialogue를 위해 호출
+// */
+// UDialogueNodeInfo* UDialogueSubsystem::GetDialogueNodeInfo(FGuid DialogueNodeGuid)
+// {
+// 	if (DialogueNodeGuid.IsValid() == false)
+// 	{
+// 		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue Guid is invalid"));
+//
+// 		return nullptr;
+// 	}
+//
+// 	UDialogueRuntimeNode* DialogueNode = GetDialogueNode(DialogueNodeGuid);
+// 	
+// 	if (DialogueNode == nullptr)
+// 	{
+// 		UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : Dialogue is not cached"));
+//
+// 		DialogueNode = GetFirstNode();
+// 		if (DialogueNode == nullptr)
+// 		{
+// 			UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNodeInfo : First Node is nullptr"));
+// 			return nullptr;
+// 		}
+// 		
+// 		return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
+// 	}
+// 	
+// 	return Cast<UDialogueNodeInfo>(DialogueNode->NodeInfo);
+// }
 
 // Guid로부터 캐싱된 DialogueRuntimeNode를 반환
 UDialogueRuntimeNode* UDialogueSubsystem::GetDialogueNode(FGuid DialogueNodeGuid)
@@ -251,19 +269,32 @@ UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 Selected
 }
 
 // 현재 진행 중인 대화문에서 Choices들이 있다면 반환
-TArray<FText> UDialogueSubsystem::GetSelectableChoicesText(UDialogueNodeInfo* DialogueNodeInfo) const
+void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const
 {
+	UE_LOG(DialogueDubsSubsystem, Display, TEXT("UDialogueSubsystem::GetSelectableChoicesText : %s Check Enter"), *DialogueNodeInfo->GetPathName());
+	
 	if (DialogueNodeInfo == nullptr)
 	{
 		UE_LOG(DialogueDubsSubsystem, Error, TEXT("UDialogueSubsystem::GetSelectableChoicesText : DialogueNodeInfo is nullptr"));
-		return TArray<FText>();
 	}
-	return DialogueNodeInfo->DialogueResponses;
+
+	int32 SelectableChoiceOriginalIndex = 0;
+	FPlayerCondition PlayerConditionEval = GetPlayerEvalCondition();
+	for (FDialogueChoice DialogueConditionEvalCriteria : DialogueNodeInfo->DialogueResponses)
+	{
+		if (DialogueConditionEvalCriteria.IsPossibleToShow(PlayerConditionEval))
+		{
+			OutSelectableChoiceTexts.Add(DialogueConditionEvalCriteria.ResponseText);
+			OutSelectableChoiceOriginalIndex.Add(SelectableChoiceOriginalIndex);
+		}
+
+		SelectableChoiceOriginalIndex++;
+	}
 }
 
-FPlayerEvalCondition UDialogueSubsystem::GetPlayerEvalCondition() const
+FPlayerCondition UDialogueSubsystem::GetPlayerEvalCondition() const
 {
-	FPlayerEvalCondition PlayerEvalCondition;
+	FPlayerCondition PlayerEvalCondition;
 	PlayerEvalCondition.PlayerLevel = GetPlayerLevel();
 	PlayerEvalCondition.PlayerOwnedTags = GetPlayerOwnedTags();
 

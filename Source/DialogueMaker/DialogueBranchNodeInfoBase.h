@@ -2,29 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "DialogueNodeInfoBase.h"
-#include "GameplayTagContainer.h"
-#include "PlayerEvalCondition.h"
+#include "Struct/DialogueConditionEvalCriteria.h"
 #include "DialogueBranchNodeInfoBase.generated.h"
-
-USTRUCT(BlueprintType)
-struct FDialogueCondition
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere)
-	int32 RequiredLevel = 0;	
-
-	UPROPERTY(EditAnywhere)
-	FGameplayTagQuery RequiredTagQuery;
-};
 
 UCLASS()
 class DIALOGUEMAKER_API UDialogueBranchNodeInfoBase : public UDialogueNodeInfoBase
 {
 	GENERATED_BODY()
 public:
-	bool ConditionCheck(const FPlayerEvalCondition& PlayerEvalCondition) const;
+	bool ConditionCheck(const FPlayerCondition& PlayerEvalCondition) const;
 	
 	UPROPERTY(EditAnywhere)
-	FDialogueCondition DialoguePassCondition;
+	FDialogueConditionEvalCriteria DialoguePassCondition;
 };

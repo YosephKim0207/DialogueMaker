@@ -4,6 +4,7 @@
 #include "DialogueGraph.h"
 #include "DialogueNodeInfoBase.h"
 #include "QuestBase.h"
+#include "Struct/DialogueStructure.h"
 #include "DialogueNodeInfo.generated.h"
 
 UCLASS(BlueprintType)
@@ -22,7 +23,7 @@ public:
 	FText DialogueText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TArray<FText> DialogueResponses;
+	TArray<FDialogueChoice> DialogueResponses;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
 	TSubclassOf<UQuestBase> QuestToGive;
