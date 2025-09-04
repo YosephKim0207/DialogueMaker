@@ -56,7 +56,7 @@ void UQuestSubsystem::SetQuestClear(const UQuestBase* Quest)
 	if (IsPossibleToLoadQuestProgressData())
 	{
 		// 퀘스트 진행을 위해 저장된 GameplayTags 정리 및 Clear 태그 추가
-		FGameplayTagContainer ChildrenTagContainer = UGameplayTagsManager::Get().RequestGameplayTagChildren(Quest->GetQuestBaseTag());
+		FGameplayTagContainer ChildrenTagContainer = UGameplayTagsManager::Get().RequestGameplayTagChildren(Quest->GetQuestRootTag());
 		for (FGameplayTag ChildTag : ChildrenTagContainer)
 		{
 			if (ChildTag.ToString().EndsWith(".Clear"))
