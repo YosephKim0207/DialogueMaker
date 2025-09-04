@@ -17,15 +17,10 @@ ATEST::ATEST()
 void ATEST::BeginPlay()
 {
 	Super::BeginPlay();
-	if (UWorld* World = GetWorld())
+
+	if (UDialogueSubsystem* DialogueSubsystem = UDialogueSubsystem::Get(this))
 	{
-		if (UGameInstance* GameInstance = World->GetGameInstance())
-		{
-			if (UDialogueSubsystem* DialogueSubsystem = GameInstance->GetSubsystem<UDialogueSubsystem>())
-			{
-				DialogueSubsystem->BeginDialogue(ENPCID::TestNPC);
-			}
-		}
+		DialogueSubsystem->BeginDialogue(ENPCID::TestNPC);
 	}
 }
 

@@ -19,6 +19,8 @@ class DIALOGUEMAKER_API UDialogueSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	static UDialogueSubsystem* Get(const UObject* WorldContextObject);
+
 	void BeginDialogue(ENPCID NPCID);
 	
 	UFUNCTION(BlueprintCallable)

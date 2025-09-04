@@ -16,6 +16,31 @@
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueSubSystem, Log, All);
 
+UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
+{
+	if (WorldContextObject == nullptr)
+	{
+		return nullptr;
+	}
+
+	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
+	if (World == nullptr)
+	{
+		UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::Get : World is nullptr"));
+
+		return nullptr;
+	}
+
+	if (UGameInstance* GameInstance = World->GetGameInstance())
+	{
+		return GameInstance->GetSubsystem<UDialogueSubsystem>();
+	}
+				
+	UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::Get : GameInstance is nullptr"));
+
+	return nullptr;
+}
+
 // NPC의 호출로 현재 노출 가능한 Dialogue를 Show하기 위한 함수
 void UDialogueSubsystem::BeginDialogue(ENPCID NPCID)
 {
