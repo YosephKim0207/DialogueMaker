@@ -28,9 +28,8 @@ public:
 	FString ActionDetails;
 	
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<UQuestBase> QuestBase;
+	TSoftObjectPtr<UQuestBase> QuestBase;
 
-	// TODO 퀘스트 클리어, 퀘스트 부여, 퀘스트 진행도 업데이트, 퀘스트 보상 등의 데이터
 	UPROPERTY(EditAnywhere)
-	FGameplayTagContainer AddGameplayTags;
+	FGameplayTag ClearTag;
 };
