@@ -6,13 +6,13 @@
 #include "UObject/AssetRegistryTagsContext.h"
 #include "UObject/ObjectSaveContext.h"
 
-DEFINE_LOG_CATEGORY_STATIC(DialogueGraph, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogDialogueGraph, Log, All);
 
 // FString UDialogueGraph::GetSpeakerName() const
 // {
 // 	// if (SpeakerName.IsEmpty() || FString::Find(TEXT(" ")))
 // 	// {
-// 	// 	UE_LOG(DialogueGraph, Error, TEXT("UDialogueGraph::GetSpeakerName : Please Enter Correct Speaker Name in Graph Editor Property!!!"));
+// 	// 	UE_LOG(LogDialogueGraph, Error, TEXT("UDialogueGraph::GetSpeakerName : Please Enter Correct Speaker Name in Graph Editor Property!!!"));
 // 	// 	return FString("SpeakerName");
 // 	// }
 // 	
@@ -40,7 +40,7 @@ FPrimaryAssetId UDialogueGraph::GetPrimaryAssetId() const
 
 void UDialogueGraph::GetAssetRegistryTags(FAssetRegistryTagsContext Context) const
 {
-	UE_LOG(DialogueGraph, Display, TEXT("UDialogueGraph::GetAssetRegistryTags : Enter"));
+	UE_LOG(LogDialogueGraph, Display, TEXT("UDialogueGraph::GetAssetRegistryTags : Enter"));
 
 	Super::GetAssetRegistryTags(Context);
 

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Struct/ItemRow.h"
 #include "QuestBase.generated.h"
 
 USTRUCT(BlueprintType)
@@ -26,7 +25,13 @@ public:
 	FGameplayTag GetQuestRootTag() const;
 	bool IsLastQuestStep(int32 CheckIndex) const;
 
+	const TArray<FQuestStep> GetQuestSteps() const;
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+#if WITH_EDITOR
+	const FQuestStep GetQuestStepByClearTag(const FName& SearchTargetTagName);
+#endif
+	
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Quest|ID", meta = (AllowPrivateAccess=true))
 	FName QuestID;
@@ -37,3 +42,4 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest|Progress", meta = (AllowPrivateAccess=true))
 	TArray<FQuestStep> QuestSteps;
 };
+
