@@ -7,6 +7,7 @@
 #include "DialogueNodeInfo.h"
 #include "DialogueSettings.h"
 #include "GameplayTags.h"
+#include "QuestSubsystem.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/AssetManager.h"
@@ -132,11 +133,41 @@ void UDialogueSubsystem::EndDialogue()
 		UDialogueEndNodeInfo* DialogueEndNodeInfo = Cast<UDialogueEndNodeInfo>(DialogueRuntimeNode->NodeInfo);
 		if (DialogueEndNodeInfo == nullptr)
 		{
-			UE_LOG(DialogueDubsSubsystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueEndNodeInfo is nullptr"));
+			UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueEndNodeInfo is nullptr"));
 		}
 		else
 		{
-			
+			EDialogueNodeAction EndNodeAction = DialogueEndNodeInfo->Action;
+			// 평문 End Node
+			if (EndNodeAction == EDialogueNodeAction::None)
+			{
+				// TODO 진행도 Tag가 있다면 추가
+			}
+			// Quest 관련 End Node
+			else
+			{
+				UQuestSubsystem* QuestSubsystem = UQuestSubsystem::Get(this);
+				if (QuestSubsystem == nullptr)
+				{
+					UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : QuestSubsystem is nullptr"));
+
+					return;
+				}
+
+				// TODO 각 상황에 맞는 Quest 관련 후속 조치 실행
+				if (EndNodeAction == EDialogueNodeAction::StartQuest)
+				{
+					
+				}
+				else if (EndNodeAction == EDialogueNodeAction::AdvanceQuest)
+				{
+					
+				}
+				else if (EndNodeAction == EDialogueNodeAction::EndQuest)
+				{
+					
+				}
+			}
 		}
 	}
 	
