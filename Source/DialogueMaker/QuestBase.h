@@ -18,21 +18,21 @@ struct FQuestStep
 };
 
 UCLASS()
-class DIALOGUEMAKER_API UQuestBase : public UObject
+class DIALOGUEMAKER_API UQuestBase : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 public:
-	void SyncQuestProgress();	
 	FName GetQuestID() const;
-	FGameplayTag GetQuestBaseTag() const;
+	FGameplayTag GetQuestRootTag() const;
 	bool IsLastQuestStep(int32 CheckIndex) const;
 
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Quest|ID", meta = (AllowPrivateAccess=true))
 	FName QuestID;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest|Tag", meta = (AllowPrivateAccess=true))
-	FGameplayTag QuestBaseTag;
+	FGameplayTag QuestRootTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest|Progress", meta = (AllowPrivateAccess=true))
 	TArray<FQuestStep> QuestSteps;
