@@ -14,11 +14,15 @@ class DIALOGUEMAKER_API UQuestSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
-	void AddNewOngoingQuest(FName QuestID);
-	void SetQuestCleared(FName QuestID);
-	bool IsClearedQuest(FName QuestID);
-
+	static UQuestSubsystem* Get(const UObject* WorldContextObject);
+	
+	void StartQuest(const UQuestBase* Quest);
+	void SetQuestClear(const UQuestBase* Quest);
+	bool IsClearedQuest(const UQuestBase* Quest);
+	void AdvanceQuestStep(UQuestBase* Quest);
+	
 private:
+	void AddNewOngoingQuest(const UQuestBase* Quest);
 	bool IsPossibleToLoadQuestProgressData();
 
 private:

@@ -15,13 +15,20 @@ class DIALOGUEMAKER_API UQuestProgressSaveData : public USaveGame
 	GENERATED_BODY()
 
 public:
-	TArray<FName> GetOngoingQuestIDs();
-	TArray<FName> GetCompleteQuestIDs();
+	void GetOngoingQuestIDs(TMap<FName, int32>& OutOngoingQuestIDStepIndexMap);
+	void GetCompleteQuestIDs(TArray<FName>& OutClearedQuestIDs);
+	int32 GetOngoingQuestStepIndex(const class UQuestBase* Quest) const;
+	bool IsClearedQuest(const UQuestBase* Quest) const;
+
+	void AdvanceQuestStepIndex(UQuestBase* Quest);
+
+	bool TryAddNewQuest(const UQuestBase* Quest);
+	void SetQuestClear(const UQuestBase* Quest);
 	
 private:
 	UPROPERTY()
-	TArray<FName> OngoingQuestIDs;
+	TMap<FName, int32> OngoingQuestIDStepIndexMap;
 
 	UPROPERTY()
-	TArray<FName> CompleteQuestIDs;
-};
+	TArray<FName> ClearedQuestIDs;
+}; 
