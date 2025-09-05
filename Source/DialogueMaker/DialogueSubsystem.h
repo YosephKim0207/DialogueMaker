@@ -38,6 +38,8 @@ public:
 	FPlayerCondition GetPlayerEvalCondition() const;
 	
 private:
+	void CheckDelegates();
+	
 	void GetDialogueGraph(ENPCID NPCID);
 	void StartDialogue(UDialogueGraph* DialogueGraph);
 	void CreateDialogueUI();

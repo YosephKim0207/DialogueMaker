@@ -45,16 +45,7 @@ UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 // NPC의 호출로 현재 노출 가능한 Dialogue를 Show하기 위한 함수
 void UDialogueSubsystem::BeginDialogue(ENPCID NPCID)
 {
-	if (OnCurrentDialogueChanged.IsBound() == false)
-	{
-		OnCurrentDialogueChanged.BindUObject(this, &UDialogueSubsystem::UpdateCurrentDialogueNode);
-	}
-
-	if (OnDialogueReady.IsBound() == false)
-	{
-		OnDialogueReady.BindUObject(this, &UDialogueSubsystem::StartDialogue);
-	}
-	
+	CheckDelegates();	
 	GetDialogueGraph(NPCID);
 }
 
@@ -337,6 +328,19 @@ FPlayerCondition UDialogueSubsystem::GetPlayerEvalCondition() const
 	PlayerEvalCondition.PlayerOwnedTags = GetPlayerOwnedTags();
 
 	return PlayerEvalCondition;
+}
+
+void UDialogueSubsystem::CheckDelegates()
+{
+	if (OnCurrentDialogueChanged.IsBound() == false)
+	{
+		OnCurrentDialogueChanged.BindUObject(this, &UDialogueSubsystem::UpdateCurrentDialogueNode);
+	}
+
+	if (OnDialogueReady.IsBound() == false)
+	{
+		OnDialogueReady.BindUObject(this, &UDialogueSubsystem::StartDialogue);
+	}
 }
 
 // 현재 진행 중인 Dialogue Node의 Info를 반환
