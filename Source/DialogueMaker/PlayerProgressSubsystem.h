@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "Enum/PlayerProgress.h"
 #include "PlayerProgressSubsystem.generated.h"
 
 /**

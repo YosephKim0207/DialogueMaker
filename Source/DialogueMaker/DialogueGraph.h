@@ -7,25 +7,8 @@
 #include "CoreMinimal.h"
 #include "DialogueRuntimeGraph.h"
 #include "GameplayTagContainer.h"
+#include "Enum/PlayerProgress.h"
 #include "DialogueGraph.generated.h"
-
-// Use Enum for prevent miss input 
-UENUM(BlueprintType)
-enum class ENPCID : uint8
-{
-	// TODO Add Dialogue owned NPC name here
-	TestNPC UMETA(DisplayName = "TestNPC"),
-	TestNPC2 UMETA(DisplayName = "TestNPC2"),
-};
-
-// Use Enum for prevent miss input 
-UENUM(BlueprintType)
-enum class EChapterID : uint8
-{
-	// TODO Add Story Chapter here
-	Chapter01 UMETA(DisplayName = "Chapter01"),
-	Chapter02 UMETA(DisplayName = "Chapter02"),
-};
 
 UENUM(BlueprintType)
 enum class EDialogueGraphType : uint8
