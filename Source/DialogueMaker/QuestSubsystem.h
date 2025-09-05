@@ -15,20 +15,24 @@ class DIALOGUEMAKER_API UQuestSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 public:
 	static UQuestSubsystem* Get(const UObject* WorldContextObject);
+
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	
-	void StartQuest(const UQuestBase* Quest);
-	void SetQuestClear(const UQuestBase* Quest);
-	bool IsClearedQuest(const UQuestBase* Quest);
-	void AdvanceQuestStep(UQuestBase* Quest);
+	void StartQuest(const UQuestBase* Quest) const;
+	void SetQuestClear(const UQuestBase* Quest) const;
+	bool IsClearedQuest(const UQuestBase* Quest) const;
+	void AdvanceQuestStep(UQuestBase* Quest) const;
 	
 private:
-	void AddNewOngoingQuest(const UQuestBase* Quest);
-	bool IsPossibleToLoadQuestProgressData();
+	void AddNewOngoingQuest(const UQuestBase* Quest) const;
 
+	bool LoadProgress();
+	void SaveProgress() const;
+	
 private:
 	const FString QuestProgressSaveSlot = TEXT("QuestProgressSaveSlot");
 	const int32 SaveIndex = 0;
 	
 	UPROPERTY()
-	class UQuestProgressSaveData* CachedQuestProgressSaveData;
+	class UQuestProgressSaveData* SaveData;
 };

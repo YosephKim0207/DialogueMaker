@@ -3,14 +3,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(QuestProgressSaveData, Log, All);
 
-void UQuestProgressSaveData::GetOngoingQuestIDs(TMap<FName, int32>& OutOngoingQuestIDStepIndexMap)
+bool UQuestProgressSaveData::IsOngoingQuest(const UQuestBase* Quest) const
 {
-	OutOngoingQuestIDStepIndexMap = OngoingQuestIDStepIndexMap;
-}
-
-void UQuestProgressSaveData::GetCompleteQuestIDs(TArray<FName>& OutClearedQuestIDs)
-{
-	OutClearedQuestIDs = ClearedQuestIDs;
+	if (Quest == nullptr)
+	{
+		return false;
+	}
+	
+	return OngoingQuestIDStepIndexMap.Contains(Quest->GetQuestID());
 }
 
 int32 UQuestProgressSaveData::GetOngoingQuestStepIndex(const UQuestBase* Quest) const
@@ -20,11 +20,21 @@ int32 UQuestProgressSaveData::GetOngoingQuestStepIndex(const UQuestBase* Quest) 
 
 bool UQuestProgressSaveData::IsClearedQuest(const UQuestBase* Quest) const
 {
+	if (Quest == nullptr)
+	{
+		return false;
+	}
+	
 	return ClearedQuestIDs.Contains(Quest->GetQuestID());
 }
 
 void UQuestProgressSaveData::AdvanceQuestStepIndex(UQuestBase* Quest)
 {
+	if (Quest == nullptr)
+	{
+		return;
+	}
+	
 	if (OngoingQuestIDStepIndexMap.Contains(Quest->GetQuestID()) == false)
 	{
 		UE_LOG(QuestProgressSaveData, Warning, TEXT("UQuestProgressSaveData::AdvanceQuestStepIndex : Quest is not Exist"));

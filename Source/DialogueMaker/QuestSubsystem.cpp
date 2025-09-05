@@ -1,6 +1,7 @@
 #include "QuestSubsystem.h"
 
 #include "GameplayTagsManager.h"
+#include "PlayerProgressSubsystem.h"
 #include "QuestProgressSaveData.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -31,90 +32,91 @@ UQuestSubsystem* UQuestSubsystem::Get(const UObject* WorldContextObject)
 	return nullptr;
 }
 
-void UQuestSubsystem::StartQuest(const UQuestBase* Quest)
+void UQuestSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	if (LoadProgress() == false)
+	{
+		SaveData = Cast<UQuestProgressSaveData>(UGameplayStatics::CreateSaveGameObject(UQuestProgressSaveData::StaticClass()));
+		SaveProgress();
+	}
+}
+
+void UQuestSubsystem::StartQuest(const UQuestBase* Quest) const
 {
 	UE_LOG(QuestSubsystem, Display, TEXT("UQuestSubsystem::StartQuest : Enter"));
 
 	AddNewOngoingQuest(Quest);
 }
 
-void UQuestSubsystem::AddNewOngoingQuest(const UQuestBase* Quest)
+void UQuestSubsystem::AddNewOngoingQuest(const UQuestBase* Quest) const
 {
-	if (IsPossibleToLoadQuestProgressData() == false)
-	{
-		CachedQuestProgressSaveData = Cast<UQuestProgressSaveData>(UGameplayStatics::CreateSaveGameObject(UQuestProgressSaveData::StaticClass()));
-	}
-
-	if (CachedQuestProgressSaveData->TryAddNewQuest(Quest))
-	{
-		UGameplayStatics::SaveGameToSlot(CachedQuestProgressSaveData, QuestProgressSaveSlot, SaveIndex);
-	}
+	SaveData->TryAddNewQuest(Quest);
 }
 
-void UQuestSubsystem::SetQuestClear(const UQuestBase* Quest)
+void UQuestSubsystem::SetQuestClear(const UQuestBase* Quest) const
 {
-	if (IsPossibleToLoadQuestProgressData())
+	// 퀘스트 진행을 위해 저장된 GameplayTags 정리 및 Clear 태그 추가
+	FGameplayTagContainer ChildrenTagContainer = UGameplayTagsManager::Get().RequestGameplayTagChildren(Quest->GetQuestRootTag());
+	if (UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this))
 	{
-		// 퀘스트 진행을 위해 저장된 GameplayTags 정리 및 Clear 태그 추가
-		FGameplayTagContainer ChildrenTagContainer = UGameplayTagsManager::Get().RequestGameplayTagChildren(Quest->GetQuestRootTag());
 		for (FGameplayTag ChildTag : ChildrenTagContainer)
 		{
 			if (ChildTag.ToString().EndsWith(".Clear"))
 			{
-				// TODO QuestBaseTag.Clear 추가
+				PlayerProgressSubsystem->AddTag(ChildTag);
 			}
 			else
 			{
-				// TODO 퀘스트 진행을 위해 저장된 clear를 제외한 ChildrenTags 모두 제거
+				// 퀘스트 진행을 위해 저장된 clear를 제외한 ChildrenTags 모두 제거
+				PlayerProgressSubsystem->RemoveTag(ChildTag);
 			}
 		}
-		
-		CachedQuestProgressSaveData->SetQuestClear(Quest);
-		UGameplayStatics::SaveGameToSlot(CachedQuestProgressSaveData, QuestProgressSaveSlot, SaveIndex);
-	}
 
+		PlayerProgressSubsystem->SaveProgress();
+	}
+	
+	SaveData->SetQuestClear(Quest);
+	SaveProgress();
+	
 	UE_LOG(QuestSubsystem, Error, TEXT("UQuestSubsystem::SetClearedQuest : CachedQuestProgressSaveData Error"));
 }
 
-bool UQuestSubsystem::IsClearedQuest(const UQuestBase* Quest)
+bool UQuestSubsystem::IsClearedQuest(const UQuestBase* Quest) const
 {
-	if (IsPossibleToLoadQuestProgressData())
-	{
-		return CachedQuestProgressSaveData->IsClearedQuest(Quest);
-	}
-
-	UE_LOG(QuestSubsystem, Warning, TEXT("UQuestSubsystem::GetIsClearedQuest : CachedQuestProgressSaveData Error"));
-
-	return false;
+	return SaveData->IsClearedQuest(Quest);
 }
 
-void UQuestSubsystem::AdvanceQuestStep(UQuestBase* Quest)
+void UQuestSubsystem::AdvanceQuestStep(UQuestBase* Quest) const
 {
 	// TODO 해당 step 보상 등의 결과 처리
 	
 
 	// Quest 내부의 QuestStepIndex 증가,
-	int32 CurrentQuestStepIndex = CachedQuestProgressSaveData->GetOngoingQuestStepIndex(Quest);
+	int32 CurrentQuestStepIndex = SaveData->GetOngoingQuestStepIndex(Quest);
 	if (Quest->IsLastQuestStep(CurrentQuestStepIndex))
 	{
 		SetQuestClear(Quest);
 	}
 	else
 	{
-		CachedQuestProgressSaveData->AdvanceQuestStepIndex(Quest);
+		SaveData->AdvanceQuestStepIndex(Quest);
 	}
 }
 
-bool UQuestSubsystem::IsPossibleToLoadQuestProgressData()
+bool UQuestSubsystem::LoadProgress()
 {
-	if (CachedQuestProgressSaveData == nullptr)
+	SaveData = Cast<UQuestProgressSaveData>(UGameplayStatics::LoadGameFromSlot(QuestProgressSaveSlot, SaveIndex));
+	if (SaveData == nullptr)
 	{
-		CachedQuestProgressSaveData = Cast<UQuestProgressSaveData>(UGameplayStatics::LoadGameFromSlot(QuestProgressSaveSlot, SaveIndex));
-		if (CachedQuestProgressSaveData == nullptr)
-		{
-			return false;
-		}
+		return false;
 	}
 
 	return true;
+}
+
+void UQuestSubsystem::SaveProgress() const
+{
+	UGameplayStatics::SaveGameToSlot(SaveData, QuestProgressSaveSlot, SaveIndex);
 }
