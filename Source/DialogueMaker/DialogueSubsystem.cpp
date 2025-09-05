@@ -4,6 +4,7 @@
 #include "DialogueSubsystem.h"
 #include "DialogueBranchNodeInfoBase.h"
 #include "DialogueEndNodeInfo.h"
+#include "ShownDialogueSaveData.h"
 #include "DialogueNodeInfo.h"
 #include "DialogueSettings.h"
 #include "GameplayTags.h"
@@ -321,6 +322,11 @@ void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNod
 	}
 }
 
+bool UDialogueSubsystem::IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const
+{
+	return DialogueNodeInfo->IsDialogueAlreadyShown();
+}
+
 FPlayerCondition UDialogueSubsystem::GetPlayerEvalCondition() const
 {
 	FPlayerCondition PlayerEvalCondition;
@@ -490,8 +496,24 @@ void UDialogueSubsystem::CreateDialogueUI()
 
 void UDialogueSubsystem::UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid)
 {
+
 	CurrentOngoingNodeGuid = NewDialogueNodeGuid;
 	SetCurrentDialogueInfo();
+
+	MakeCurrentDialogueNodeToShown();
+}
+
+// 노드가 노출된 적이 있음을 기록
+void UDialogueSubsystem::MakeCurrentDialogueNodeToShown()
+{
+	UDialogueNodeInfo* CurrentNodeInfo = CurrentOngoingDialogueNodeInfo;
+	DialogueHistory.Add(CurrentNodeInfo);	// 현재 노출 중인 DialogueGraph에서 진행된 대사 Recall용
+	CurrentNodeInfo->SetShownCondition(true);
+	
+	if (ShownDialogueGuids.Contains(CurrentOngoingNodeGuid) == false)
+	{
+		ShownDialogueGuids.Add(CurrentOngoingNodeGuid);	// 다회차 시도시 이미 본 대사 Skip용
+	}
 }
 
 void UDialogueSubsystem::SetCurrentDialogueInfo()
@@ -538,10 +560,22 @@ FARFilter UDialogueSubsystem::GetDialogueGraphAssetFilter(ENPCID NPCID, EChapter
 
 void UDialogueSubsystem::InitializeDialogueData()
 {
+	DialogueHistory.Reset();
+
+	// 반복회차 진행시 skip 및 Text 색 변경을 위함
+	ShownDialogueGuids.Reset();
+	DialogueHistorySaveData->GetShownDialogues(CurrentDialogueGraph->GetPrimaryAssetId(), ShownDialogueGuids);
+	
 	for (UDialogueRuntimeNode* DialogueRuntimeNode : CurrentDialogueGraph->Graph->Nodes)
 	{
 		FGuid NodeGuid = DialogueRuntimeNode->NodeGuid;
 		IdToNodeMap.Add(NodeGuid, DialogueRuntimeNode);
+
+		if (ShownDialogueGuids.Contains(NodeGuid))
+		{
+			UDialogueNodeInfo* NodeInfo = Cast<UDialogueNodeInfo>(DialogueRuntimeNode->NodeInfo);
+			NodeInfo->SetShownCondition(true);
+		}
 	}
 }
 

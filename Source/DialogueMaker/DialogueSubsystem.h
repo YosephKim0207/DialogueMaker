@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueGraph.h"
+#include "ShownDialogueSaveData.h"
 #include "Struct/DialogueConditionEvalCriteria.h"
 #include "Engine/StreamableManager.h"
 #include "Subsystems/Subsystem.h"
@@ -35,6 +36,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Choice")
 	void GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const;
 
+	UFUNCTION(BlueprintCallable)
+	bool IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
+	
 	FPlayerCondition GetPlayerEvalCondition() const;
 	
 private:
@@ -45,6 +49,7 @@ private:
 	void CreateDialogueUI();
 	UDialogueRuntimeNode* GetFirstNode();
 	void UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid);
+	void MakeCurrentDialogueNodeToShown();
 	void SetCurrentDialogueInfo();
 	void SetInputSettings(bool bIsShowUI) const;
 	void EndDialogue();
@@ -93,4 +98,10 @@ private:
 
 	UPROPERTY()
 	UUserWidget* DialogueWidget = nullptr;
+
+	const FString ShownDialogueSaveSlot = TEXT("ShownDialogueSaveSlot");
+	const int32 DialogueHistorySaveIndex = 0;
+
+	UPROPERTY()
+	class UShownDialogueSaveData* DialogueHistorySaveData = nullptr;
 };
