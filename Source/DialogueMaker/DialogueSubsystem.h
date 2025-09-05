@@ -21,6 +21,7 @@ class DIALOGUEMAKER_API UDialogueSubsystem : public UGameInstanceSubsystem
 
 public:
 	static UDialogueSubsystem* Get(const UObject* WorldContextObject);
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	void BeginDialogue(ENPCID NPCID);
 	
@@ -67,13 +68,20 @@ private:
 	FGameplayTagContainer GetPlayerOwnedTags() const;
 	int32 GetPlayerLevel() const;
 	EChapterID GetCurrentChapter() const;
-	
-	const FString DialogueProgressSaveSlot = TEXT("DialogueProgressSaveSlot");
-	const int32 SaveIndex = 0;
 
+	void SaveRelativeDatas() const;
+	bool LoadDialogueSaveData();
+	void SaveDialogueSaveData() const;
+	
 	UPROPERTY()
 	UDialogueGraph* CurrentDialogueGraph;
 
+	UPROPERTY()
+	TArray<UDialogueNodeInfo*> DialogueHistory;	// Dialogue Recall을 위한 캐싱
+
+	UPROPERTY()
+	FGuidList ShownDialogueGuids;
+	
 	UPROPERTY()
 	UDialogueNodeInfo* CurrentOngoingDialogueNodeInfo;
 	
@@ -82,7 +90,6 @@ private:
 	
 	UPROPERTY()
 	TMap<FGuid, UDialogueRuntimeNode*> IdToNodeMap;
-	
 	
 	TSharedPtr<FStreamableHandle> CurrentHandle;
 	FOnDialogueReady OnDialogueReady;

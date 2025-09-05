@@ -43,6 +43,17 @@ UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 	return nullptr;
 }
 
+void UDialogueSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	if (LoadDialogueSaveData() == false)
+	{
+		DialogueHistorySaveData = Cast<UShownDialogueSaveData>(UGameplayStatics::CreateSaveGameObject(UShownDialogueSaveData::StaticClass()));
+		SaveDialogueSaveData();
+	}
+}
+
 // NPC의 호출로 현재 노출 가능한 Dialogue를 Show하기 위한 함수
 void UDialogueSubsystem::BeginDialogue(ENPCID NPCID)
 {
@@ -201,6 +212,9 @@ void UDialogueSubsystem::EndDialogue()
 			}
 		}
 	}
+
+	// Storage에 데이터들 Save
+	SaveRelativeDatas();
 	
 	// UI에서 Bind해둔 델리게이트 Execute(), UI에서는 위젯의 Visibility만 collaps로 조절
 	if (OnDialogueEnded.IsBound())
@@ -714,4 +728,34 @@ EChapterID UDialogueSubsystem::GetCurrentChapter() const
 	check(PlayerProgressSubsystem);
 
 	return PlayerProgressSubsystem->GetCurrentChapter();
+}
+
+void UDialogueSubsystem::SaveRelativeDatas() const
+{
+	// TODO Save 진행시 프로그레스 UI 띄우도록 하기
+	// TODO 전체 Save 관련 GameInstance 별도로 빼기
+	SaveDialogueSaveData();
+	UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this);
+	check(PlayerProgressSubsystem);
+	PlayerProgressSubsystem->SaveProgress();
+	UQuestSubsystem* QuestSubsystem = UQuestSubsystem::Get(this);
+	check(QuestSubsystem);
+	QuestSubsystem->SaveProgress();
+}
+
+bool UDialogueSubsystem::LoadDialogueSaveData()
+{
+	DialogueHistorySaveData = Cast<UShownDialogueSaveData>(
+		UGameplayStatics::LoadGameFromSlot(ShownDialogueSaveSlot, DialogueHistorySaveIndex));
+	if (DialogueHistorySaveData)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void UDialogueSubsystem::SaveDialogueSaveData() const
+{
+	UGameplayStatics::SaveGameToSlot(DialogueHistorySaveData, ShownDialogueSaveSlot, DialogueHistorySaveIndex);
 }
