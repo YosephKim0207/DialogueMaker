@@ -3,7 +3,7 @@
 #include "PlayerProgressSaveData.h"
 #include "Kismet/GameplayStatics.h"
 
-DEFINE_LOG_CATEGORY_STATIC(PlayerProgressSubsystem, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(PlayerProgressSubsystemLog, Log, All);
 
 UPlayerProgressSubsystem* UPlayerProgressSubsystem::Get(const UObject* WorldContextObject)
 {
@@ -15,7 +15,7 @@ UPlayerProgressSubsystem* UPlayerProgressSubsystem::Get(const UObject* WorldCont
 	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
 	if (World == nullptr)
 	{
-		UE_LOG(PlayerProgressSubsystem, Warning, TEXT("UPlayerProgressSubsystem::Get : World is nullptr"));
+		UE_LOG(PlayerProgressSubsystemLog, Warning, TEXT("UPlayerProgressSubsystem::Get : World is nullptr"));
 
 		return nullptr;
 	}
@@ -25,7 +25,7 @@ UPlayerProgressSubsystem* UPlayerProgressSubsystem::Get(const UObject* WorldCont
 		return GameInstance->GetSubsystem<UPlayerProgressSubsystem>();
 	}
 				
-	UE_LOG(PlayerProgressSubsystem, Warning, TEXT("UPlayerProgressSubsystem::Get : GameInstance is nullptr"));
+	UE_LOG(PlayerProgressSubsystemLog, Warning, TEXT("UPlayerProgressSubsystem::Get : GameInstance is nullptr"));
 
 	return nullptr;
 }
