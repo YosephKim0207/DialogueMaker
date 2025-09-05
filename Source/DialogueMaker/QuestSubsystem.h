@@ -22,12 +22,12 @@ public:
 	void SetQuestClear(const UQuestBase* Quest) const;
 	bool IsClearedQuest(const UQuestBase* Quest) const;
 	void AdvanceQuestStep(UQuestBase* Quest) const;
-	
+
+	void SaveProgress() const;
 private:
 	void AddNewOngoingQuest(const UQuestBase* Quest) const;
 
 	bool LoadProgress();
-	void SaveProgress() const;
 	
 private:
 	const FString QuestProgressSaveSlot = TEXT("QuestProgressSaveSlot");

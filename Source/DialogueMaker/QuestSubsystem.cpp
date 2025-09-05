@@ -73,12 +73,9 @@ void UQuestSubsystem::SetQuestClear(const UQuestBase* Quest) const
 				PlayerProgressSubsystem->RemoveTag(ChildTag);
 			}
 		}
-
-		PlayerProgressSubsystem->SaveProgress();
 	}
 	
 	SaveData->SetQuestClear(Quest);
-	SaveProgress();
 	
 	UE_LOG(QuestSubsystem, Error, TEXT("UQuestSubsystem::SetClearedQuest : CachedQuestProgressSaveData Error"));
 }
