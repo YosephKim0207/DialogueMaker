@@ -24,7 +24,7 @@ void UDialogueEdGraphNode::CreateDefaultOutputPin()
 {
 	FString DefaultResponse = TEXT("Continue");
 	CreateCustomPin(EGPD_Output, FName(DefaultResponse));
-	GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(DefaultResponse));
+	GetDialogueNodeInfo()->DialogueResponses.Add(FDialogueChoice(FText::FromString(DefaultResponse)));
 }
 
 EDialogueType UDialogueEdGraphNode::GetDialogueNodeType() const
@@ -64,14 +64,14 @@ void UDialogueEdGraphNode::SyncPinWithResponses()
 
 	while (NodeInfoPinsCount > GraphNodePinsCount)
 	{
-		CreateCustomPin(EGPD_Output, FName(NodeInfo->DialogueResponses[GraphNodePinsCount].ToString()));
+		CreateCustomPin(EGPD_Output, FName(NodeInfo->DialogueResponses[GraphNodePinsCount].ResponseText.ToString()));
 		GraphNodePinsCount++;
 	}
 
 	int PinIndex = 1;	// 첫 번째 pin은 언제나 input pin이라고 가정한다
-	for (FText& Option : DialogueNodeInfo->DialogueResponses)
+	for (FDialogueChoice Choice : DialogueNodeInfo->DialogueResponses)
 	{
-		GetPinAt(PinIndex)->PinName = FName(Option.ToString());
+		GetPinAt(PinIndex)->PinName = FName(Choice.ResponseText.ToString());
 		PinIndex++;
 	}
 }
@@ -135,7 +135,7 @@ void UDialogueEdGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu,
 		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeAddPinIcon")),
 		FUIAction(FExecuteAction::CreateLambda(
 			[Node] (){
-				Node->GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(TEXT("Response")));
+				Node->GetDialogueNodeInfo()->DialogueResponses.Add(FDialogueChoice(FText::FromString(TEXT("Response"))));
 				Node->SyncPinWithResponses();
 				
 				Node->GetGraph()->NotifyGraphChanged();
