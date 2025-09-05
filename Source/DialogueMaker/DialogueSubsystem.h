@@ -59,6 +59,7 @@ private:
 
 	FGameplayTagContainer GetPlayerOwnedTags() const;
 	int32 GetPlayerLevel() const;
+	EChapterID GetCurrentChapter() const;
 	
 	const FString DialogueProgressSaveSlot = TEXT("DialogueProgressSaveSlot");
 	const int32 SaveIndex = 0;

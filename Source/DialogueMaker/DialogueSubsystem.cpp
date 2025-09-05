@@ -7,6 +7,7 @@
 #include "DialogueNodeInfo.h"
 #include "DialogueSettings.h"
 #include "GameplayTags.h"
+#include "PlayerProgressSubsystem.h"
 #include "QuestSubsystem.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/UserWidget.h"
@@ -63,8 +64,14 @@ void UDialogueSubsystem::GetDialogueGraph(ENPCID NPCID)
 	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Enter"));
 	
 	// NPCID, ChapterID 기준 필터 제작
-	// TODO 현재 Player가 진행 중인 ChapterID 가져오기
-	EChapterID TEMPChapterID = EChapterID::Chapter01;
+	
+	EChapterID TEMPChapterID = GetCurrentChapter();
+
+	// TODO 테스트용 코드
+#if UE_BUILD_DEVELOPMENT
+	TEMPChapterID = EChapterID::Chapter01;
+#endif
+	
 	FARFilter ARFilter = GetDialogueGraphAssetFilter(NPCID, TEMPChapterID);
 
 	// 제작된 필터로부터 Assets 가져오기
@@ -166,7 +173,14 @@ void UDialogueSubsystem::EndDialogue()
 			// 평문 End Node
 			if (EndNodeAction == EDialogueNodeAction::None)
 			{
-				// TODO 진행도 Tag가 있다면 추가
+				// 진행도 Tag가 있다면 추가
+				if (DialogueEndNodeInfo->ClearTag.IsValid())
+				{
+					if (UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this))
+					{
+						PlayerProgressSubsystem->AddTag(DialogueEndNodeInfo->ClearTag);
+					}
+				}
 			}
 			// Quest 관련 End Node
 			else
@@ -531,15 +545,17 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 {
 	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : Enter"));
 	
-	bool bPossibleCondition = false;
-	
-	// TODO 갖고있는 Tag는 임시로 HasTag라고 하자 - 추후 PlayerTagSubsystem 등에서 Load하기
-	FGameplayTagContainer HasTag;
-	HasTag.AddTag(GameplayTags::Chapter_01_Complete);
-	HasTag.AddTag(GameplayTags::Chapter_02_Complete);
-	HasTag.AddTag(GameplayTags::Item_Weapon_LegendarySword);
-	HasTag.AddTag(GameplayTags::Player_Tier_E);
-	HasTag.AddTag(GameplayTags::Quest_Chapter_01_VisitHome_Complete);
+	bool bPossibleCondition = false;	
+	FGameplayTagContainer PlayersTagContainer = GetPlayerOwnedTags();
+
+#if UE_BUILD_DEVELOPMENT
+	// TODO 테스트를 위해 임시로 Tag 추가
+	PlayersTagContainer.AddTag(GameplayTags::Chapter_01_Complete);
+	PlayersTagContainer.AddTag(GameplayTags::Chapter_02_Complete);
+	PlayersTagContainer.AddTag(GameplayTags::Item_Weapon_LegendarySword);
+	PlayersTagContainer.AddTag(GameplayTags::Player_Tier_E);
+	PlayersTagContainer.AddTag(GameplayTags::Quest_Chapter_01_VisitHome_Complete);
+#endif
 	
 	FString Csv;
 	// All Condition인 Tag를 모두 갖고있지 않다면 해당 Dialogue Asset은 후보 제외
@@ -549,7 +565,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 		
 		FGameplayTagContainer RequiredAllTags;
 		RequiredAllTags.FromExportString(Csv, PPF_None);
-		bPossibleCondition = HasTag.HasAllExact(RequiredAllTags);
+		bPossibleCondition = PlayersTagContainer.HasAllExact(RequiredAllTags);
 		
 		if (bPossibleCondition == false)
 		{
@@ -565,7 +581,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 
 		FGameplayTagContainer BlockedAllTags;
 		BlockedAllTags.FromExportString(Csv, PPF_None);
-		bPossibleCondition = !HasTag.HasAnyExact(BlockedAllTags);
+		bPossibleCondition = !PlayersTagContainer.HasAnyExact(BlockedAllTags);
 		
 		// Dialogue 노출을 위해 갖고 있으면 안될 Tag가 하나라도 있는 경우 해당 Dialogue Asset 통과 
 		if (bPossibleCondition == false)
@@ -582,7 +598,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 
 		FGameplayTagContainer RequiredAnyTags;
 		RequiredAnyTags.FromExportString(Csv, PPF_None);
-		bPossibleCondition = HasTag.HasAnyExact(RequiredAnyTags);
+		bPossibleCondition = PlayersTagContainer.HasAnyExact(RequiredAnyTags);
 		
 		// Dialogue 노출을 위해 갖고 있으면 안될 Tag가 하나라도 있는 경우 해당 Dialogue Asset 통과 
 		if (bPossibleCondition == false)
@@ -640,12 +656,24 @@ void UDialogueSubsystem::OnDialogueLoaded()
 
 FGameplayTagContainer UDialogueSubsystem::GetPlayerOwnedTags() const
 {
-	// TODO PlayerData를 관리하는 Subsystem으로부터 GameplayTagContainer 가져오기
-	return FGameplayTagContainer();
+	UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this);
+	check(PlayerProgressSubsystem);
+	
+	return PlayerProgressSubsystem->GetAllTags();
 }
 
 int32 UDialogueSubsystem::GetPlayerLevel() const
 {
-	// TODO PlayerData를 관리하는 Subsystem으로부터 Player Level 가져오기
-	return 1;
+	UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this);
+	check(PlayerProgressSubsystem);
+
+	return PlayerProgressSubsystem->GetPlayerLevel();
+}
+
+EChapterID UDialogueSubsystem::GetCurrentChapter() const
+{
+	UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this);
+	check(PlayerProgressSubsystem);
+
+	return PlayerProgressSubsystem->GetCurrentChapter();
 }
