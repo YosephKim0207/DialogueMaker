@@ -11,6 +11,10 @@ UCLASS(BlueprintType)
 class DIALOGUEMAKER_API UDialogueNodeInfo : public UDialogueNodeInfoBase
 {
 	GENERATED_BODY()
+
+public:
+	bool IsDialogueAlreadyShown() const;
+	void SetShownCondition(const bool NewCondition);
 	
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -24,6 +28,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<FDialogueChoice> DialogueResponses;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bIsShown;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
 	TSubclassOf<UQuestBase> QuestToGive;
