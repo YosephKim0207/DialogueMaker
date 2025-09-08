@@ -521,6 +521,11 @@ void UDialogueSubsystem::UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid)
 void UDialogueSubsystem::MakeCurrentDialogueNodeToShown()
 {
 	UDialogueNodeInfo* CurrentNodeInfo = CurrentOngoingDialogueNodeInfo;
+	if (CurrentNodeInfo == nullptr)
+	{
+		return;
+	}
+	
 	DialogueHistory.Add(CurrentNodeInfo);	// 현재 노출 중인 DialogueGraph에서 진행된 대사 Recall용
 	CurrentNodeInfo->SetShownCondition(true);
 	
