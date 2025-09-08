@@ -16,7 +16,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Struct/DialogueStructure.h"
 
-DEFINE_LOG_CATEGORY_STATIC(DialogueSubSystem, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(DialogueSubSystemLog, Log, All);
 
 UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 {
@@ -28,7 +28,7 @@ UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 	UWorld* World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
 	if (World == nullptr)
 	{
-		UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::Get : World is nullptr"));
+		UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::Get : World is nullptr"));
 
 		return nullptr;
 	}
@@ -38,7 +38,7 @@ UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 		return GameInstance->GetSubsystem<UDialogueSubsystem>();
 	}
 				
-	UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::Get : GameInstance is nullptr"));
+	UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::Get : GameInstance is nullptr"));
 
 	return nullptr;
 }
@@ -64,7 +64,7 @@ void UDialogueSubsystem::BeginDialogue(ENPCID NPCID)
 // Player가 갖고 있는 GameplayTagContainer을 통해 현재의 Condition을 점검하여 현 상황에서 노출 가능한 DialogueGraph 에셋들을 추출한다. 
 void UDialogueSubsystem::GetDialogueGraph(ENPCID NPCID)
 {
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Enter"));
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Enter"));
 	
 	// NPCID, ChapterID 기준 필터 제작
 	
@@ -82,7 +82,7 @@ void UDialogueSubsystem::GetDialogueGraph(ENPCID NPCID)
 	IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
 	AssetRegistry.GetAssets(ARFilter, AssetDatas);
 
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Start Asset Check"));
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Start Asset Check"));
 	
 	TArray<FAssetData> CandidateAssetDatas;
 	for (const FAssetData& AssetData : AssetDatas)
@@ -97,11 +97,11 @@ void UDialogueSubsystem::GetDialogueGraph(ENPCID NPCID)
 		{
 			CandidateAssetDatas.Add(AssetData);
 			
-			UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Add Candidate %s"), *AssetId.ToString());
+			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Add Candidate %s"), *AssetId.ToString());
 		}
 		else
 		{
-			UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::GetDialogueGraph : Valid Error %s"), *AssetData.GetSoftObjectPath().ToString());
+			UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::GetDialogueGraph : Valid Error %s"), *AssetData.GetSoftObjectPath().ToString());
 		}
 	}
 	
@@ -161,14 +161,14 @@ void UDialogueSubsystem::EndDialogue()
 	UDialogueRuntimeNode* DialogueRuntimeNode = GetDialogueNode(CurrentOngoingNodeGuid);
 	if (DialogueRuntimeNode == nullptr)
 	{
-		UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueRuntimeNode is nullptr"));
+		UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueRuntimeNode is nullptr"));
 	}
 	else
 	{
 		UDialogueEndNodeInfo* DialogueEndNodeInfo = Cast<UDialogueEndNodeInfo>(DialogueRuntimeNode->NodeInfo);
 		if (DialogueEndNodeInfo == nullptr)
 		{
-			UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueEndNodeInfo is nullptr"));
+			UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::EndDialogue : DialogueEndNodeInfo is nullptr"));
 		}
 		else
 		{
@@ -191,7 +191,7 @@ void UDialogueSubsystem::EndDialogue()
 				UQuestSubsystem* QuestSubsystem = UQuestSubsystem::Get(this);
 				if (QuestSubsystem == nullptr)
 				{
-					UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::EndDialogue : QuestSubsystem is nullptr"));
+					UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::EndDialogue : QuestSubsystem is nullptr"));
 
 					return;
 				}
@@ -221,7 +221,7 @@ void UDialogueSubsystem::EndDialogue()
 	{
 		OnDialogueEnded.Broadcast();
 
-		UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::EndDialogue : Broadcast"));
+		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::EndDialogue : Broadcast"));
 	}
 }
 
@@ -233,7 +233,7 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetDialogueNode(FGuid DialogueNodeGuid
 		return IdToNodeMap[DialogueNodeGuid];
 	}
 
-	UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetDialogueNode : Dialogue is not cached"));
+	UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetDialogueNode : Dialogue is not cached"));
 	
 	return nullptr;
 }
@@ -250,7 +250,7 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetFirstNode()
 			UDialogueRuntimePin* OutputPin = DialogueRuntimeNode->OutputPins[0];	
 			if (OutputPin->Connections.Num() == 0)
 			{
-				UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetFirstDialogue : There is no Connected pin with Start Node"));
+				UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetFirstDialogue : There is no Connected pin with Start Node"));
 				return nullptr;
 			}
 
@@ -268,7 +268,7 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetFirstNode()
 		return IdToNodeMap[FirstDialogueNodeGuid];
 	}
 
-	UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetFirstDialogue : There is no First Dialogue Node"));
+	UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetFirstDialogue : There is no First Dialogue Node"));
 	return nullptr;
 }
 
@@ -277,7 +277,7 @@ bool UDialogueSubsystem::HasChoicesInCurrentDialogue(UDialogueNodeInfo* Dialogue
 {
 	if (DialogueNodeInfo == nullptr)
 	{
-		UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::HasChoicesInCurrentDialogue : DialogueNodeInfo is nullptr"));
+		UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::HasChoicesInCurrentDialogue : DialogueNodeInfo is nullptr"));
 		return false;
 	}
 
@@ -294,7 +294,7 @@ UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 Selected
 	UDialogueRuntimeNode* NextRuntimeNode = bIsFirstDialogue ? GetFirstNode() : GetNextNode(SelectedChoiceIndex);
 	if (NextRuntimeNode == nullptr)
 	{
-		UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::ProgressNextDialogue : NextRuntimeNode is nullptr"));
+		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::ProgressNextDialogue : NextRuntimeNode is nullptr"));
 
 		EndDialogue();
 		return nullptr;
@@ -315,11 +315,11 @@ UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 Selected
 // 현재 진행 중인 대화문에서 Choices들이 있다면 반환
 void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const
 {
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::GetSelectableChoicesText : %s Check Enter"), *DialogueNodeInfo->GetPathName());
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetSelectableChoicesText : %s Check Enter"), *DialogueNodeInfo->GetPathName());
 	
 	if (DialogueNodeInfo == nullptr)
 	{
-		UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::GetSelectableChoicesText : DialogueNodeInfo is nullptr"));
+		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::GetSelectableChoicesText : DialogueNodeInfo is nullptr"));
 	}
 
 	int32 SelectableChoiceOriginalIndex = 0;
@@ -406,7 +406,7 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 		UDialogueRuntimeNode* CurrentNode = IdToNodeMap[CurrentOngoingNodeGuid];
 		if (CurrentNode == nullptr)
 		{
-			UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetNextNode : CurrentNode is null"));
+			UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetNextNode : CurrentNode is null"));
 			return nullptr;
 		}
 
