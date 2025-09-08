@@ -153,9 +153,15 @@ void UDialogueSubsystem::StartDialogue(UDialogueGraph* DialogueGraph)
 // Dialogue Node의 Type이 End에 도착하는 경우 호출
 void UDialogueSubsystem::EndDialogue()
 {
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::EndDialogue : Enter"));
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::EndDialogue : Enter"));
 	
 	SetInputSettings(false);
+
+	if (GetWorld()->GetTimerManager().IsTimerActive(OnShownDialogueSkipTimerHandle)
+		&& OnStopSkip.IsBound())
+	{
+		OnStopSkip.Broadcast();
+	}
 
 	// TODO 진행 상황 저장
 	UDialogueRuntimeNode* DialogueRuntimeNode = GetDialogueNode(CurrentOngoingNodeGuid);
@@ -212,7 +218,7 @@ void UDialogueSubsystem::EndDialogue()
 			}
 		}
 	}
-
+	
 	// Storage에 데이터들 Save
 	SaveRelativeDatas();
 	
@@ -309,6 +315,13 @@ UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 Selected
 		return nullptr;
 	}
 
+	if (CurrentOngoingDialogueNodeInfo->IsDialogueAlreadyShown() == false
+		&& GetWorld()->GetTimerManager().IsTimerActive(OnShownDialogueSkipTimerHandle)
+		&& OnStopSkip.IsBound())
+	{
+		OnStopSkip.Broadcast();
+	}
+
 	return Cast<UDialogueNodeInfo>(NextRuntimeNode->NodeInfo);
 }
 
@@ -339,6 +352,16 @@ void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNod
 bool UDialogueSubsystem::IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const
 {
 	return DialogueNodeInfo->IsDialogueAlreadyShown();
+}
+
+FTimerHandle& UDialogueSubsystem::GetSkipHandler()
+{
+	return OnShownDialogueSkipTimerHandle;
+}
+
+void UDialogueSubsystem::SetSkipHandler(const FTimerHandle& Handle)
+{
+	OnShownDialogueSkipTimerHandle = Handle;
 }
 
 FPlayerCondition UDialogueSubsystem::GetPlayerEvalCondition() const
@@ -418,25 +441,42 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 				// 입력으로 들어오는 선택지의 index가 OutputPins의 인덱스를 초과하는 경우
 				if (SelectedChoiceIndex > CurrentNode->OutputPins.Num() - 1 || SelectedChoiceIndex < 0)
 				{
-					UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetNextNode : SelectedChoiceIndex is out of bound"));
+					UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetNextNode : SelectedChoiceIndex is out of bound"));
 					return nullptr;
+				}
+
+				// 선택지가 존재하는 경우 플레이어의 대사 선택을 위해 skip을 중단
+				if (CurrentNode->OutputPins.Num() > 1
+					&& GetWorld()->GetTimerManager().IsTimerActive(OnShownDialogueSkipTimerHandle)
+					&& OnStopSkip.IsBound())
+				{
+					OnStopSkip.Broadcast();
+					// TODO CurrentNode 반환시 UI가 깜빡이는 경우 nullptr 반환 및 nullptr 반환시 EndDialogue가 아니라 Dialogue 중단되도록 할 필요
+					return CurrentNode;
 				}
 				
 				UDialogueRuntimePin* OutputPin = CurrentNode->OutputPins[SelectedChoiceIndex];
 				return GetDialogueNode(OutputPin->LinkedToNodeGuid);
 			}
 
-			UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::GetNextNode : No Linked Node"));
+			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetNextNode : No Linked Node"));
 			return nullptr;
 		}
 		
 		// 현재의 Dialogue Node가 분기인 경우
 		if (CurrentNode->DialogueNodeType == EDialogueType::BranchNode)
 		{
+			if (GetWorld()->GetTimerManager().IsTimerActive(OnShownDialogueSkipTimerHandle)
+				&& OnStopSkip.IsBound())
+			{
+				OnStopSkip.Broadcast();
+			}
+
+			
 			UDialogueBranchNodeInfoBase* BranchNodeInfo = Cast<UDialogueBranchNodeInfoBase>(CurrentNode->NodeInfo);
 			if (BranchNodeInfo == nullptr)
 			{
-				UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetNextNode : BranchNodeInfo is nullptr"));
+				UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetNextNode : BranchNodeInfo is nullptr"));
 				return nullptr;
 			}
 
@@ -738,6 +778,7 @@ void UDialogueSubsystem::SaveRelativeDatas() const
 	// TODO Save 진행시 프로그레스 UI 띄우도록 하기
 	// TODO 전체 Save 관련 GameInstance 별도로 빼기
 	SaveDialogueSaveData();
+	
 	UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this);
 	check(PlayerProgressSubsystem);
 	PlayerProgressSubsystem->SaveProgress();
@@ -761,7 +802,10 @@ bool UDialogueSubsystem::LoadDialogueSaveData()
 void UDialogueSubsystem::SaveDialogueSaveData() const
 {
 	// 진행 동안 노출된 Dialogue의 Guid들을 SaveData에 저장
-	DialogueHistorySaveData->SetShownDialogues(CurrentDialogueGraph->GetPrimaryAssetId(), ShownDialogueGuids);
+	if (CurrentDialogueGraph && DialogueHistorySaveData)
+	{
+		DialogueHistorySaveData->SetShownDialogues(CurrentDialogueGraph->GetPrimaryAssetId(), ShownDialogueGuids);
+	}
 
 	UGameplayStatics::SaveGameToSlot(DialogueHistorySaveData, ShownDialogueSaveSlot, DialogueHistorySaveIndex);
 }

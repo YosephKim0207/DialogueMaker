@@ -13,6 +13,7 @@
 DECLARE_DELEGATE_OneParam(FOnDialogueReady, UDialogueGraph*);
 DECLARE_DELEGATE_OneParam(FOnCurrentDialogueNodeChange, FGuid);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDialogueEnd);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStopSkip);
 
 UCLASS()
 class DIALOGUEMAKER_API UDialogueSubsystem : public UGameInstanceSubsystem
@@ -44,7 +45,10 @@ public:
 	bool IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
 
 	UFUNCTION(BlueprintCallable)
-	void SkipShownDialogues();
+	FTimerHandle& GetSkipHandler();
+
+	UFUNCTION(BlueprintCallable)
+	void SetSkipHandler(const FTimerHandle& Handle);
 	
 	FPlayerCondition GetPlayerEvalCondition() const;
 
@@ -96,12 +100,21 @@ private:
 	
 	UPROPERTY()
 	TMap<FGuid, UDialogueRuntimeNode*> IdToNodeMap;
-	
+
 	TSharedPtr<FStreamableHandle> CurrentHandle;
+
 	FOnDialogueReady OnDialogueReady;
+	
 	FOnCurrentDialogueNodeChange OnCurrentDialogueChanged;
+
 	UPROPERTY(BlueprintAssignable)
 	FOnDialogueEnd OnDialogueEnded;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnStopSkip OnStopSkip;
+	
+	UPROPERTY()
+	FTimerHandle OnShownDialogueSkipTimerHandle;
 	
 	UPROPERTY()
 	TArray<UDialogueGraph*> PossibleDialogueGraphs;
