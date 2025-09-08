@@ -459,7 +459,7 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 			}
 			
 
-			UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetNextNode : Return Post Branch Node Error"));
+			UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetNextNode : Return Post Branch Node Error"));
 			return nullptr;
 		}
 
@@ -469,14 +469,14 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetNextNode(const int32 SelectedChoice
 		}
 	}
 	
-	UE_LOG(DialogueSubSystem, Warning, TEXT("UDialogueSubsystem::GetNextNode : No Matched Guid"));
+	UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetNextNode : No Matched Guid"));
 	return nullptr;
 }
 
 // DialogueGraph 에셋 내부의 NodeInfo를 기반으로 Dialogue를 UI에 출력
 void UDialogueSubsystem::CreateDialogueUI()
 {
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::CreateDialogueUI : Enter"));
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::CreateDialogueUI : Enter"));
 
 	if (CurrentDialogueGraph)
 	{
@@ -496,7 +496,7 @@ void UDialogueSubsystem::CreateDialogueUI()
 				return;
 			}
 
-			UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::CreateDialogueUI : Create Widget fail"));
+			UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::CreateDialogueUI : Create Widget fail"));
 			return;
 		}
 
@@ -505,7 +505,7 @@ void UDialogueSubsystem::CreateDialogueUI()
 		return;
 	}
 
-	UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::CreateDialogueUI : CurrentDialogueGraph is null"));
+	UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::CreateDialogueUI : CurrentDialogueGraph is null"));
 }
 
 void UDialogueSubsystem::UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid)
@@ -543,7 +543,7 @@ void UDialogueSubsystem::SetInputSettings(bool bIsShowUI) const
 	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	if (PlayerController == nullptr)
 	{
-		UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::SetInputSettings : PlayerController is nullptr"));
+		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::SetInputSettings : PlayerController is nullptr"));
 		return;
 	}
 	
@@ -598,7 +598,7 @@ void UDialogueSubsystem::InitializeDialogueData()
 
 bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetData) const
 {
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : Enter"));
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : Enter"));
 	
 	bool bPossibleCondition = false;	
 	FGameplayTagContainer PlayersTagContainer = GetPlayerOwnedTags();
@@ -616,7 +616,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 	// All Condition인 Tag를 모두 갖고있지 않다면 해당 Dialogue Asset은 후보 제외
 	if (AssetData.GetTagValue(*GameplayTags::Required_All_Tags.GetTag().ToString(), Csv))
 	{
-		UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AllTag Check"));
+		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AllTag Check"));
 		
 		FGameplayTagContainer RequiredAllTags;
 		RequiredAllTags.FromExportString(Csv, PPF_None);
@@ -624,7 +624,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 		
 		if (bPossibleCondition == false)
 		{
-			UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AllTags false"));
+			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AllTags false"));
 			return false;
 		}
 	}
@@ -632,7 +632,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 	// Block Condition인 Tag를 하나라도 갖고 있다면 해당 Dialogue Asset은 후보 제외
 	if (AssetData.GetTagValue(*GameplayTags::Blocked_Any_Tags.GetTag().ToString(), Csv))
 	{
-		UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : BlockTag Check"));
+		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : BlockTag Check"));
 
 		FGameplayTagContainer BlockedAllTags;
 		BlockedAllTags.FromExportString(Csv, PPF_None);
@@ -641,7 +641,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 		// Dialogue 노출을 위해 갖고 있으면 안될 Tag가 하나라도 있는 경우 해당 Dialogue Asset 통과 
 		if (bPossibleCondition == false)
 		{
-			UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : BlockTags false"));
+			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : BlockTags false"));
 			return false;
 		}
 	}
@@ -649,7 +649,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 	// AnyCondition인 Tag를 하나라도 갖고 있다면 해당 Dialogue Asset은 후보 제외
 	if (AssetData.GetTagValue(*GameplayTags::Required_Any_Tags.GetTag().ToString(), Csv))
 	{
-		UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AnyTag Check"));
+		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AnyTag Check"));
 
 		FGameplayTagContainer RequiredAnyTags;
 		RequiredAnyTags.FromExportString(Csv, PPF_None);
@@ -658,12 +658,12 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 		// Dialogue 노출을 위해 갖고 있으면 안될 Tag가 하나라도 있는 경우 해당 Dialogue Asset 통과 
 		if (bPossibleCondition == false)
 		{
-			UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AnyTags false"));
+			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AnyTags false"));
 			return false;
 		}
 	}
 
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : true"));
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : true"));
 
 	return true;
 }
@@ -671,7 +671,7 @@ bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetDa
 // GameplayTags에 따라 필터링 된 Dialogue Asset Load가 완료된 이후의 콜백 함수
 void UDialogueSubsystem::OnDialogueLoaded()
 {
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::OnDialogueLoaded : Enter"));
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::OnDialogueLoaded : Enter"));
 	
 	TArray<UObject*> LoadedObjects;
 	if (CurrentHandle.IsValid())
@@ -681,7 +681,7 @@ void UDialogueSubsystem::OnDialogueLoaded()
 	}
 	else
 	{
-		UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::OnDialogueLoaded : Valid Error"));
+		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::OnDialogueLoaded : Valid Error"));
 		return;
 	}
 
@@ -702,11 +702,11 @@ void UDialogueSubsystem::OnDialogueLoaded()
 	}
 	else
 	{
-		UE_LOG(DialogueSubSystem, Error, TEXT("UDialogueSubsystem::OnDialogueLoaded : Show Dialogue Bind Error"));
+		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::OnDialogueLoaded : Show Dialogue Bind Error"));
 		return;
 	}
 	
-	UE_LOG(DialogueSubSystem, Display, TEXT("UDialogueSubsystem::OnDialogueLoaded : PossibleDialogueGraphs Count = %d"), PossibleDialogueGraphs.Num());
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::OnDialogueLoaded : PossibleDialogueGraphs Count = %d"), PossibleDialogueGraphs.Num());
 }
 
 FGameplayTagContainer UDialogueSubsystem::GetPlayerOwnedTags() const
