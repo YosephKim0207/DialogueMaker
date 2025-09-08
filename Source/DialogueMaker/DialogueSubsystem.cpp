@@ -281,7 +281,7 @@ bool UDialogueSubsystem::HasChoicesInCurrentDialogue(UDialogueNodeInfo* Dialogue
 		return false;
 	}
 
-	if (DialogueNodeInfo->DialogueResponses.Num() > 1)
+	if (DialogueNodeInfo->GetDialogueChoices().Num() > 1)
 	{
 		return true;
 	}
@@ -324,7 +324,7 @@ void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNod
 
 	int32 SelectableChoiceOriginalIndex = 0;
 	FPlayerCondition PlayerConditionEval = GetPlayerEvalCondition();
-	for (FDialogueChoice DialogueConditionEvalCriteria : DialogueNodeInfo->DialogueResponses)
+	for (const FDialogueChoice DialogueConditionEvalCriteria : DialogueNodeInfo->GetDialogueChoices())
 	{
 		if (DialogueConditionEvalCriteria.IsPossibleToShow(PlayerConditionEval))
 		{
