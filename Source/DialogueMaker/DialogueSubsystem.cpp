@@ -513,8 +513,6 @@ void UDialogueSubsystem::UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid)
 
 	CurrentOngoingNodeGuid = NewDialogueNodeGuid;
 	SetCurrentDialogueInfo();
-
-	MakeCurrentDialogueNodeToShown();
 }
 
 // 노드가 노출된 적이 있음을 기록
@@ -762,5 +760,8 @@ bool UDialogueSubsystem::LoadDialogueSaveData()
 
 void UDialogueSubsystem::SaveDialogueSaveData() const
 {
+	// 진행 동안 노출된 Dialogue의 Guid들을 SaveData에 저장
+	DialogueHistorySaveData->SetShownDialogues(CurrentDialogueGraph->GetPrimaryAssetId(), ShownDialogueGuids);
+
 	UGameplayStatics::SaveGameToSlot(DialogueHistorySaveData, ShownDialogueSaveSlot, DialogueHistorySaveIndex);
 }

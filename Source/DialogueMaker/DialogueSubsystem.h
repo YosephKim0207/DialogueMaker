@@ -37,11 +37,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Choice")
 	void GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Shown Dialogue")
+	void MakeCurrentDialogueNodeToShown();
+
+	UFUNCTION(BlueprintCallable, Category = "Shown Dialogue")
 	bool IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
+
+	UFUNCTION(BlueprintCallable)
+	void SkipShownDialogues();
 	
 	FPlayerCondition GetPlayerEvalCondition() const;
-	
+
+
 private:
 	void CheckDelegates();
 	
@@ -50,7 +57,6 @@ private:
 	void CreateDialogueUI();
 	UDialogueRuntimeNode* GetFirstNode();
 	void UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid);
-	void MakeCurrentDialogueNodeToShown();
 	void SetCurrentDialogueInfo();
 	void SetInputSettings(bool bIsShowUI) const;
 	void EndDialogue();
