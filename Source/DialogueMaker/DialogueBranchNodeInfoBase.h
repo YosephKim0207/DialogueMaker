@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueNodeInfoBase.h"
-#include "QuestBase.h"
+#include "Struct/DialogueConditionEvalCriteria.h"
 #include "DialogueBranchNodeInfoBase.generated.h"
 
 UCLASS()
@@ -10,9 +10,8 @@ class DIALOGUEMAKER_API UDialogueBranchNodeInfoBase : public UDialogueNodeInfoBa
 {
 	GENERATED_BODY()
 public:
+	bool ConditionCheck(const FPlayerCondition& PlayerEvalCondition) const;
+	
 	UPROPERTY(EditAnywhere)
-	int32 RequiredLevel = 0;
-
-	UPROPERTY(EditAnywhere)
-	TSubclassOf<UQuestBase> RequiredQuest;
+	FDialogueConditionEvalCriteria DialoguePassCondition;
 };

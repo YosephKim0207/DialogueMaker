@@ -3,26 +3,142 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DialogueGraph.h"
+#include "ShownDialogueSaveData.h"
+#include "Struct/DialogueConditionEvalCriteria.h"
+#include "Engine/StreamableManager.h"
 #include "Subsystems/Subsystem.h"
 #include "DialogueSubsystem.generated.h"
 
-/**
- * 
- */
+DECLARE_DELEGATE_OneParam(FOnDialogueReady, UDialogueGraph*);
+DECLARE_DELEGATE_OneParam(FOnCurrentDialogueNodeChange, FGuid);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDialogueEnd);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStopSkip);
+
 UCLASS()
-class DIALOGUEMAKER_API UDialogueSubsystem : public USubsystem
+class DIALOGUEMAKER_API UDialogueSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	void StartDialogue(AActor* NPC, class UDialogueGraph* DialogueGraph);
-	void EndDialogue();
-	struct FDialogueStructure GetCurrentDialogue();
-	bool HasChoicesInCurrentDialogue();
-	TArray<struct FDialogueChoice> GetSelectableChoices();
-	void SelectChoice(FGuid ChoiceDialogueGuid);
-	bool IsDialogueShowPossibleCondition() ;
-	void SaveDialogueProgress(UDialogueGraph* DialogueGraph, FGuid CurrentDialogueGuid);
-	FGuid GetCurrentDialogueGuid(UDialogueGraph* DialogueGraph);
+	static UDialogueSubsystem* Get(const UObject* WorldContextObject);
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	void BeginDialogue(ENPCID NPCID);
 	
+	UFUNCTION(BlueprintCallable)
+	class UDialogueNodeInfo* ProgressNextDialogue(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
+
+	UFUNCTION(BlueprintCallable)
+	const UDialogueNodeInfo* GetCurrentDialogueNodeInfo() const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Choice")
+	bool HasChoicesInCurrentDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Choice")
+	void GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Shown Dialogue")
+	void MakeCurrentDialogueNodeToShown();
+
+	UFUNCTION(BlueprintCallable, Category = "Shown Dialogue")
+	bool IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
+
+	UFUNCTION(BlueprintCallable)
+	FTimerHandle& GetSkipHandler();
+
+	UFUNCTION(BlueprintCallable)
+	void SetSkipHandler(const FTimerHandle& Handle);
+
+	UFUNCTION(BlueprintCallable)
+	const TArray<UDialogueNodeInfo*>& GetDialogueHistory();
+
+	UFUNCTION(BlueprintCallable)
+	void SetDialogueRecallWidget(UUserWidget* UserWidget);
+
+	UFUNCTION(BlueprintCallable)
+	UUserWidget* GetDialogueRecallWidget() const;
+	
+	FPlayerCondition GetPlayerEvalCondition() const;
+
+private:
+	void CheckDelegates();
+	
+	void GetDialogueGraph(ENPCID NPCID);
+	void StartDialogue(UDialogueGraph* DialogueGraph);
+	void CreateDialogueUI();
+	UDialogueRuntimeNode* GetFirstNode();
+	void UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid);
+	void SetCurrentDialogueInfo();
+	void SetInputSettings(bool bIsShowUI) const;
+	void EndDialogue();
+
+	UDialogueRuntimeNode* GetNextNode(const int32 SelectedChoiceIndex);
+	TArray<FGuid> GetSelectableChoicesLinkedGuid(UDialogueRuntimeNode* DialogueRuntimeNode) const;
+	bool IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode) const;
+	UDialogueRuntimeNode* GetDialogueNode(FGuid DialogueNodeGuid);
+
+	FARFilter GetDialogueGraphAssetFilter(ENPCID NPCID, EChapterID ChapterID) const;
+	void InitializeDialogueData();
+	bool IsCandidateDialogueGraphAsset(const FAssetData& AssetData) const;
+	void OnDialogueLoaded();
+
+	FGameplayTagContainer GetPlayerOwnedTags() const;
+	int32 GetPlayerLevel() const;
+	EChapterID GetCurrentChapter() const;
+
+	void SaveRelativeDatas() const;
+	bool LoadDialogueSaveData();
+	void SaveDialogueSaveData() const;
+	
+	UPROPERTY()
+	UDialogueGraph* CurrentDialogueGraph;
+
+	UPROPERTY()
+	TArray<UDialogueNodeInfo*> DialogueHistory;	// Dialogue Recall을 위한 캐싱
+
+	UPROPERTY()
+	FGuidList ShownDialogueGuids;
+	
+	UPROPERTY()
+	UDialogueNodeInfo* CurrentOngoingDialogueNodeInfo;
+	
+	UPROPERTY()
+	FGuid CurrentOngoingNodeGuid;
+	
+	UPROPERTY()
+	TMap<FGuid, UDialogueRuntimeNode*> IdToNodeMap;
+
+	TSharedPtr<FStreamableHandle> CurrentHandle;
+
+	FOnDialogueReady OnDialogueReady;
+	
+	FOnCurrentDialogueNodeChange OnCurrentDialogueChanged;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnDialogueEnd OnDialogueEnded;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnStopSkip OnStopSkip;
+	
+	UPROPERTY()
+	FTimerHandle OnShownDialogueSkipTimerHandle;
+	
+	UPROPERTY()
+	TArray<UDialogueGraph*> PossibleDialogueGraphs;
+
+	UPROPERTY()
+	TSoftClassPtr<UUserWidget> DialogueWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* DialogueWidget = nullptr;
+
+	UPROPERTY()
+	UUserWidget* RecallWidget = nullptr;
+
+	const FString ShownDialogueSaveSlot = TEXT("ShownDialogueSaveSlot");
+	const int32 DialogueHistorySaveIndex = 0;
+
+	UPROPERTY()
+	class UShownDialogueSaveData* DialogueHistorySaveData = nullptr;
 };

@@ -2,8 +2,6 @@
 
 
 #include "DialogueEdGraphNode.h"
-
-#include "EditorStyleSet.h"
 #include "DialogueMaker/DialogueNodeInfo.h"
 #include "DialogueMaker/DialogueNodeType.h"
 
@@ -24,7 +22,7 @@ void UDialogueEdGraphNode::CreateDefaultOutputPin()
 {
 	FString DefaultResponse = TEXT("Continue");
 	CreateCustomPin(EGPD_Output, FName(DefaultResponse));
-	GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(DefaultResponse));
+	GetDialogueNodeInfo()->AddDialogueChoice(FDialogueChoice(FText::FromString(DefaultResponse)));
 }
 
 EDialogueType UDialogueEdGraphNode::GetDialogueNodeType() const
@@ -54,7 +52,7 @@ void UDialogueEdGraphNode::SyncPinWithResponses()
 {
 	UDialogueNodeInfo* NodeInfo = GetDialogueNodeInfo();
 	int GraphNodePinsCount = Pins.Num() - 1;	// 첫 번째 pin은 언제나 input pin이라고 가정한다
-	int NodeInfoPinsCount = NodeInfo->DialogueResponses.Num();
+	int NodeInfoPinsCount = NodeInfo->GetDialogueChoices().Num();
 
 	while (GraphNodePinsCount > NodeInfoPinsCount)
 	{
@@ -64,14 +62,14 @@ void UDialogueEdGraphNode::SyncPinWithResponses()
 
 	while (NodeInfoPinsCount > GraphNodePinsCount)
 	{
-		CreateCustomPin(EGPD_Output, FName(NodeInfo->DialogueResponses[GraphNodePinsCount].ToString()));
+		CreateCustomPin(EGPD_Output, FName(NodeInfo->GetDialogueChoices()[GraphNodePinsCount].ResponseText.ToString()));
 		GraphNodePinsCount++;
 	}
 
 	int PinIndex = 1;	// 첫 번째 pin은 언제나 input pin이라고 가정한다
-	for (FText& Option : DialogueNodeInfo->DialogueResponses)
+	for (const FDialogueChoice Choice : DialogueNodeInfo->GetDialogueChoices())
 	{
-		GetPinAt(PinIndex)->PinName = FName(Option.ToString());
+		GetPinAt(PinIndex)->PinName = FName(Choice.ResponseText.ToString());
 		PinIndex++;
 	}
 }
@@ -100,9 +98,9 @@ FText UDialogueEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	UDialogueNodeInfo* NodeInfo = Cast<UDialogueNodeInfo>(DialogueNodeInfo);
 	// 노드 제목이 없는 경우 대사의 첫 부분으로 간략하게 보여준다
-	if (NodeInfo->Title.IsEmpty())
+	if (NodeInfo->GetTitle().IsEmpty())
 	{
-		FString DialogueTextString = NodeInfo->DialogueText.ToString();
+		FString DialogueTextString = NodeInfo->GetDialogueText().ToString();
 		if (DialogueTextString.Len() > 15)
 		{
 			DialogueTextString = DialogueTextString.Left(15) + TEXT("...");
@@ -110,7 +108,7 @@ FText UDialogueEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		return FText::FromString(DialogueTextString);
 	}
 	
-	return NodeInfo->Title;
+	return NodeInfo->GetTitle();
 }
 
 FLinearColor UDialogueEdGraphNode::GetNodeTitleColor() const
@@ -123,8 +121,7 @@ bool UDialogueEdGraphNode::CanUserDeleteNode() const
 	return Super::CanUserDeleteNode();
 }
 
-void UDialogueEdGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu,
-	class UGraphNodeContextMenuContext* Context) const
+void UDialogueEdGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 	FToolMenuSection& Section = Menu->AddSection(TEXT("Section Name"), FText::FromString(TEXT("Dialogue Node Actions")));
 	UDialogueEdGraphNode* Node = (UDialogueEdGraphNode*)this;
@@ -135,7 +132,7 @@ void UDialogueEdGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu,
 		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeAddPinIcon")),
 		FUIAction(FExecuteAction::CreateLambda(
 			[Node] (){
-				Node->GetDialogueNodeInfo()->DialogueResponses.Add(FText::FromString(TEXT("Response")));
+				Node->GetDialogueNodeInfo()->AddDialogueChoice(FDialogueChoice(FText::FromString(TEXT("Response"))));
 				Node->SyncPinWithResponses();
 				
 				Node->GetGraph()->NotifyGraphChanged();
@@ -155,7 +152,8 @@ void UDialogueEdGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu,
 				if (Pin->Direction != EGPD_Input)
 				{
 					UDialogueNodeInfo* NodeInfo = Node->GetDialogueNodeInfo();
-					NodeInfo->DialogueResponses.RemoveAt(NodeInfo->DialogueResponses.Num() - 1);
+					NodeInfo->RemoveDialogueChoiceAt(NodeInfo->GetDialogueChoices().Num() - 1);
+					
 					Node->SyncPinWithResponses();
 					
 					Node->GetGraph()->NotifyGraphChanged();
