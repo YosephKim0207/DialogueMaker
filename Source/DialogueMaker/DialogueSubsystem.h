@@ -49,9 +49,17 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetSkipHandler(const FTimerHandle& Handle);
+
+	UFUNCTION(BlueprintCallable)
+	const TArray<UDialogueNodeInfo*>& GetDialogueHistory();
+
+	UFUNCTION(BlueprintCallable)
+	void SetDialogueRecallWidget(UUserWidget* UserWidget);
+
+	UFUNCTION(BlueprintCallable)
+	UUserWidget* GetDialogueRecallWidget() const;
 	
 	FPlayerCondition GetPlayerEvalCondition() const;
-
 
 private:
 	void CheckDelegates();
@@ -124,6 +132,9 @@ private:
 
 	UPROPERTY()
 	UUserWidget* DialogueWidget = nullptr;
+
+	UPROPERTY()
+	UUserWidget* RecallWidget = nullptr;
 
 	const FString ShownDialogueSaveSlot = TEXT("ShownDialogueSaveSlot");
 	const int32 DialogueHistorySaveIndex = 0;

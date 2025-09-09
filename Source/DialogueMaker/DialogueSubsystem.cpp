@@ -364,6 +364,21 @@ void UDialogueSubsystem::SetSkipHandler(const FTimerHandle& Handle)
 	OnShownDialogueSkipTimerHandle = Handle;
 }
 
+const TArray<UDialogueNodeInfo*>& UDialogueSubsystem::GetDialogueHistory()
+{
+	return DialogueHistory;
+}
+
+void UDialogueSubsystem::SetDialogueRecallWidget(UUserWidget* UserWidget)
+{
+	RecallWidget = UserWidget;
+}
+
+UUserWidget* UDialogueSubsystem::GetDialogueRecallWidget() const
+{
+		return RecallWidget;
+}
+
 FPlayerCondition UDialogueSubsystem::GetPlayerEvalCondition() const
 {
 	FPlayerCondition PlayerEvalCondition;
