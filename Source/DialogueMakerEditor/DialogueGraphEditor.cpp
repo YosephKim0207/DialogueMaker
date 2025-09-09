@@ -332,35 +332,35 @@ void FDialogueGraphEditor::OnConvertToDataTableButtonClicked()
 void FDialogueGraphEditor::CreateNewDataTable()
 {
 
-    // Check Speaker Name
-    // TODO WorkingAsset의 이름이 기본 이름("Enter Dialogue Name Here")인 경우 경고 팝업 띄우기
-
-    // Creat DataTable Asset
-    const FString DataTableRoot = TEXT("/Game/DialogueDataTable");
-    // const FString FileName = TEXT("DT_Dialogue_") + WorkingAsset->GetSpeakerName();
-    const FString FileName = FString("DT_Dialogue_") + FString("TEST");
-
-    const FString AssetPath = DataTableRoot + "/" + FileName;
-    UPackage* Package = CreatePackage(*AssetPath);
-    DataTable = NewObject<UDataTable>(Package, UDataTable::StaticClass(), *FileName, RF_Public|RF_Standalone);
-    DataTable->RowStruct = FDialogueStructure::StaticStruct();
-    
-    FAssetRegistryModule::AssetCreated(DataTable);
-    Package->MarkPackageDirty();
-
-    // Nodes를 순회하며 Node의 정보들을 DialogueStructure의 형태로 DataTable에 저장
-    TMap<FGuid, FDialogueStructure> DialogueNodeDataMap;
-    CollectDialogueData(DialogueNodeDataMap);
-    int32 DataRowIndex = 0;
-    for (TPair<FGuid, FDialogueStructure> Pair : DialogueNodeDataMap)
-    {
-        DataTable->AddRow(*Pair.Key.ToString(), Pair.Value);
-        DataRowIndex++;
-    }
-
-    // Save Asset
-    FString FilePath = FPackageName::LongPackageNameToFilename(AssetPath, FPackageName::GetAssetPackageExtension());
-    UPackage::SavePackage(Package, DataTable, RF_Public|RF_Standalone, *FilePath);
+    // // Check Speaker Name
+    // // TODO WorkingAsset의 이름이 기본 이름("Enter Dialogue Name Here")인 경우 경고 팝업 띄우기
+    //
+    // // Creat DataTable Asset
+    // const FString DataTableRoot = TEXT("/Game/DialogueDataTable");
+    // // const FString FileName = TEXT("DT_Dialogue_") + WorkingAsset->GetSpeakerName();
+    // const FString FileName = FString("DT_Dialogue_") + FString("TEST");
+    //
+    // const FString AssetPath = DataTableRoot + "/" + FileName;
+    // UPackage* Package = CreatePackage(*AssetPath);
+    // DataTable = NewObject<UDataTable>(Package, UDataTable::StaticClass(), *FileName, RF_Public|RF_Standalone);
+    // DataTable->RowStruct = FDialogueStructure::StaticStruct();
+    //
+    // FAssetRegistryModule::AssetCreated(DataTable);
+    // Package->MarkPackageDirty();
+    //
+    // // Nodes를 순회하며 Node의 정보들을 DialogueStructure의 형태로 DataTable에 저장
+    // TMap<FGuid, FDialogueStructure> DialogueNodeDataMap;
+    // CollectDialogueData(DialogueNodeDataMap);
+    // int32 DataRowIndex = 0;
+    // for (TPair<FGuid, FDialogueStructure> Pair : DialogueNodeDataMap)
+    // {
+    //     DataTable->AddRow(*Pair.Key.ToString(), Pair.Value);
+    //     DataRowIndex++;
+    // }
+    //
+    // // Save Asset
+    // FString FilePath = FPackageName::LongPackageNameToFilename(AssetPath, FPackageName::GetAssetPackageExtension());
+    // UPackage::SavePackage(Package, DataTable, RF_Public|RF_Standalone, *FilePath);
 }
 
 /* Dialogue Nodes를 outpin을 기준으로 DFS 탐색하며
@@ -369,15 +369,15 @@ void FDialogueGraphEditor::CreateNewDataTable()
 */
 void FDialogueGraphEditor::CollectDialogueData(TMap<FGuid, FDialogueStructure>& OutDialogueDataMap)
 {
-    UDialogueEdGraphNodeBase* StartNode = FindStartNode();
-    if (StartNode == nullptr)
-    {
-        return;
-    }
-
-    // Start Node에서부터 DFS 탐색하며 Dialogue 정리
-    TSet<FGuid> VisitedNodeSet;
-    DFSDialogueGraph(StartNode, OutDialogueDataMap, VisitedNodeSet);
+    // UDialogueEdGraphNodeBase* StartNode = FindStartNode();
+    // if (StartNode == nullptr)
+    // {
+    //     return;
+    // }
+    //
+    // // Start Node에서부터 DFS 탐색하며 Dialogue 정리
+    // TSet<FGuid> VisitedNodeSet;
+    // DFSDialogueGraph(StartNode, OutDialogueDataMap, VisitedNodeSet);
 }
 
 UDialogueEdGraphNodeBase* FDialogueGraphEditor::FindStartNode() const
