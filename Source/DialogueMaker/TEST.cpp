@@ -20,7 +20,7 @@ void ATEST::BeginPlay()
 
 	if (UDialogueSubsystem* DialogueSubsystem = UDialogueSubsystem::Get(this))
 	{
-		DialogueSubsystem->BeginDialogue(ENPCID::TestNPC);
+		DialogueSubsystem->BeginDialogue(ESpeakerID::TestNPC);
 	}
 }
 
