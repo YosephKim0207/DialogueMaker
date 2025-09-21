@@ -24,7 +24,7 @@ public:
 	static UDialogueSubsystem* Get(const UObject* WorldContextObject);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-	void BeginDialogue(ENPCID NPCID);
+	void BeginDialogue(ESpeakerID SpeakerID);
 	
 	UFUNCTION(BlueprintCallable)
 	class UDialogueNodeInfo* ProgressNextDialogue(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
@@ -64,7 +64,7 @@ public:
 private:
 	void CheckDelegates();
 	
-	void GetDialogueGraph(ENPCID NPCID);
+	void GetDialogueGraph(ESpeakerID NPCID);
 	void StartDialogue(UDialogueGraph* DialogueGraph);
 	void CreateDialogueUI();
 	UDialogueRuntimeNode* GetFirstNode();
@@ -78,7 +78,7 @@ private:
 	bool IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode) const;
 	UDialogueRuntimeNode* GetDialogueNode(FGuid DialogueNodeGuid);
 
-	FARFilter GetDialogueGraphAssetFilter(ENPCID NPCID, EChapterID ChapterID) const;
+	FARFilter GetDialogueGraphAssetFilter(ESpeakerID NPCID, EChapterID ChapterID) const;
 	void InitializeDialogueData();
 	bool IsCandidateDialogueGraphAsset(const FAssetData& AssetData) const;
 	void OnDialogueLoaded();

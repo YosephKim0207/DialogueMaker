@@ -55,18 +55,18 @@ void UDialogueSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 }
 
 // NPC의 호출로 현재 노출 가능한 Dialogue를 Show하기 위한 함수
-void UDialogueSubsystem::BeginDialogue(ENPCID NPCID)
+void UDialogueSubsystem::BeginDialogue(ESpeakerID SpeakerID)
 {
 	CheckDelegates();	
-	GetDialogueGraph(NPCID);
+	GetDialogueGraph(SpeakerID);
 }
 
 // Player가 갖고 있는 GameplayTagContainer을 통해 현재의 Condition을 점검하여 현 상황에서 노출 가능한 DialogueGraph 에셋들을 추출한다. 
-void UDialogueSubsystem::GetDialogueGraph(ENPCID NPCID)
+void UDialogueSubsystem::GetDialogueGraph(ESpeakerID SpeakerID)
 {
 	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Enter"));
 	
-	// NPCID, ChapterID 기준 필터 제작
+	// SpeakerID, ChapterID 기준 필터 제작
 	
 	EChapterID TEMPChapterID = GetCurrentChapter();
 
@@ -75,14 +75,12 @@ void UDialogueSubsystem::GetDialogueGraph(ENPCID NPCID)
 	TEMPChapterID = EChapterID::Chapter01;
 #endif
 	
-	FARFilter ARFilter = GetDialogueGraphAssetFilter(NPCID, TEMPChapterID);
+	FARFilter ARFilter = GetDialogueGraphAssetFilter(SpeakerID, TEMPChapterID);
 
 	// 제작된 필터로부터 Assets 가져오기
 	TArray<FAssetData> AssetDatas;
 	IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
 	AssetRegistry.GetAssets(ARFilter, AssetDatas);
-
-	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Start Asset Check"));
 	
 	TArray<FAssetData> CandidateAssetDatas;
 	for (const FAssetData& AssetData : AssetDatas)
@@ -615,18 +613,17 @@ void UDialogueSubsystem::SetInputSettings(bool bIsShowUI) const
 	
 }
 
-// DialogueGraph Asset을 NPCID와 ChapterID를 기준으로 하는 1차 필터 반환
-FARFilter UDialogueSubsystem::GetDialogueGraphAssetFilter(ENPCID NPCID, EChapterID ChapterID) const
+// DialogueGraph Asset을 SpeakerID ChapterID를 기준으로 하는 1차 필터 반환
+FARFilter UDialogueSubsystem::GetDialogueGraphAssetFilter(ESpeakerID SpeakerID, EChapterID ChapterID) const
 {
 	FARFilter ARFilter;
 	ARFilter.ClassPaths.Add(UDialogueGraph::StaticClass()->GetClassPathName());
 
-	const UEnum* EnumPtr = StaticEnum<ENPCID>();
-	FString NPCEnumName = EnumPtr->GetNameStringByValue(static_cast<uint8>(NPCID));
-	ARFilter.TagsAndValues.Add("NPCID", NPCEnumName);
-	// 	FString ChapterEnumName = EnumPtr->GetNameStringByValue(static_cast<int64>(ChapterID));
-	// 	ARFilter.TagsAndValues.Add("ChapterID", ChapterEnumName);
-	
+	FString SpeakerEnumName = GetEnumNameString<ESpeakerID>(SpeakerID);
+	ARFilter.TagsAndValues.Add(UDialogueGraph::GetSpeakerIDTag(), SpeakerEnumName);
+	// 	FString ChapterEnumName = EGetEnumNameString<EChapterID>(ChapterID);
+	// 	ARFilter.TagsAndValues.Add(UDialogueGraph::GetChapterIDTag(), ChapterEnumName);
+
 	return ARFilter;
 }
 

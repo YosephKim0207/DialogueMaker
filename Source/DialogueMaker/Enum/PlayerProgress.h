@@ -3,7 +3,7 @@
 #include "PlayerProgress.generated.h"
 
 UENUM(BlueprintType)
-enum class ENPCID : uint8
+enum class ESpeakerID : uint8
 {
 	// TODO Add Dialogue owned NPC name here
 	TestNPC UMETA(DisplayName = "TestNPC"),

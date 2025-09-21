@@ -42,7 +42,7 @@ public:	// Properties
 	TObjectPtr<UDialogueRuntimeGraph> Graph;
 
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")
-	ENPCID NPCID;
+	ESpeakerID SpeakerID;
 
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")
 	EChapterID ChapterID;
