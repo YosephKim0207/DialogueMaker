@@ -34,3 +34,13 @@ void UDialogueNodeInfo::SetShownCondition(const bool NewCondition)
 {
 	bIsShown = NewCondition;
 }
+
+const FSpeakerEmotePair UDialogueNodeInfo::GetSpeakerEmotePair() const
+{
+	return FSpeakerEmotePair(SpeakerID, EmoteType);
+}
+
+const FPortraitActionData UDialogueNodeInfo::GetActionData() const
+{
+	return ActionData;
+}

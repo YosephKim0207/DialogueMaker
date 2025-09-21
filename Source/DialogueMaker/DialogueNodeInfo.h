@@ -1,11 +1,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueGraph.h"
 #include "DialogueNodeInfoBase.h"
+#include "DialoguePortraitData.h"
 #include "QuestBase.h"
+#include "Enum/PlayerProgress.h"
 #include "Struct/DialogueStructure.h"
 #include "DialogueNodeInfo.generated.h"
+
+USTRUCT(BlueprintType)
+struct FSpeakerEmotePair
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	ESpeakerID Speaker;
+
+	UPROPERTY()
+	EEmoteType EmoteType;
+
+	FSpeakerEmotePair(){ Speaker = ESpeakerID::TestNPC, EmoteType = EEmoteType::None; };
+	FSpeakerEmotePair(ESpeakerID Speaker, EEmoteType EmoteType) : Speaker(Speaker), EmoteType(EmoteType){};
+};
 
 UCLASS(BlueprintType)
 class DIALOGUEMAKER_API UDialogueNodeInfo : public UDialogueNodeInfoBase
@@ -30,6 +46,11 @@ public:
 	
 	bool IsDialogueAlreadyShown() const;
 	void SetShownCondition(const bool NewCondition);
+
+	const FSpeakerEmotePair GetSpeakerEmotePair() const;
+	
+	UFUNCTION(BlueprintCallable, Category= "Portrait")
+	const FPortraitActionData GetActionData() const;
 	
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))

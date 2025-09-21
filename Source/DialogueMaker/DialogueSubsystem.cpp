@@ -143,9 +143,9 @@ void UDialogueSubsystem::GetDialogueGraph(ESpeakerID SpeakerID)
 void UDialogueSubsystem::StartDialogue(UDialogueGraph* DialogueGraph)
 {
 	CurrentDialogueGraph = DialogueGraph;
+	
 	InitializeDialogueData();
-
-	CreateDialogueUI();
+	PreloadPortraits();
 }
 
 // Dialogue Node의 Type이 End에 도착하는 경우 호출
@@ -160,6 +160,9 @@ void UDialogueSubsystem::EndDialogue()
 	{
 		OnStopSkip.Broadcast();
 	}
+
+	// Load해둔 Portrait 해제
+	PortraitPreLoadHandle->ReleaseHandle();
 
 	// TODO 진행 상황 저장
 	UDialogueRuntimeNode* DialogueRuntimeNode = GetDialogueNode(CurrentOngoingNodeGuid);
@@ -589,6 +592,11 @@ void UDialogueSubsystem::MakeCurrentDialogueNodeToShown()
 void UDialogueSubsystem::SetCurrentDialogueInfo()
 {
 	CurrentOngoingDialogueNodeInfo = Cast<UDialogueNodeInfo>(IdToNodeMap[CurrentOngoingNodeGuid]->NodeInfo);
+
+	if (OnDialogueNodeInfoChanged.IsBound())
+	{
+		OnDialogueNodeInfoChanged.Broadcast();
+	}
 }
 
 void UDialogueSubsystem::SetInputSettings(bool bIsShowUI) const
@@ -783,6 +791,99 @@ EChapterID UDialogueSubsystem::GetCurrentChapter() const
 	check(PlayerProgressSubsystem);
 
 	return PlayerProgressSubsystem->GetCurrentChapter();
+}
+
+// DialogueGraph 에셋 내 사용되는 Portrait들을 메모리에 사전 탑재
+void UDialogueSubsystem::PreloadPortraits()
+{
+	// Current DialogueGraph를 순회하며 필요한 Portrait 리소스들 Load
+	TMultiMap<ESpeakerID, EEmoteType> RequiredPortraitPairs;
+	for (const UDialogueRuntimeNode* Node : CurrentDialogueGraph->Graph->Nodes)
+	{
+		if (const UDialogueNodeInfo* NodeInfo = Cast<UDialogueNodeInfo>(Node->NodeInfo))
+		{
+			const FSpeakerEmotePair SpeakerEmotePair = NodeInfo->GetSpeakerEmotePair();
+			RequiredPortraitPairs.AddUnique(SpeakerEmotePair.Speaker, SpeakerEmotePair.EmoteType);
+		}
+	}
+
+	// ESpeakerID, EEmoteType가 일치하는 Portrait를 가져오기 위해  DialoguePortraitData로부터 PrimaryAssetId 얻기
+	TArray<FPrimaryAssetId> AssetIds;
+	for (TTuple<ESpeakerID, EEmoteType> PortraitPair : RequiredPortraitPairs)
+	{
+		FARFilter ARFilter;
+		ARFilter.ClassPaths.Add(UDialoguePortraitData::StaticClass()->GetClassPathName());
+		
+		FString NPCEnumName = GetEnumNameString<ESpeakerID>(PortraitPair.Key);
+		ARFilter.TagsAndValues.Add(UDialoguePortraitData::GetSpeakerIDTag(), NPCEnumName);	// ARFilter는 동일 component 내 or 판정이므로 하나의 조건만 add
+
+		TArray<FAssetData> AssetDatas;
+		IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
+		AssetRegistry.WaitForCompletion();
+		AssetRegistry.GetAssets(ARFilter, AssetDatas);
+
+		// Major한 조건인 ESpeakerID 1차 필터링 후 EEmoteType이 일치하는 Asset 추출
+		for (FAssetData AssetData : AssetDatas)
+		{
+			FString AssetEmoteString;
+			if (AssetData.GetTagValue(UDialoguePortraitData::GetEmoteTypeTag(), AssetEmoteString))
+			{
+				const UEnum* Enum = StaticEnum<EEmoteType>();
+				if (Enum == nullptr)
+				{
+					UE_LOG(DialogueSubSystemLog, Warning, TEXT(" : EEmoteType's staticEnum is nullptr"));
+					break;
+				}
+
+				// EEmotyType이 일치하는 Asset만 PrimaryAssetId를 추출
+				const uint8 AssetEmoteValue = Enum->GetValueByNameString(AssetEmoteString);
+				if (AssetEmoteValue == static_cast<uint8>(PortraitPair.Value))
+				{
+					const FPrimaryAssetId AssetId = AssetData.GetPrimaryAssetId();
+					if (AssetId.IsValid())
+					{
+						CachedPortraitEmotePairMap.Add(PortraitPair.Key, FPortraitEmoteIDPair(PortraitPair.Value, AssetId));
+						AssetIds.Add(AssetId);
+					}
+					else
+					{
+						UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::PreloadPortraits : AssetId is not Valid"));
+					}
+				}
+			}
+		}
+	}
+
+	// 필터와 일치하는 DialoguePortraitData에서 중 Portrait bundle만 가져오기(텍스처 로드)
+	UAssetManager& AssetManager = UAssetManager::Get();
+	TArray<FName> Bundles;
+	Bundles.Add(TEXT("Portrait"));
+
+	// TODO 콜백함수로 로딩 종료 띄우기
+	
+	FStreamableDelegate OnPortraitLoaded = FStreamableDelegate::CreateUObject(this, &UDialogueSubsystem::CreateDialogueUI);
+	PortraitPreLoadHandle = AssetManager.PreloadPrimaryAssets(AssetIds, Bundles, false, OnPortraitLoaded);
+}
+
+UTexture2D* UDialogueSubsystem::GetPortrait(const ESpeakerID SpeakerID, const EEmoteType EmoteType) const
+{
+	const FPortraitEmoteIDPair* EmotePrimaryAssetIdPair = CachedPortraitEmotePairMap.Find(SpeakerID);
+	if (EmotePrimaryAssetIdPair)
+	{
+		UAssetManager& AssetManager = UAssetManager::Get();
+		if (UDialoguePortraitData* PortraitData = AssetManager.GetPrimaryAssetObject<UDialoguePortraitData>(EmotePrimaryAssetIdPair->PortraitAssetId))
+		{
+			return PortraitData->GetPortraitTexture();
+		}
+		
+	}
+
+	return nullptr;
+}
+
+const FPortraitActionData UDialogueSubsystem::GetPortraitActionData() const
+{
+	return CurrentOngoingDialogueNodeInfo->GetActionData();
 }
 
 void UDialogueSubsystem::SaveRelativeDatas() const

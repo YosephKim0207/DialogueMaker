@@ -32,6 +32,17 @@ public:
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 	virtual void GetAssetRegistryTags(FAssetRegistryTagsContext Context) const override;
+
+	static FORCEINLINE FName GetSpeakerIDTag()
+	{
+		return GET_MEMBER_NAME_CHECKED(UDialogueGraph, SpeakerID);
+	}
+
+	static FORCEINLINE FName GetChapterIDTag()
+	{
+		return GET_MEMBER_NAME_CHECKED(UDialogueGraph, ChapterID);
+	}
+	
 public:
 	std::function<void()> OnPreSaveListener;
 

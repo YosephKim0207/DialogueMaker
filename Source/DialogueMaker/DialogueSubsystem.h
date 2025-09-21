@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "DialogueGraph.h"
+#include "DialogueNodeInfo.h"
 #include "ShownDialogueSaveData.h"
 #include "Struct/DialogueConditionEvalCriteria.h"
 #include "Engine/StreamableManager.h"
+#include "Enum/Portrait.h"
 #include "Subsystems/Subsystem.h"
 #include "DialogueSubsystem.generated.h"
 
@@ -14,6 +16,22 @@ DECLARE_DELEGATE_OneParam(FOnDialogueReady, UDialogueGraph*);
 DECLARE_DELEGATE_OneParam(FOnCurrentDialogueNodeChange, FGuid);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDialogueEnd);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStopSkip);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDialogueNodeInfoChanged);
+
+USTRUCT(BlueprintType)
+struct FPortraitEmoteIDPair
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EEmoteType EmoteType;
+
+	UPROPERTY()
+	FPrimaryAssetId PortraitAssetId;
+
+	FPortraitEmoteIDPair() {EmoteType = EEmoteType::None; PortraitAssetId = FPrimaryAssetId(); };
+	FPortraitEmoteIDPair(EEmoteType EmoteType, const FPrimaryAssetId& PortraitAssetId) : EmoteType(EmoteType), PortraitAssetId(PortraitAssetId) {};
+};
 
 UCLASS()
 class DIALOGUEMAKER_API UDialogueSubsystem : public UGameInstanceSubsystem
@@ -87,6 +105,31 @@ private:
 	int32 GetPlayerLevel() const;
 	EChapterID GetCurrentChapter() const;
 
+	void PreloadPortraits();
+
+	UFUNCTION(BlueprintCallable)
+	UTexture2D* GetPortrait(const ESpeakerID NPCID, const EEmoteType EmoteType) const;
+
+	UFUNCTION(BlueprintCallable)
+	const FPortraitActionData GetPortraitActionData() const;
+
+	template<typename TEnum>
+	FString GetEnumNameString(TEnum EnumValue) const
+	{
+		static_assert(TIsEnum<TEnum>::Value, "UDialogueSubsystem::GetEnumNameString: TEnum must be an enum type");
+
+		const UEnum* Enum = StaticEnum<TEnum>();
+		if (Enum)
+		{
+			const int64 Raw = static_cast<int64>(EnumValue);
+			return Enum->GetNameStringByValue(static_cast<int64>(EnumValue));
+		}
+
+		UE_LOG(LogTemp, Error, TEXT("UDialogueSubsystem::GetEnumNameString : Enum is nullptr"));
+		
+		return FString();
+	}
+
 	void SaveRelativeDatas() const;
 	bool LoadDialogueSaveData();
 	void SaveDialogueSaveData() const;
@@ -116,6 +159,9 @@ private:
 	FOnCurrentDialogueNodeChange OnCurrentDialogueChanged;
 
 	UPROPERTY(BlueprintAssignable)
+	FOnDialogueNodeInfoChanged OnDialogueNodeInfoChanged;
+
+	UPROPERTY(BlueprintAssignable)
 	FOnDialogueEnd OnDialogueEnded;
 
 	UPROPERTY(BlueprintAssignable)
@@ -127,6 +173,17 @@ private:
 	UPROPERTY()
 	TArray<UDialogueGraph*> PossibleDialogueGraphs;
 
+	UPROPERTY()
+	TMap<ESpeakerID, EEmoteType> CurrentNPCEmote;
+
+	UPROPERTY()
+	TMap<ESpeakerID, FPortraitEmoteIDPair> CachedPortraitEmotePairMap;
+
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	TMap<ESpeakerID, EPortraitSide> CachedPortraitSideMap;
+	
+	TSharedPtr<FStreamableHandle> PortraitPreLoadHandle;
+	
 	UPROPERTY()
 	TSoftClassPtr<UUserWidget> DialogueWidgetClass;
 
