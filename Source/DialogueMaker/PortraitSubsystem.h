@@ -23,9 +23,9 @@ public:
 	FVector2D GetPortraitAlignment(EPortraitSide PortraitSide) const;
 
 private:
-	const FAnchors LeftAnchors = FAnchors(0.0f,   0.5f, 0.0f,   0.5f);
+	const FAnchors LeftAnchors = FAnchors(0.1f,   0.5f, 0.1f,   0.5f);
 	const FAnchors CenterAnchors = FAnchors(0.5f,  0.5f, 0.5f,  0.5f);
-	const FAnchors RightAnchors  = FAnchors(1.0f,   0.5f, 1.0f,   0.5f);
+	const FAnchors RightAnchors  = FAnchors(0.9f,   0.5f, 0.9f,   0.5f);
 	const FVector2D LeftAlignment = FVector2D(0.0f, 0.5f);
 	const FVector2D CenterAlignment = FVector2D(0.5f, 0.5f);
 	const FVector2D RightAlignment = FVector2D(1.0f, 0.5f);
