@@ -37,10 +37,15 @@ void UDialogueNodeInfo::SetShownCondition(const bool NewCondition)
 
 const FSpeakerEmotePair UDialogueNodeInfo::GetSpeakerEmotePair() const
 {
-	return FSpeakerEmotePair(SpeakerID, EmoteType);
+	return FSpeakerEmotePair(SpeakerID, PortraitData.EmoteType);
 }
 
-const FPortraitActionData UDialogueNodeInfo::GetActionData() const
+const FPortraitData UDialogueNodeInfo::GetPortraitData() const
 {
-	return ActionData;
+	return PortraitData;
+}
+
+const TArray<FPortraitActionData>& UDialogueNodeInfo::GetPortraitActionDatas() const
+{
+	return PortraitActionDatas;
 }

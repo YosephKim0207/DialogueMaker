@@ -389,6 +389,17 @@ FPlayerCondition UDialogueSubsystem::GetPlayerEvalCondition() const
 	return PlayerEvalCondition;
 }
 
+const TArray<FPortraitActionData>& UDialogueSubsystem::GetPortraitActionDatas() const
+{
+	const TArray<FPortraitActionData> EmptyActionDatas;
+	if (CurrentOngoingDialogueNodeInfo == nullptr)
+	{
+		return EmptyActionDatas;
+	}
+
+	return CurrentOngoingDialogueNodeInfo->GetPortraitActionDatas();
+}
+
 void UDialogueSubsystem::CheckDelegates()
 {
 	if (OnCurrentDialogueChanged.IsBound() == false)
@@ -881,9 +892,9 @@ UTexture2D* UDialogueSubsystem::GetPortrait(const ESpeakerID SpeakerID, const EE
 	return nullptr;
 }
 
-const FPortraitActionData UDialogueSubsystem::GetPortraitActionData() const
+const FPortraitData UDialogueSubsystem::GetPortraitData() const
 {
-	return CurrentOngoingDialogueNodeInfo->GetActionData();
+	return CurrentOngoingDialogueNodeInfo->GetPortraitData();
 }
 
 void UDialogueSubsystem::SaveRelativeDatas() const

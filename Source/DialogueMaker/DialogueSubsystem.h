@@ -79,6 +79,9 @@ public:
 	
 	FPlayerCondition GetPlayerEvalCondition() const;
 
+	UFUNCTION(BlueprintCallable)
+	const TArray<FPortraitActionData>& GetPortraitActionDatas() const;
+
 private:
 	void CheckDelegates();
 	
@@ -111,7 +114,7 @@ private:
 	UTexture2D* GetPortrait(const ESpeakerID NPCID, const EEmoteType EmoteType) const;
 
 	UFUNCTION(BlueprintCallable)
-	const FPortraitActionData GetPortraitActionData() const;
+	const FPortraitData GetPortraitData() const;
 
 	template<typename TEnum>
 	FString GetEnumNameString(TEnum EnumValue) const
@@ -121,7 +124,6 @@ private:
 		const UEnum* Enum = StaticEnum<TEnum>();
 		if (Enum)
 		{
-			const int64 Raw = static_cast<int64>(EnumValue);
 			return Enum->GetNameStringByValue(static_cast<int64>(EnumValue));
 		}
 
