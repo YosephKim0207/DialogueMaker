@@ -47,7 +47,10 @@ struct FPortraitActionData
 	FVector2D FromTranslation = FVector2D::ZeroVector;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tween")
-	FVector2D ToTranslation = FVector2D::ZeroVector;
+	EPortraitSide TargetSide = EPortraitSide::Center;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tween")
+	FVector2D TargetSideOffset = FVector2D::ZeroVector;
 };
 
 UCLASS()

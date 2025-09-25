@@ -37,6 +37,7 @@ private:
 	void PlayCurrentMoveAction();
 	void TickCurrentMoveAction();
 	void SkipSequence(const FPortraitActionData& ActionData);
+	FVector2D ResolveTargetTranslation(const FPortraitActionData& ActionData) const;
 	void ResetState();
 	void ClearAllTimer();
 	
@@ -55,9 +56,15 @@ private:
 
 	int32 CurrentActionIndex = INDEX_NONE;
 	float CurrentActionElapsedTime = 0.0f;
-	
+
+	UPROPERTY()
 	FTimerHandle DelayTimerHandle;
+	
+	UPROPERTY()
 	FTimerHandle TickTimerHandle;
 
 	const float SequenceTickInterval = 1.0f / 60.0f;
+
+	UPROPERTY()
+	FVector2D CachedOriginalRenderTranslation = FVector2D::ZeroVector;
 };

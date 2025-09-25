@@ -2,6 +2,12 @@
 
 #include "ActionSequencer.h"
 
+#include "GPUSkinVertexFactory.h"
+#include "PortraitSubsystem.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/PanelWidget.h"
+
 DEFINE_LOG_CATEGORY_STATIC(ActionSequencerLog, Log, All);
 
 // TimeManager 사용을 위한 WorldContextObject 설정
@@ -142,23 +148,36 @@ void UActionSequencer::PlayCurrentMoveAction()
 	if (UWorld* World = GetWorld())
 	{
 		FTimerManager& TimerManager = World->GetTimerManager();
+		CachedOriginalRenderTranslation = CurrentActionTargetWidget->GetRenderTransform().Translation;
+
+		UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::PlayCurrentMoveAction : CachedCurrentRenderTranslation %s"), *CachedOriginalRenderTranslation.ToString())
+		
 		TimerManager.SetTimer(TickTimerHandle, this, &UActionSequencer::TickCurrentMoveAction, SequenceTickInterval, true, 0.0f);
 	}
 }
 
 void UActionSequencer::TickCurrentMoveAction()
 {
+	CurrentActionElapsedTime += SequenceTickInterval;
+	
 	const FPortraitActionData& ActionData = CachedActionDatas[CurrentActionIndex];
 	const float ActionDuration = FMath::Max(ActionData.Duration, 0.0f);
-	CurrentActionElapsedTime += SequenceTickInterval;
-	const float Alpha = FMath::Clamp(CurrentActionElapsedTime / ActionDuration, 0.0f, 1.0f);
+	const float Alpha = ActionDuration <= 0.0f ? 1.0f : FMath::Clamp(CurrentActionElapsedTime / ActionDuration, 0.0f, 1.0f);
 	const bool bIsComplete = CurrentActionElapsedTime >= ActionData.Duration;
+	
+	const FVector2D ResolvedFromTranslation = ActionData.FromTranslation.IsNearlyZero()
+	? CachedOriginalRenderTranslation
+	: ActionData.FromTranslation;
+	
+	const FVector2D ResolvedToTranslation = ResolveTargetTranslation(ActionData);
+	
 	const FVector2D NewTranslation = bIsComplete
-	? ActionData.ToTranslation
-	: FMath::Lerp(ActionData.FromTranslation, ActionData.ToTranslation, Alpha);
+	? ResolvedToTranslation
+	: FMath::Lerp(ResolvedFromTranslation, ResolvedToTranslation, Alpha);
 	
 	CurrentActionTargetWidget->SetBaseTranslation(NewTranslation);
 
+	// 연출 시간 종료시 TickCurrentMoveAction 반복 종료 및 다음 ActionData 실행으로 이동
 	if (bIsComplete)
 	{
 		if (UWorld* World = GetWorld())
@@ -178,6 +197,62 @@ void UActionSequencer::SkipSequence(const FPortraitActionData& ActionData)
 	{
 		FTimerManager& TimerManager = World->GetTimerManager();
 	}
+}
+
+// Widget이 TargetSide, TargetOffset 위치로 간다면 현재 위치를 기준으로 어떻게 이동해야하나 연산
+FVector2D UActionSequencer::ResolveTargetTranslation(const FPortraitActionData& ActionData) const
+{
+	UCanvasPanelSlot* CanvasPanelSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(CurrentActionTargetWidget.Get());
+	if (CanvasPanelSlot == nullptr)
+	{
+		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::ResolveTargetTranslation : CanvasPanelSlot is nullptr"));
+
+		return FVector2D::ZeroVector;
+	}
+
+	UPortraitSubsystem* PortraitSubsystem = UPortraitSubsystem::Get(InWorldContextObject.Get());
+	if (PortraitSubsystem == nullptr)
+	{
+		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::ResolveTargetTranslation : PortraitSubsystem is nullptr"));
+
+		return FVector2D::ZeroVector;
+	}
+
+	// Current와 Target을 기준으로 AnchorPositionDelta - AlignmentDelta * WidgetSize + CurrentRenderTranslation(위젯의 실제 위치) 구하기
+	const FAnchors CurrentAnchors = CanvasPanelSlot->GetAnchors();
+	const FVector2D CurrentAlignment = CanvasPanelSlot->GetAlignment();
+	const FAnchors TargetAnchors = PortraitSubsystem->GetPortraitAnchors(ActionData.TargetSide);
+	const FVector2D TargetAlignment = PortraitSubsystem->GetPortraitAlignment(ActionData.TargetSide);
+
+	UPanelWidget* Parent = CanvasPanelSlot->Parent;
+	UWidget* Widget = CanvasPanelSlot->Content;
+	if (Parent == nullptr || Widget == nullptr)
+	{
+		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::ResolveTargetTranslation : Parent or Widget is nullptr"));
+
+		return FVector2D::ZeroVector;
+	}
+
+	FVector2D ParentSize = Parent->GetCachedGeometry().GetLocalSize();
+	FVector2D WidgetSize = Widget->GetCachedGeometry().GetLocalSize();
+
+	auto ResolveAnchors = [&ParentSize](const FAnchors& Anchors, const FVector2D& Alignment)
+	{
+		const FVector2D AnchorMin = Anchors.Minimum * ParentSize;
+		const FVector2D AnchorMax = Anchors.Maximum * ParentSize;
+
+		return FVector2D(
+			FMath::Lerp(AnchorMin.X, AnchorMax.X, Alignment.X),
+			FMath::Lerp(AnchorMin.Y, AnchorMax.Y, Alignment.Y));
+	};
+
+	const FVector2D CurrentAnchorPosition = ResolveAnchors(CurrentAnchors, CurrentAlignment);
+	const FVector2D TargetAnchorPosition = ResolveAnchors(TargetAnchors, TargetAlignment);
+	const FVector2D AnchorPositionDelta = TargetAnchorPosition - CurrentAnchorPosition;
+	const FVector2D AlignmentDelta = TargetAlignment - CurrentAlignment;
+	const FVector2D CalculatedTargetTranslation = AnchorPositionDelta + (-AlignmentDelta * WidgetSize) + ActionData.TargetSideOffset;
+
+	return CalculatedTargetTranslation;
 }
 
 void UActionSequencer::ResetState()
