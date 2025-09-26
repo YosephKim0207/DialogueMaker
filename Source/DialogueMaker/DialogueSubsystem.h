@@ -83,7 +83,7 @@ public:
 	const TArray<FPortraitInitData> GetInitPortraitDatas() const;
 
 	UFUNCTION(BlueprintCallable)
-	const TArray<FPortraitActionData>& GetPortraitActionDatas() const;
+	const TArray<FPortraitActionData> GetPortraitActionDatas() const;
 
 private:
 	void CheckDelegates();

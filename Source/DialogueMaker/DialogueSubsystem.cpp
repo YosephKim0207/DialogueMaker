@@ -400,12 +400,11 @@ const TArray<FPortraitInitData> UDialogueSubsystem::GetInitPortraitDatas() const
 	return CurrentDialogueGraph->InitPortraits;
 }
 
-const TArray<FPortraitActionData>& UDialogueSubsystem::GetPortraitActionDatas() const
+const TArray<FPortraitActionData> UDialogueSubsystem::GetPortraitActionDatas() const
 {
-	const TArray<FPortraitActionData> EmptyActionDatas;
 	if (CurrentOngoingDialogueNodeInfo == nullptr)
 	{
-		return EmptyActionDatas;
+		return {};
 	}
 
 	return CurrentOngoingDialogueNodeInfo->GetPortraitActionDatas();
