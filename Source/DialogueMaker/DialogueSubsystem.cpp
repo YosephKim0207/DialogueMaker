@@ -389,6 +389,17 @@ FPlayerCondition UDialogueSubsystem::GetPlayerEvalCondition() const
 	return PlayerEvalCondition;
 }
 
+const TArray<FPortraitInitData> UDialogueSubsystem::GetInitPortraitDatas() const
+{
+	if (CurrentDialogueGraph == nullptr)
+	{
+		UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::GetHighlightedInitPortraitDatas : CurrentDialogueGraph is null"));
+		return {};
+	}
+	
+	return CurrentDialogueGraph->InitPortraits;
+}
+
 const TArray<FPortraitActionData>& UDialogueSubsystem::GetPortraitActionDatas() const
 {
 	const TArray<FPortraitActionData> EmptyActionDatas;

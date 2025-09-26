@@ -8,6 +8,7 @@
 #include "DialogueRuntimeGraph.h"
 #include "GameplayTagContainer.h"
 #include "Enum/PlayerProgress.h"
+#include "Enum/Portrait.h"
 #include "DialogueGraph.generated.h"
 
 UENUM(BlueprintType)
@@ -16,6 +17,21 @@ enum class EDialogueGraphType : uint8
 	Quest = 0 UMETA(DisplayName = "Quest"),
 	Story = 10 UMETA(DisplayName = "Story"),
 	DailyChat = 100 UMETA(DisplayName = "DailyChat"),
+};
+
+USTRUCT(BlueprintType)
+struct FPortraitInitData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	ESpeakerID Speaker;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EEmoteType EmoteType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EPortraitSide PortraitSide;
 };
 
 UCLASS(BlueprintType)
@@ -72,5 +88,8 @@ public:	// Properties
 	
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Order")
 	int32 DialoguePriorityWeight;
+
+	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Initial Portrait")
+	TArray<FPortraitInitData> InitPortraits;
 };
 

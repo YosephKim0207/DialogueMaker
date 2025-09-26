@@ -80,6 +80,9 @@ public:
 	FPlayerCondition GetPlayerEvalCondition() const;
 
 	UFUNCTION(BlueprintCallable)
+	const TArray<FPortraitInitData> GetInitPortraitDatas() const;
+
+	UFUNCTION(BlueprintCallable)
 	const TArray<FPortraitActionData>& GetPortraitActionDatas() const;
 
 private:
