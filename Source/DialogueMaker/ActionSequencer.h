@@ -29,10 +29,11 @@ public :
 	
 	UFUNCTION(BlueprintCallable)
 	void StopSequence();
-
-	UFUNCTION(BlueprintCallable)
-	FVector2D GetOutOfScreenPosition(const class UCanvasPanelSlot* CanvasPanelSlot, const EPortraitSide PortraitSide) const;
-
+	
+	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = "ReturnValue"))
+	bool TryGetOutOfScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
+	const EPortraitSide PortraitSide, FVector2D& OutPosition) const;
+	
 	virtual class UWorld* GetWorld() const override;
 	
 private:

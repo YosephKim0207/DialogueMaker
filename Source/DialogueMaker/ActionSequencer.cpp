@@ -85,24 +85,24 @@ void UActionSequencer::StopSequence()
 }
 
 // 스크린 밖에서 진입하는 연출을 위해 Widget의 크기를 기준으로 스크린 밖의 좌표 반환
-FVector2D UActionSequencer::GetOutOfScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
-	const EPortraitSide PortraitSide) const
+bool UActionSequencer::TryGetOutOfScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
+	const EPortraitSide PortraitSide, FVector2D& OutPosition) const
 {
-	UPortraitSubsystem* PortraitSubsystem = UPortraitSubsystem::Get(InWorldContextObject.Get());
-	if (PortraitSubsystem == nullptr)
-	{
-		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::GetOutOfScreenPosition : PortraitSubsystem is nullptr"));
-
-		return FVector2D::ZeroVector;
-	}
-	
-	UPanelWidget* Parent = CanvasPanelSlot->Parent;
-	UWidget* Widget = CanvasPanelSlot->Content;
+	const UPanelWidget* Parent = CanvasPanelSlot->Parent;
+	const UWidget* Widget = CanvasPanelSlot->Content;
 	if (Parent == nullptr || Widget == nullptr)
 	{
 		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::GetOutOfScreenPosition : Parent or Widget is nullptr"));
 
-		return FVector2D::ZeroVector;
+		return false;
+	}
+
+	// 직전에 생성된 위젯이 아직 뷰포트에 올라가지 않은 경우
+	if (!Parent->GetCachedWidget().IsValid() || !Widget->GetCachedWidget().IsValid())
+	{
+		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::GetOutOfScreenPosition : Cached Parent or Cached Widget is nullptr"));
+		
+		return false;
 	}
 
 	const FVector2D ParentSize = Parent->GetCachedGeometry().GetLocalSize();
@@ -123,11 +123,16 @@ FVector2D UActionSequencer::GetOutOfScreenPosition(const UCanvasPanelSlot* Canva
 	{
 	case EPortraitSide::Left:
 		UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::GetOutOfScreenPosition : return value = (%f, 0.0f)"), -(TopLeft.X + WidgetSize.X) - 1.0f);
-		return FVector2D(-(TopLeft.X + WidgetSize.X) - 1.0f, 0.0f);
+
+		OutPosition = FVector2D(-(TopLeft.X + WidgetSize.X) - 1.0f, 0.0f);
+		return true;
+		
 	case EPortraitSide::Right:
 	default:
 		UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::GetOutOfScreenPosition : return value = (%f, 0.0f)"), ParentSize.X - WidgetSize.X + 1.0f);
-		return FVector2D(ParentSize.X - WidgetSize.X + 1.0f, 0.0f);
+
+		OutPosition = FVector2D(ParentSize.X - WidgetSize.X + 1.0f, 0.0f);
+		return true;
 	}
 }
 
