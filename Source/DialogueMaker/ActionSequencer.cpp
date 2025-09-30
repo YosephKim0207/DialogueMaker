@@ -85,7 +85,7 @@ void UActionSequencer::StopSequence()
 }
 
 // 스크린 밖에서 진입하는 연출을 위해 Widget의 크기를 기준으로 스크린 밖의 좌표 반환
-bool UActionSequencer::TryGetOutOfScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
+bool UActionSequencer::TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
 	const EPortraitSide PortraitSide, FVector2D& OutPosition) const
 {
 	const UPanelWidget* Parent = CanvasPanelSlot->Parent;

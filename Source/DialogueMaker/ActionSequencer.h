@@ -31,7 +31,7 @@ public :
 	void StopSequence();
 	
 	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = "ReturnValue"))
-	bool TryGetOutOfScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
+	bool TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
 	const EPortraitSide PortraitSide, FVector2D& OutPosition) const;
 	
 	virtual class UWorld* GetWorld() const override;
