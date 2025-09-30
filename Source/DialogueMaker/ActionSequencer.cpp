@@ -84,6 +84,53 @@ void UActionSequencer::StopSequence()
 	ClearAllTimer();
 }
 
+// 스크린 밖에서 진입하는 연출을 위해 Widget의 크기를 기준으로 스크린 밖의 좌표 반환
+FVector2D UActionSequencer::GetOutOfScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
+	const EPortraitSide PortraitSide) const
+{
+	UPortraitSubsystem* PortraitSubsystem = UPortraitSubsystem::Get(InWorldContextObject.Get());
+	if (PortraitSubsystem == nullptr)
+	{
+		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::GetOutOfScreenPosition : PortraitSubsystem is nullptr"));
+
+		return FVector2D::ZeroVector;
+	}
+	
+	UPanelWidget* Parent = CanvasPanelSlot->Parent;
+	UWidget* Widget = CanvasPanelSlot->Content;
+	if (Parent == nullptr || Widget == nullptr)
+	{
+		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::GetOutOfScreenPosition : Parent or Widget is nullptr"));
+
+		return FVector2D::ZeroVector;
+	}
+
+	const FVector2D ParentSize = Parent->GetCachedGeometry().GetLocalSize();
+	const FVector2D WidgetSize = Widget->GetCachedGeometry().GetLocalSize();
+	const FAnchors CurrentAnchors = CanvasPanelSlot->GetAnchors();
+	const FVector2D CurrentAlignment = CanvasPanelSlot->GetAlignment();
+
+	UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::GetOutOfScreenPosition : ParentSize %s, WidgetSize %s, CurrentAnchors %s, CurrentAlignment %s")
+		, *ParentSize.ToString(), *WidgetSize.ToString(), *CurrentAnchors.Minimum.ToString(), *CurrentAlignment.ToString())
+
+	const FVector2D AnchorPoint = CurrentAnchors.Minimum * ParentSize;
+	const FVector2D TopLeft = AnchorPoint - (CurrentAlignment * WidgetSize) + Widget->GetRenderTransform().Translation;
+
+	UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::GetOutOfScreenPosition : AnchorPoint %s, TopLeft %s")
+		, *AnchorPoint.ToString(), *TopLeft.ToString());
+	
+	switch (PortraitSide)
+	{
+	case EPortraitSide::Left:
+		UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::GetOutOfScreenPosition : return value = (%f, 0.0f)"), -(TopLeft.X + WidgetSize.X) - 1.0f);
+		return FVector2D(-(TopLeft.X + WidgetSize.X) - 1.0f, 0.0f);
+	case EPortraitSide::Right:
+	default:
+		UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::GetOutOfScreenPosition : return value = (%f, 0.0f)"), ParentSize.X - WidgetSize.X + 1.0f);
+		return FVector2D(ParentSize.X - WidgetSize.X + 1.0f, 0.0f);
+	}
+}
+
 UWorld* UActionSequencer::GetWorld() const
 {
 	return InWorldContextObject.IsValid() ? InWorldContextObject->GetWorld() : nullptr;
@@ -236,6 +283,9 @@ FVector2D UActionSequencer::ResolveTargetTranslation(const FPortraitActionData& 
 	FVector2D ParentSize = Parent->GetCachedGeometry().GetLocalSize();
 	FVector2D WidgetSize = Widget->GetCachedGeometry().GetLocalSize();
 
+	UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::ResolveTargetTranslation : ParentSize %s, WidgetSize %s, CurrentAnchors %s, CurrentAlignment %s")
+		, *ParentSize.ToString(), *WidgetSize.ToString(), *CurrentAnchors.Minimum.ToString(), *CurrentAlignment.ToString())
+
 	auto ResolveAnchors = [&ParentSize](const FAnchors& Anchors, const FVector2D& Alignment)
 	{
 		const FVector2D AnchorMin = Anchors.Minimum * ParentSize;
@@ -250,7 +300,7 @@ FVector2D UActionSequencer::ResolveTargetTranslation(const FPortraitActionData& 
 	const FVector2D TargetAnchorPosition = ResolveAnchors(TargetAnchors, TargetAlignment);
 	const FVector2D AnchorPositionDelta = TargetAnchorPosition - CurrentAnchorPosition;
 	const FVector2D AlignmentDelta = TargetAlignment - CurrentAlignment;
-	const FVector2D CalculatedTargetTranslation = AnchorPositionDelta + (-AlignmentDelta * WidgetSize) + ActionData.TargetSideOffset;
+	const FVector2D CalculatedTargetTranslation = AnchorPositionDelta - (AlignmentDelta * WidgetSize) + ActionData.TargetSideOffset;
 
 	return CalculatedTargetTranslation;
 }

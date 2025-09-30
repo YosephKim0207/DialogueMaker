@@ -30,6 +30,9 @@ public :
 	UFUNCTION(BlueprintCallable)
 	void StopSequence();
 
+	UFUNCTION(BlueprintCallable)
+	FVector2D GetOutOfScreenPosition(const class UCanvasPanelSlot* CanvasPanelSlot, const EPortraitSide PortraitSide) const;
+
 	virtual class UWorld* GetWorld() const override;
 	
 private:
