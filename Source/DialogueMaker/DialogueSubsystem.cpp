@@ -410,6 +410,17 @@ const TArray<FPortraitActionData> UDialogueSubsystem::GetPortraitActionDatas() c
 	return CurrentOngoingDialogueNodeInfo->GetPortraitActionDatas();
 }
 
+#if !UE_BUILD_SHIPPING
+void UDialogueSubsystem::PlayDialogueGraph(UDialogueGraph* DialogueGraph)
+{
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::PlayDialogueGraph : Play %s"), *DialogueGraph->GetName());
+	
+	CheckDelegates();
+
+	StartDialogue(DialogueGraph);
+}
+#endif
+
 void UDialogueSubsystem::CheckDelegates()
 {
 	if (OnCurrentDialogueChanged.IsBound() == false)

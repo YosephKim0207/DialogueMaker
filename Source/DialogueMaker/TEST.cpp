@@ -20,14 +20,8 @@ void ATEST::BeginPlay()
 
 	if (UDialogueSubsystem* DialogueSubsystem = UDialogueSubsystem::Get(this))
 	{
-		DialogueSubsystem->BeginDialogue(ESpeakerID::TestNPC);
+		UDialogueGraph* DialogueGraph = TestDialogueGraph.LoadSynchronous();
+		DialogueSubsystem->PlayDialogueGraph(DialogueGraph);
 	}
-}
-
-// Called every frame
-void ATEST::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
 }
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DialogueGraph.h"
 #include "GameFramework/Actor.h"
 #include "TEST.generated.h"
 
@@ -19,8 +20,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	public:
+	UPROPERTY(EditAnywhere)
+	TSoftObjectPtr<UDialogueGraph> TestDialogueGraph;
 
 };

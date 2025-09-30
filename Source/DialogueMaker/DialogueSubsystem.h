@@ -85,6 +85,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	const TArray<FPortraitActionData> GetPortraitActionDatas() const;
 
+	#if !UE_BUILD_SHIPPING
+	void PlayDialogueGraph(UDialogueGraph* DialogueGraph);
+	#endif
+	
 private:
 	void CheckDelegates();
 	
