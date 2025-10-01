@@ -3,32 +3,18 @@
 	"EngineAssociation": "5.4",
 	"Category": "",
 	"Description": "",
-	"Modules": [
-		{
-			"Name": "DialogueMaker",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"Engine",
-				"DeveloperSettings"
-			]
-		},
-		{
-			"Name": "DialogueMakerEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"BlueprintGraph"
-			]
-		}
-	],
-	"Plugins": [
-		{
-			"Name": "ModelingToolsEditorMode",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		}
-	]
+        "Modules": [],
+        "Plugins": [
+                {
+                        "Name": "DialogueMaker",
+                        "Enabled": true
+                },
+                {
+                        "Name": "ModelingToolsEditorMode",
+                        "Enabled": true,
+                        "TargetAllowList": [
+                                "Editor"
+                        ]
+                }
+        ]
 }
