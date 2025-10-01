@@ -98,7 +98,7 @@ void UActionSequencer::StopSequence()
 
 // 스크린 밖에서 진입하는 연출을 위해 Widget의 크기를 기준으로 스크린 밖의 좌표 반환
 bool UActionSequencer::TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
-	const EPortraitSide PortraitSide, FVector2D& OutPosition) const
+	const EPortraitSide PortraitSide, FVector2D& OutPosition)
 {
 	const UPanelWidget* Parent = CanvasPanelSlot->Parent;
 	const UWidget* Widget = CanvasPanelSlot->Content;
@@ -312,9 +312,11 @@ FVector2D UActionSequencer::ResolveTargetTranslation(const FPortraitActionData& 
 	FVector2D ParentSize = Parent->GetCachedGeometry().GetLocalSize();
 	FVector2D WidgetSize = Widget->GetCachedGeometry().GetLocalSize();
 
+#if !UE_BUILD_SHIPPING
 	UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::ResolveTargetTranslation : ParentSize %s, WidgetSize %s, CurrentAnchors %s, CurrentAlignment %s")
 		, *ParentSize.ToString(), *WidgetSize.ToString(), *CurrentAnchors.Minimum.ToString(), *CurrentAlignment.ToString())
-
+#endif
+	
 	auto ResolveAnchors = [&ParentSize](const FAnchors& Anchors, const FVector2D& Alignment)
 	{
 		const FVector2D AnchorMin = Anchors.Minimum * ParentSize;
