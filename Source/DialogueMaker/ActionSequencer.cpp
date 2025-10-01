@@ -51,7 +51,7 @@ void UActionSequencer::StartSequence(const TArray<FPortraitActionData>& ActionDa
 	UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::StartSequence : Enter"));
 	
 	// TODO DialogueSusystem에서 Skip시 최종 End 노드에서 StartSquence가 호출될 수 있는 상황 여부 판단 후 Skip관련 로직 최종 결정 필요
-	// StopSequence();
+	StopSequence();
 	
 	if (ActionDatas.Num() == 0)
 	{
@@ -82,6 +82,18 @@ void UActionSequencer::StopSequence()
 	UE_LOG(ActionSequencerLog, Display, TEXT("UActionSequencer::StopSequence : Enter"));
 
 	ClearAllTimer();
+
+	if (CachedActionDatas.Num() == 0)
+	{
+		return;
+	}
+	
+	for (int32 SkipTargetActionIndex = CurrentActionIndex; SkipTargetActionIndex < CachedActionDatas.Num(); SkipTargetActionIndex++)
+	{
+		const FPortraitActionData& ActionData = CachedActionDatas[SkipTargetActionIndex];
+		CurrentActionTargetWidget = CachedWidgetMap.FindRef(ActionData.ActionTargetSpeakerID);
+		SkipSequence(ActionData);
+	}
 }
 
 // 스크린 밖에서 진입하는 연출을 위해 Widget의 크기를 기준으로 스크린 밖의 좌표 반환
@@ -245,10 +257,22 @@ void UActionSequencer::TickCurrentMoveAction()
 
 void UActionSequencer::SkipSequence(const FPortraitActionData& ActionData)
 {
-	if (UWorld* World = GetWorld())
+	UPortraitSubsystem* PortraitSubsystem = UPortraitSubsystem::Get(InWorldContextObject.Get());
+	if (PortraitSubsystem == nullptr)
 	{
-		FTimerManager& TimerManager = World->GetTimerManager();
+		UE_LOG(ActionSequencerLog, Warning, TEXT("UActionSequencer::SkipSequence : PortraitSubsystem is nullptr"));
+
+		return;
 	}
+	
+	const FAnchors TargetAnchors = PortraitSubsystem->GetPortraitAnchors(ActionData.TargetSide);
+	const FVector2D TargetAlignment = PortraitSubsystem->GetPortraitAlignment(ActionData.TargetSide);
+
+	CurrentActionTargetWidget->SetAnchorsInViewport(TargetAnchors);
+	CurrentActionTargetWidget->SetAlignmentInViewport(TargetAlignment);
+
+	// TODO 에디터상에서 Side를 기준으로 offset 기능을 추가해 offset에 위치를 할당하고 싶은 경우 ZeroVector가 아닌 해당 값을 이용하기
+	CurrentActionTargetWidget->SetBaseTranslation(FVector2D::ZeroVector);
 }
 
 // Widget이 TargetSide, TargetOffset 위치로 간다면 현재 위치를 기준으로 어떻게 이동해야하나 연산
