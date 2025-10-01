@@ -1,22 +1,43 @@
 #include "QuestBase.h"
+#include "QuestSubsystem.h"
 
-void UQuestBase::SyncQuestProgress()
+DEFINE_LOG_CATEGORY_STATIC(QuestBase, Log, All);
+
+FName UQuestBase::GetQuestID() const
 {
-	// TODO Save된 정보 있다면 Load, Save파일 없다면 초기화
-	
+	return FName(*GetPrimaryAssetId().ToString());
 }
 
-bool UQuestBase::IsCleared() const
+FGameplayTag UQuestBase::GetQuestRootTag() const
 {
-	return bIsCleared;
+	return QuestRootTag;
 }
 
-void UQuestBase::SetClear(bool bIsNewClearValue)
+bool UQuestBase::IsLastQuestStep(int32 CheckIndex) const
 {
-	bIsCleared = bIsNewClearValue;
+	return QuestSteps.Num() - 1 == CheckIndex;
 }
 
-void UQuestBase::InitQuestProgress()
+const TArray<FQuestStep> UQuestBase::GetQuestSteps() const
 {
-	bIsCleared = false;
+	return QuestSteps;
+}
+
+FPrimaryAssetId UQuestBase::GetPrimaryAssetId() const
+{
+	return FPrimaryAssetId(TEXT("Quest"), GetFName());
+}
+
+const FQuestStep UQuestBase::GetQuestStepByClearTag(const FName& SearchTargetTagName)
+{
+	FGameplayTag SearchTargetTag = FGameplayTag::RequestGameplayTag(SearchTargetTagName);
+	for (FQuestStep QuestStep : QuestSteps)
+	{
+		if (QuestStep.ClearTag.MatchesTagExact(SearchTargetTag))
+		{
+			return  QuestStep;
+		}
+	}
+
+	return FQuestStep();
 }

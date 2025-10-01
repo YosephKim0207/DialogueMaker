@@ -6,9 +6,9 @@ FText UDialogueEdEndGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) cons
 	if (NodeInfo != nullptr && NodeInfo->Action != EDialogueNodeAction::None)
 	{
 		FString Result = UEnum::GetDisplayValueAsText(NodeInfo->Action).ToString();
-		if (NodeInfo->ActionData.IsEmpty() == false)
+		if (NodeInfo->ActionDetails.IsEmpty() == false)
 		{
-			FString ActionData = NodeInfo->ActionData;
+			FString ActionData = NodeInfo->ActionDetails;
 			if (ActionData.Len() > 15)
 			{
 				ActionData = ActionData.Left(15) + TEXT("...");
