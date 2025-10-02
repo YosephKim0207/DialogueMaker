@@ -31,5 +31,11 @@
         "BlueprintGraph"
       ]
     }
+  ],
+  "Plugins": [
+    {
+      "Name": "EnhancedInput",
+      "Enabled": true
+    }
   ]
 }
