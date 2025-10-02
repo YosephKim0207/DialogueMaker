@@ -1,8 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueEditorModule.generated.h"
-
 
 class DIALOGUEMAKEREDITOR_API FDialogueGraphEditorCommands : public TCommands<FDialogueGraphEditorCommands>
 {

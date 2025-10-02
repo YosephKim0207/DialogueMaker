@@ -12,6 +12,6 @@ class DIALOGUEMAKER_API UDialogueBranchNodeInfoBase : public UDialogueNodeInfoBa
 public:
 	bool ConditionCheck(const FPlayerCondition& PlayerEvalCondition) const;
 	
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "Dialogue")
 	FDialogueConditionEvalCriteria DialoguePassCondition;
 };

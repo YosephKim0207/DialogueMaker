@@ -21,13 +21,13 @@ class DIALOGUEMAKER_API UDialogueEndNodeInfo : public UDialogueNodeInfoBase
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "Action")
 	EDialogueNodeAction Action = EDialogueNodeAction::None;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "Action")
 	FString ActionDetails;
 
-	UPROPERTY(EditAnywhere, meta = (ToolTip = "Quest가 없고, 대화 종료시 처리할 Tag가 있는 경우 사용"))
+	UPROPERTY(EditAnywhere, Category = "Dialogue", meta = (ToolTip = "Quest가 없고, 대화 종료시 처리할 Tag가 있는 경우 사용"))
 	FGameplayTag ClearTag;
 	
 	UPROPERTY(EditAnywhere, Category = "Quest")

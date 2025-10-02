@@ -24,13 +24,13 @@ struct FPortraitInitData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait")
 	ESpeakerID Speaker;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait")
 	EEmoteType EmoteType;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait")
 	EPortraitSide PortraitSide;
 };
 
@@ -65,7 +65,7 @@ public:
 public:	// Properties
 	// UPROPERTY(EditAnywhere)
 	// FString SpeakerName = FString("Enter Dialogue Name Here");
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, Category = "Dialogue")
 	TObjectPtr<UDialogueRuntimeGraph> Graph;
 
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")

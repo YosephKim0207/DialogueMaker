@@ -15,23 +15,23 @@ class DIALOGUEMAKER_API UPortraitItemWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	void SetBaseTranslation(const FVector2D& TargetPosition);
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	void SetEmoteImageTranslation(const FVector2D& TargetPosition);
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	void ResetTranslation();
 
 protected:
 	virtual void NativeOnInitialized() override;
 	
 protected:
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	UPROPERTY(BlueprintReadWrite, Category = "Portrait", meta = (BindWidget))
 	class UImage* PortraitImage = nullptr;
 
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
+	UPROPERTY(BlueprintReadWrite, Category = "Portrait", meta = (BindWidget))
 	UImage* EmoteImage = nullptr;
 
 private:

@@ -18,19 +18,19 @@ class DIALOGUEMAKER_API UActionSequencer : public UObject
 	GENERATED_BODY()
 
 public :
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	void Initialize(UObject* NewInWorldContextObject);
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	void AddPortraitWidget(const ESpeakerID PortraitOwner, UWidget* Widget);
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	void StartSequence(const TArray<FPortraitActionData>& ActionDatas, const bool bIsSkip = false);
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	void StopSequence();
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	bool TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
 	const EPortraitSide PortraitSide, FVector2D& OutPosition);
 	

@@ -13,10 +13,10 @@ struct FSpeakerEmotePair
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Category = "Dialogue")
 	ESpeakerID Speaker;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Category = "Dialogue")
 	EEmoteType EmoteType;
 
 	FSpeakerEmotePair(){ Speaker = ESpeakerID::TestNPC, EmoteType = EEmoteType::None; };
@@ -29,28 +29,28 @@ class DIALOGUEMAKER_API UDialogueNodeInfo : public UDialogueNodeInfoBase
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	const FText& GetTitle() const;
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	const FText& GetDialogueText() const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	const TArray<FDialogueChoice>& GetDialogueChoices() const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void AddDialogueChoice(const FDialogueChoice& DialogueChoice);
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void RemoveDialogueChoiceAt(int32 Index);
 	
 	bool IsDialogueAlreadyShown() const;
 	void SetShownCondition(const bool NewCondition);
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	const FSpeakerEmotePair GetSpeakerEmotePair() const;
 	
-	UFUNCTION(Category= "Portrait")
+	UFUNCTION(Category = "Portrait")
 	const FPortraitData GetPortraitData() const;
 
 	UFUNCTION(Category = "Portrait")
@@ -75,7 +75,7 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Default", meta = (AllowPrivateAccess = "true"))
 	TArray<FDialogueChoice> DialogueChoices;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Default", meta = (AllowPrivateAccess = "true"))
 	bool bIsShown;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest", meta = (AllowPrivateAccess = "true"))

@@ -13,13 +13,13 @@ struct FPortraitData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait")
 	EPortraitActionType ActionType = EPortraitActionType::None;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait")
 	EEmoteType EmoteType = EEmoteType::None;	// 감정 상황에 맞는 이미지 사용
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait")
 	EPortraitSide SidePosition = EPortraitSide::Center;
 };
 

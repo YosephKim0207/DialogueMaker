@@ -1,6 +1,5 @@
 #include "DialogueGraphEditor.h"
 
-#include "AssetToolsModule.h"
 #include "DialogueBranchEdGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
@@ -8,16 +7,13 @@
 #include "DialogueEdStartGraphNode.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueGraphEditorMode.h"
-#include "EditorStyleSet.h"
 #include "EdGraph/EdGraph.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/SBoxPanel.h"
 #include "GraphEditor.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "DialogueMaker/Public/DialogueGraph.h"
 #include "DialogueMaker/Public/DialogueNodeInfo.h"
-#include "DialogueMaker/Public/DialogueStructure.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"

@@ -21,7 +21,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	public:
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "Dialogue")
 	TSoftObjectPtr<UDialogueGraph> TestDialogueGraph;
 
 };

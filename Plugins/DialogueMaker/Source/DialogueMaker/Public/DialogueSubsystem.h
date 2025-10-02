@@ -44,45 +44,45 @@ public:
 
 	void BeginDialogue(ESpeakerID SpeakerID);
 	
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	class UDialogueNodeInfo* ProgressNextDialogue(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	const UDialogueNodeInfo* GetCurrentDialogueNodeInfo() const;
 	
-	UFUNCTION(BlueprintCallable, Category = "Choice")
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	bool HasChoicesInCurrentDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
 	
-	UFUNCTION(BlueprintCallable, Category = "Choice")
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Shown Dialogue")
 	void MakeCurrentDialogueNodeToShown();
 
-	UFUNCTION(BlueprintCallable, Category = "Shown Dialogue")
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	bool IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	FTimerHandle& GetSkipHandler();
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void SetSkipHandler(const FTimerHandle& Handle);
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	const TArray<UDialogueNodeInfo*>& GetDialogueHistory();
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void SetDialogueRecallWidget(UUserWidget* UserWidget);
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	UUserWidget* GetDialogueRecallWidget() const;
 	
 	FPlayerCondition GetPlayerEvalCondition() const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	const TArray<FPortraitInitData> GetInitPortraitDatas() const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	const TArray<FPortraitActionData> GetPortraitActionDatas() const;
 
 	#if !UE_BUILD_SHIPPING
@@ -117,10 +117,10 @@ private:
 
 	void PreloadPortraits();
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	UTexture2D* GetPortrait(const ESpeakerID NPCID, const EEmoteType EmoteType) const;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, Category = "Portrait")
 	const FPortraitData GetPortraitData() const;
 
 	template<typename TEnum>
@@ -188,7 +188,7 @@ private:
 	UPROPERTY()
 	TMap<ESpeakerID, FPortraitEmoteIDPair> CachedPortraitEmotePairMap;
 
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadWrite, Category = "Portrait", meta = (AllowPrivateAccess = true))
 	TMap<ESpeakerID, EPortraitSide> CachedPortraitSideMap;
 	
 	TSharedPtr<FStreamableHandle> PortraitPreLoadHandle;

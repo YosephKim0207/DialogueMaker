@@ -9,10 +9,10 @@ struct DIALOGUEMAKER_API FPlayerCondition
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "PlayerCondition")
 	int32 PlayerLevel = 0;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "PlayerCondition")
 	FGameplayTagContainer PlayerOwnedTags;
 };
 
@@ -21,9 +21,9 @@ struct DIALOGUEMAKER_API FDialogueConditionEvalCriteria
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "PlayerCondition")
 	int32 RequiredLevel = 0;	
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "PlayerCondition")
 	FGameplayTagQuery RequiredTagQuery;
 };
