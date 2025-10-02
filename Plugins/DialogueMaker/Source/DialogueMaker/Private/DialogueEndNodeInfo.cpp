@@ -1,5 +1,6 @@
 #include "DialogueEndNodeInfo.h"
 
+#if WITH_EDITOR
 void UDialogueEndNodeInfo::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -36,3 +37,4 @@ TArray<FName> UDialogueEndNodeInfo::GetQuestStepTagOptions() const
 	}
 	return Options;
 }
+#endif
