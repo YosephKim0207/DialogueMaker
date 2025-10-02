@@ -1,25 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Interface.h"
-#include "DialogueEditorModule.generated.h"
+#include "Modules/ModuleManager.h"
 
-// This class does not need to be modified.
-UINTERFACE(MinimalAPI)
-class UDialogueEditorModule : public UInterface
+class FDialogueEditorModule : public IModuleInterface
 {
-	GENERATED_BODY()
-};
-
-/**
- * 
- */
-class DIALOGUEMAKEREDITOR_API IDialogueEditorModule
-{
-	GENERATED_BODY()
-
-	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
+        /** IModuleInterface implementation */
+        virtual void StartupModule() override;
+        virtual void ShutdownModule() override;
 };
+
