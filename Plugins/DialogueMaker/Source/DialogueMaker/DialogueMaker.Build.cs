@@ -2,28 +2,15 @@
 
 using UnrealBuildTool;
 
-public class DialogueMakerEditor : ModuleRules
+public class DialogueMaker : ModuleRules
 {
-	public DialogueMakerEditor(ReadOnlyTargetRules Target) : base(Target)
+	public DialogueMaker(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "GameplayTags", "UMG", "DeveloperSettings" });
 
-		PrivateDependencyModuleNames.AddRange(new string[]
-		{
-			"DialogueMaker",
-			"UnrealEd",
-			"AssetTools",
-			"Slate",
-			"SlateCore",
-			"GraphEditor",
-			"PropertyEditor",
-			"EditorStyle",
-			"AssetDefinition",
-			"Projects",
-			"ToolMenus",
-		});
+		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 		
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
