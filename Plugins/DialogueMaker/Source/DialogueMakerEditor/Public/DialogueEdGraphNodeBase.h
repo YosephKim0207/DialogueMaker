@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueMaker/DialogueNodeType.h"
+#include "DialogueMaker/Public/DialogueNodeType.h"
 #include "DialogueEdGraphNodeBase.generated.h"
 
 UCLASS()

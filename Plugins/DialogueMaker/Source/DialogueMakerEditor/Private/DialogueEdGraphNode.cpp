@@ -2,8 +2,8 @@
 
 
 #include "DialogueEdGraphNode.h"
-#include "DialogueMaker/DialogueNodeInfo.h"
-#include "DialogueMaker/DialogueNodeType.h"
+#include "DialogueMaker/Public/DialogueNodeInfo.h"
+#include "DialogueMaker/Public/DialogueNodeType.h"
 
 void UDialogueEdGraphNode::AllocateDefaultPins()
 {

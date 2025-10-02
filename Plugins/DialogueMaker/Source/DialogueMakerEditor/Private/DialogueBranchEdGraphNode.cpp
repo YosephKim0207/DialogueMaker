@@ -1,6 +1,6 @@
 #include "DialogueBranchEdGraphNode.h"
 
-#include "DialogueMaker/DialogueBranchNodeInfoBase.h"
+#include "DialogueMaker/Public/DialogueBranchNodeInfoBase.h"
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
 FText UDialogueBranchEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const

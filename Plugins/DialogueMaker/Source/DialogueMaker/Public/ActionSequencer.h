@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "DialoguePortraitData.h"
 #include "PortraitItemWidget.h"
-#include "Enum/PlayerProgress.h"
+#include "PlayerProgress.h"
 #include "ActionSequencer.generated.h"
 
 /**

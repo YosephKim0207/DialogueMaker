@@ -6,9 +6,9 @@
 #include "DialogueGraph.h"
 #include "DialogueNodeInfo.h"
 #include "ShownDialogueSaveData.h"
-#include "Struct/DialogueConditionEvalCriteria.h"
+#include "DialogueConditionEvalCriteria.h"
 #include "Engine/StreamableManager.h"
-#include "Enum/Portrait.h"
+#include "Portrait.h"
 #include "Subsystems/Subsystem.h"
 #include "DialogueSubsystem.generated.h"
 

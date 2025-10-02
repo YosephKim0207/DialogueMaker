@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Enum/PlayerProgress.h"
-#include "Enum/Portrait.h"
+#include "PlayerProgress.h"
+#include "Portrait.h"
 #include "DialoguePortraitData.generated.h"
 
 USTRUCT(BlueprintType)

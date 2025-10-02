@@ -14,7 +14,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/AssetManager.h"
 #include "Kismet/GameplayStatics.h"
-#include "Struct/DialogueStructure.h"
+#include "DialogueStructure.h"
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueSubSystemLog, Log, All);
 

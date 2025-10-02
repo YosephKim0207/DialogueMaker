@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Enum/PlayerProgress.h"
+#include "PlayerProgress.h"
 #include "PlayerProgressSubsystem.generated.h"
 
 /**

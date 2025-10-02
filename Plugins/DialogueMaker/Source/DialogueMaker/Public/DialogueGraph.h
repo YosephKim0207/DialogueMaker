@@ -7,8 +7,8 @@
 #include "CoreMinimal.h"
 #include "DialogueRuntimeGraph.h"
 #include "GameplayTagContainer.h"
-#include "Enum/PlayerProgress.h"
-#include "Enum/Portrait.h"
+#include "PlayerProgress.h"
+#include "Portrait.h"
 #include "DialogueGraph.generated.h"
 
 UENUM(BlueprintType)

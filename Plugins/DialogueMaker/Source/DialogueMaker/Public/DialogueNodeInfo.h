@@ -4,8 +4,8 @@
 #include "DialogueNodeInfoBase.h"
 #include "DialoguePortraitData.h"
 #include "QuestBase.h"
-#include "Enum/PlayerProgress.h"
-#include "Struct/DialogueStructure.h"
+#include "PlayerProgress.h"
+#include "DialogueStructure.h"
 #include "DialogueNodeInfo.generated.h"
 
 USTRUCT(BlueprintType)

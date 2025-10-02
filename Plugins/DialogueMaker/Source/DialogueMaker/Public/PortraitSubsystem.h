@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Enum/Portrait.h"
+#include "Portrait.h"
 #include "Subsystems/Subsystem.h"
 #include "Widgets/Layout/Anchors.h"
 #include "PortraitSubsystem.generated.h"

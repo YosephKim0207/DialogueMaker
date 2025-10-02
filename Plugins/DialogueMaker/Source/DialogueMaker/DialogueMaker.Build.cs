@@ -7,6 +7,9 @@ public class DialogueMaker : ModuleRules
 	public DialogueMaker(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+		PublicIncludePaths.AddRange(new string[] { System.IO.Path.Combine(ModuleDirectory, "Public") });
+		PrivateIncludePaths.AddRange(new string[] { System.IO.Path.Combine(ModuleDirectory, "Private") });
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "GameplayTags", "UMG", "DeveloperSettings" });
 
