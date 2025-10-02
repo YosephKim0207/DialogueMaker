@@ -1,4 +1,13 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "DialogueEditorModule.h"
+
+#include "Modules/ModuleManager.h"
+
+void FDialogueEditorModule::StartupModule()
+{
+}
+
+void FDialogueEditorModule::ShutdownModule()
+{
+}
+
+IMPLEMENT_MODULE(FDialogueEditorModule, DialogueMakerEditor);
