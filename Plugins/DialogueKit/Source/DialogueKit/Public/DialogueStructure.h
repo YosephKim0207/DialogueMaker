@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueConditionEvalCriteria.h"
+#include "Struct/DialogueConditionEvalCriteria.h"
 #include "Engine/DataTable.h"
 #include "DialogueStructure.generated.h"
 
@@ -24,20 +24,20 @@ struct FDialogueChoice
 	
 	bool IsPossibleToShow(const FPlayerCondition& PlayerEvalCondition) const
 	{
-		// Player???�벨??RequiredLevel�?충족?�는지 ?�별
+		// Player???堧波??RequiredLevel毳?於╈”?橂姅歆� ?愲硠
 		if (PlayerEvalCondition.PlayerLevel < SelectableChoiceEvalCriteria.RequiredLevel)
 		{
 			return false;
 		}
 
-		// RequiredTagQuery가 비어?�는 경우 별다�?조건???�다�?보고 true 반환, Matches??경우 IsEmpty�?false�?반환?�기 ?�문??IsEmpty ?�황???�한 별도 분기 ?�성
+		// RequiredTagQuery臧� 牍勳柎?堧姅 瓴届毎 氤勲嫟毳?臁瓣贝???嗠嫟瓿?氤搓碃 true 氚橅櫂, Matches??瓴届毎 IsEmpty氅?false毳?氚橅櫂?橁赴 ?岆??IsEmpty ?來櫓???勴暅 氤勲弰 攵勱赴 ?濎劚
 		if (SelectableChoiceEvalCriteria.RequiredTagQuery.IsEmpty())
 		{
 			UE_LOG(LogTemp, Log, TEXT("FDialogueChoice::IsPossibleToShow %s RequiredTagQuery is Empty"), *ResponseText.ToString());
 			return true;
 		}
 
-		// Player가 갖고?�는 ?�그?�이 DialoguePassCondition??TagQuery�?충족?�는지 ?�별
+		// Player臧� 臧栮碃?堧姅 ?滉犯?れ澊 DialoguePassCondition??TagQuery毳?於╈”?橂姅歆� ?愲硠
 		if (SelectableChoiceEvalCriteria.RequiredTagQuery.Matches(PlayerEvalCondition.PlayerOwnedTags) == false)
 		{
 			return false;
@@ -62,6 +62,6 @@ struct FDialogueChoice
 // 	TArray<FDialogueChoice> Choices;
 // 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 // 	FGuid NextDialogueId;
-// 	// TODO ?�?��? ?�번???�나�??�음 ?�벤?????�개?�는 경우 bool�??�던지 GameplayTag ?�용?�던지
-// 	// TODO ?�?�에???�벤??발생??GameplayTag ?�용?�기
+// 	// TODO ?�?旉? ?措矆???濍倶瓿??れ潓 ?措菠?????皽?橂姅 瓴届毎 bool搿??半崢歆� GameplayTag ?滌毄?橂崢歆�
+// 	// TODO ?�?旍棎???措菠??氚滌儩??GameplayTag ?滌毄?橁赴
 // };
