@@ -10,21 +10,21 @@ public class DialogueKitEditor : ModuleRules
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine" });
 
-		PrivateDependencyModuleNames.AddRange(new string[]
-		{
-			"DialogueKit",
-			"UnrealEd",
-			"AssetTools",
-			"Slate",
-			"SlateCore",
-			"GraphEditor",
-			"PropertyEditor",
-			"EditorStyle",
-			"AssetDefinition",
-			"Projects",
-			"ToolMenus",
-			"DialogueKit"
-		});
+                PrivateDependencyModuleNames.AddRange(new string[]
+                {
+                        "DialogueKit",
+                        "UnrealEd",
+                        "AssetTools",
+                        "Slate",
+                        "SlateCore",
+                        "GraphEditor",
+                        "BlueprintGraph",
+                        "PropertyEditor",
+                        "EditorStyle",
+                        "AssetDefinition",
+                        "Projects",
+                        "ToolMenus"
+                });
 		
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
