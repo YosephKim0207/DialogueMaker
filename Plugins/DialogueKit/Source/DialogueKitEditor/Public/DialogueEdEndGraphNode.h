@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueEdGraphNodeBase.h"
-#include "DialogueKit/DialogueNodeType.h"
+#include "DialogueNodeType.h"
 #include "DialogueEdEndGraphNode.generated.h"
 
 UCLASS()

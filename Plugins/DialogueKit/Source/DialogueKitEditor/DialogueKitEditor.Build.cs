@@ -8,7 +8,7 @@ public class DialogueKitEditor : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine" });
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
@@ -23,6 +23,7 @@ public class DialogueKitEditor : ModuleRules
 			"AssetDefinition",
 			"Projects",
 			"ToolMenus",
+			"DialogueKit"
 		});
 		
 		// Uncomment if you are using Slate UI

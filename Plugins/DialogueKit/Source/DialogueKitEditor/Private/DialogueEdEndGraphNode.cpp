@@ -1,5 +1,5 @@
 #include "DialogueEdEndGraphNode.h"
-#include "DialogueKit/DialogueEndNodeInfo.h"
+#include "DialogueEndNodeInfo.h"
 
 FText UDialogueEdEndGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {

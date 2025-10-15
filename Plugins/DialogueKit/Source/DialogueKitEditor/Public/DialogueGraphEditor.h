@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DialogueKit/DialogueGraph.h"
+#include "DialogueGraph.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
 class FDialogueGraphEditor : public FWorkflowCentricApplication, public FEditorUndoClient, public FNotifyHook

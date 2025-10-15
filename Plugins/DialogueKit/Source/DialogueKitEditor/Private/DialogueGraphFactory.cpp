@@ -2,7 +2,7 @@
 
 
 #include "DialogueGraphFactory.h"
-#include "DialogueKit/DialogueGraph.h"
+#include "DialogueGraph.h"
 
 UDialogueGraphFactory::UDialogueGraphFactory(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {

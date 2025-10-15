@@ -15,9 +15,9 @@
 #include "Widgets/SBoxPanel.h"
 #include "GraphEditor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "DialogueKit/DialogueGraph.h"
-#include "DialogueKit/DialogueNodeInfo.h"
-#include "DialogueKit/Struct/DialogueStructure.h"
+#include "DialogueGraph.h"
+#include "DialogueNodeInfo.h"
+#include "Struct/DialogueStructure.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"

@@ -1,16 +1,17 @@
 #include "DialogueKit.h"
 #include "Modules/ModuleManager.h"
 
-class FDialogueKitModule : public IModuleInterface
-{
-public:
-    virtual void StartupModule() override
-    {
-    }
+DEFINE_LOG_CATEGORY_STATIC(LogDialogueKit, Log, All);
 
-    virtual void ShutdownModule() override
-    {
-    }
-};
+void FDialogueKitModule::StartupModule()
+{
+	UE_LOG(LogDialogueKit, Log, TEXT("DialogueKit runtime module started"));
+
+}
+
+void FDialogueKitModule::ShutdownModule()
+{
+	UE_LOG(LogDialogueKit, Log, TEXT("DialogueKit runtime module shutdown"));
+}
 
 IMPLEMENT_MODULE(FDialogueKitModule, DialogueKit);

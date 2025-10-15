@@ -6,6 +6,7 @@
 #include "DialogueGraph.h"
 #include "DialogueNodeInfo.h"
 #include "ShownDialogueSaveData.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Struct/DialogueConditionEvalCriteria.h"
 #include "Engine/StreamableManager.h"
 #include "Enum/Portrait.h"

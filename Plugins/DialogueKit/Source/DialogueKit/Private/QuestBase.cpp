@@ -28,6 +28,7 @@ FPrimaryAssetId UQuestBase::GetPrimaryAssetId() const
 	return FPrimaryAssetId(TEXT("Quest"), GetFName());
 }
 
+#if WITH_EDITOR
 const FQuestStep UQuestBase::GetQuestStepByClearTag(const FName& SearchTargetTagName)
 {
 	FGameplayTag SearchTargetTag = FGameplayTag::RequestGameplayTag(SearchTargetTagName);
@@ -41,3 +42,4 @@ const FQuestStep UQuestBase::GetQuestStepByClearTag(const FName& SearchTargetTag
 
 	return FQuestStep();
 }
+#endif
