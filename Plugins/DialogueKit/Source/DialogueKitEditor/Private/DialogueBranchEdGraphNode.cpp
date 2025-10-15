@@ -1,5 +1,7 @@
 #include "DialogueBranchEdGraphNode.h"
 
+#include "EdGraphSchema_K2.h"
+
 #include "DialogueBranchNodeInfoBase.h"
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
