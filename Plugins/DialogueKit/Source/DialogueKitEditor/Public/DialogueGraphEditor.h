@@ -52,8 +52,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UEdGraph> WorkingGraph;	// 작업 중인 Graph의 Data
 	
-	const FName GraphTabID = FName("DialogueMaker_GraphEditor");  // "DialogueGraph_Tab"
-	const FName DetailsTabID = FName("DialogueMaker_Details");	// "DialogueGraph_Tab"
+	const FName GraphTabID = FName("DialogueKit_GraphEditor");  // "DialogueGraph_Tab"
+	const FName DetailsTabID = FName("DialogueKit_Details");	// "DialogueGraph_Tab"
 	
 	// Graph가 그려지는 Slate Widget
 	TSharedPtr<SGraphEditor> WorkingGraphUI;

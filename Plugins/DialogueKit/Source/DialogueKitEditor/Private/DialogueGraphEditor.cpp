@@ -22,7 +22,7 @@
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
-DEFINE_LOG_CATEGORY_STATIC(DialogueMakerEditorSub, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(DialogueKitEditorSub, Log, All);
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
@@ -191,7 +191,7 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
         }
         else
         {
-            UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : Unknown Node Type"));
+            UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : Unknown Node Type"));
             continue;
         }
         
@@ -319,7 +319,7 @@ bool FDialogueGraphEditor::CanConvertToDataTable() const
 // Convert to DataTable 로직
 void FDialogueGraphEditor::OnConvertToDataTableButtonClicked()
 {
-    UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
+    UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
 
     if (DataTable == nullptr)
     {
@@ -400,20 +400,20 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
 {
     // if (Node == nullptr)
     // {
-    //     UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
+    //     UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
     //     return;
     // }
     //
     // if (Node->GetDialogueNodeType() == EDialogueType::EndNode)
     // {
-    //     UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
+    //     UE_LOG(DialogueKitEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
     //     return;
     // }
     //
     // FGuid NodeGuid = Node->NodeGuid;
     // if (VisitedSet.Contains(NodeGuid))
     // {
-    //     UE_LOG(DialogueMakerEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
+    //     UE_LOG(DialogueKitEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
     //     return;
     // }
     //
@@ -434,7 +434,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     //     {
     //         if (OutputPins[0]->LinkedTo.Num() == 0)
     //         {
-    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
+                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
     //             return;
     //         }
     //         
@@ -451,7 +451,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     // UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(Node);
     // if (DialogueNode == nullptr)
     // {
-    //     UE_LOG(DialogueMakerEditorSub, Error, TEXT(""));
+    //     UE_LOG(DialogueKitEditorSub, Error, TEXT(""));
     //     return;
     // }
     //
@@ -472,7 +472,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     //     {
     //         if (ChoicesIndex >= DialogueNodeInfo->DialogueResponses.Num())
     //         {
-    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
+                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
     //                 ChoicesIndex, DialogueNodeInfo->DialogueResponses.Num(), *OutputPin->PinName.ToString());
     //             return;
     //         }
@@ -491,7 +491,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     //         }
     //         else
     //         {
-    //             UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+                //             UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
     //             return;
     //         }
     //     }
@@ -503,7 +503,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     //     {
     //         if (OutputPin->LinkedTo.Num() == 0)
     //         {
-    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
     //             return;
     //         }
     //         
@@ -519,7 +519,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     //     {
     //         if (OutputPin->LinkedTo.Num() == 0)
     //         {
-    //             UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
+                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
     //             return;
     //         }
     //         
@@ -533,7 +533,7 @@ void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap
     //     }
     //     else
     //     {
-    //         UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
+        //         UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
     //         return;
     //     }
     // }
