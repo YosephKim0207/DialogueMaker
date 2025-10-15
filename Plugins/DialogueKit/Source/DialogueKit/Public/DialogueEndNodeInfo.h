@@ -19,7 +19,7 @@ UCLASS(BlueprintType)
 class DIALOGUEKIT_API UDialogueEndNodeInfo : public UDialogueNodeInfoBase
 {
 	GENERATED_BODY()
-	
+
 public:
 	UPROPERTY(EditAnywhere)
 	EDialogueNodeAction Action = EDialogueNodeAction::None;
@@ -27,12 +27,12 @@ public:
 	UPROPERTY(EditAnywhere)
 	FString ActionDetails;
 
-	UPROPERTY(EditAnywhere, meta = (ToolTip = "Quest가 ?�고, ?�??종료??처리??Tag가 ?�는 경우 ?�용"))
+	UPROPERTY(EditAnywhere, meta = (ToolTip = "Quest가 없고, 대화 종료시 처리할 Tag가 있는 경우 사용"))
 	FGameplayTag ClearTag;
-	
+
 	UPROPERTY(EditAnywhere, Category = "Quest")
 	TSoftObjectPtr<UQuestBase> QuestBase;
-	
+
 	UPROPERTY(VisibleAnywhere, Category = "Quest")
 	FGameplayTag QuestRootTag;
 
@@ -41,10 +41,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Quest")
 	FQuestStep SelectedQuestStep;
-	
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	
+
 	UFUNCTION()
 	TArray<FName> GetQuestStepTagOptions() const;
 #endif

@@ -10,7 +10,7 @@ USTRUCT(BlueprintType)
 struct FDialogueChoice
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText ResponseText;
 
@@ -21,28 +21,28 @@ struct FDialogueChoice
 	explicit FDialogueChoice(const FText& NewResponseText) : ResponseText(NewResponseText) {}
 	FDialogueChoice(const FText& NewResponseText, const FDialogueConditionEvalCriteria& NewSelectableChoiceEvalCriteria)
 	: ResponseText(NewResponseText), SelectableChoiceEvalCriteria(NewSelectableChoiceEvalCriteria) {}
-	
+
 	bool IsPossibleToShow(const FPlayerCondition& PlayerEvalCondition) const
 	{
-		// Player???�벨??RequiredLevel�?충족?�는지 ?�별
+		// Player의 레벨이 RequiredLevel를 충족하는지 판별
 		if (PlayerEvalCondition.PlayerLevel < SelectableChoiceEvalCriteria.RequiredLevel)
 		{
 			return false;
 		}
 
-		// RequiredTagQuery가 비어?�는 경우 별다�?조건???�다�?보고 true 반환, Matches??경우 IsEmpty�?false�?반환?�기 ?�문??IsEmpty ?�황???�한 별도 분기 ?�성
+		// RequiredTagQuery가 비어있는 경우 별다른 조건이 없다고 보고 true 반환, Matches의 경우 IsEmpty면 false를 반환하기 때문에 IsEmpty 상황을 위한 별도 분기 생성
 		if (SelectableChoiceEvalCriteria.RequiredTagQuery.IsEmpty())
 		{
 			UE_LOG(LogTemp, Log, TEXT("FDialogueChoice::IsPossibleToShow %s RequiredTagQuery is Empty"), *ResponseText.ToString());
 			return true;
 		}
 
-		// Player가 갖고?�는 ?�그?�이 DialoguePassCondition??TagQuery�?충족?�는지 ?�별
+		// Player가 갖고있는 태그들이 DialoguePassCondition의 TagQuery를 충족하는지 판별
 		if (SelectableChoiceEvalCriteria.RequiredTagQuery.Matches(PlayerEvalCondition.PlayerOwnedTags) == false)
 		{
 			return false;
 		}
-	
+
 		return true;
 	}
 };
@@ -50,18 +50,18 @@ struct FDialogueChoice
 // USTRUCT(BlueprintType)
 // struct FDialogueStructure : public FTableRowBase
 // {
-// 	GENERATED_BODY()
+//      GENERATED_BODY()
 //
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-// 	FGuid CurrentDialogueId;
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-// 	FText SpeakerName;
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-// 	FText DialogueText;
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-// 	TArray<FDialogueChoice> Choices;
-// 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-// 	FGuid NextDialogueId;
-// 	// TODO ?�?��? ?�번???�나�??�음 ?�벤?????�개?�는 경우 bool�??�던지 GameplayTag ?�용?�던지
-// 	// TODO ?�?�에???�벤??발생??GameplayTag ?�용?�기
+//      UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//      FGuid CurrentDialogueId;
+//      UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//      FText SpeakerName;
+//      UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//      FText DialogueText;
+//      UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//      TArray<FDialogueChoice> Choices;
+//      UPROPERTY(EditAnywhere, BlueprintReadWrite)
+//      FGuid NextDialogueId;
+//      // TODO 대화가 이번에 끝나고 다음 이벤트 때 재개되는 경우 bool로 쓰던지 GameplayTag 활용하던지
+//      // TODO 대화에서 이벤트 발생시 GameplayTag 활용하기
 // };
