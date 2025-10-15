@@ -42,7 +42,7 @@ void UDialogueEdEndGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu,
 		TEXT("Delete Entry"),
 		FText::FromString(TEXT("Delete Entry")),
 		FText::FromString(TEXT("Delete the node")),
-		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeDeleteNodeIcon")),
+                FSlateIcon(TEXT("DialogueKitEditorStyle"), TEXT("DialogueKitEditor.NodeDeleteNodeIcon")),
 		FUIAction(FExecuteAction::CreateLambda(
 			[Node] (){
 				Node->GetGraph()->RemoveNode(Node);

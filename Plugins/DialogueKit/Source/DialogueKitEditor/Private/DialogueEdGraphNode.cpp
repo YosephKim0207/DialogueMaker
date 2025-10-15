@@ -129,7 +129,7 @@ void UDialogueEdGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNode
 		TEXT("Pin Entry"),
 		FText::FromString(TEXT("Add Response")),
 		FText::FromString(TEXT("Create a new Response")),
-		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeAddPinIcon")),
+                FSlateIcon(TEXT("DialogueKitEditorStyle"), TEXT("DialogueKitEditor.NodeAddIcon")),
 		FUIAction(FExecuteAction::CreateLambda(
 			[Node] (){
 				Node->GetDialogueNodeInfo()->AddDialogueChoice(FDialogueChoice(FText::FromString(TEXT("Response"))));
@@ -145,7 +145,7 @@ void UDialogueEdGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNode
 		TEXT("Delete Pin Entry"),
 		FText::FromString(TEXT("Delete Response")),
 		FText::FromString(TEXT("Delete a last Response")),
-		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeDeletePinIcon")),
+                FSlateIcon(TEXT("DialogueKitEditorStyle"), TEXT("DialogueKitEditor.NodeDeletePinIcon")),
 		FUIAction(FExecuteAction::CreateLambda(
 			[Node] (){
 						UEdGraphPin* Pin = Node->GetPinAt(Node->Pins.Num() - 1);
@@ -167,7 +167,7 @@ void UDialogueEdGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNode
 		TEXT("Delete Entry"),
 		FText::FromString(TEXT("Delete Node")),
 		FText::FromString(TEXT("Delete the node")),
-		FSlateIcon(TEXT("DialogueMakerEditorStyle"), TEXT("DialogueMakerEditor.NodeDeleteNodeIcon")),
+                FSlateIcon(TEXT("DialogueKitEditorStyle"), TEXT("DialogueKitEditor.NodeDeleteNodeIcon")),
 		FUIAction(FExecuteAction::CreateLambda(
 			[Node] (){
 				Node->GetGraph()->RemoveNode(Node);
