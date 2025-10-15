@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueNodeInfoBase.h"
-#include "Struct/DialogueConditionEvalCriteria.h"
+#include "DialogueConditionEvalCriteria.h"
 #include "DialogueBranchNodeInfoBase.generated.h"
 
 UCLASS()
