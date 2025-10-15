@@ -5,7 +5,6 @@
 #include "DialogueGraphEditorCommands.h"
 #include "EdGraphUtilities.h"
 #include "SGraphPin.h"
-#include "Interfaces/IPluginManager.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/SlateStyleRegistry.h"
 
