@@ -12,16 +12,7 @@
 				"Engine",
 				"DeveloperSettings"
 			]
-		},
-		{
-			"Name": "DialogueMakerEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"BlueprintGraph"
-			]
-		}
-	],
+		}	],
 	"Plugins": [
 		{
 			"Name": "ModelingToolsEditorMode",

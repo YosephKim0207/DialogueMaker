@@ -1,0 +1,30 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1",
+	"FriendlyName": "DialogueKit",
+	"Description": "Dialogue And Action Maker",
+	"Category": "Other",
+	"CreatedBy": "Namk",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"EnabledByDefault": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "DialogueKit",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+   		{
+      			"Name": "DialogueKitEditor",
+			 "Type": "Editor",
+     			 "LoadingPhase": "Default"
+    		}
+	]
+}
