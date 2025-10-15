@@ -5,13 +5,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogDialogueKit, Log, All);
 
 void FDialogueKitModule::StartupModule()
 {
-	UE_LOG(LogDialogueKit, Log, TEXT("DialogueKit runtime module started"));
+	UE_LOG(LogDialogueKit, Display, TEXT("FDialogueKitModule::StartupModule : Enter"));
 
 }
 
 void FDialogueKitModule::ShutdownModule()
 {
-	UE_LOG(LogDialogueKit, Log, TEXT("DialogueKit runtime module shutdown"));
+	UE_LOG(LogDialogueKit, Display, TEXT("FDialogueKitModule::StartupModule : End"));
 }
 
 IMPLEMENT_MODULE(FDialogueKitModule, DialogueKit);
