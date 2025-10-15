@@ -50,12 +50,12 @@ private:
 	TObjectPtr<UDialogueGraph> WorkingAsset;
 	
 	UPROPERTY()
-	TObjectPtr<UEdGraph> WorkingGraph;	// ?�업 중인 Graph??Data
+	TObjectPtr<UEdGraph> WorkingGraph;	// 작업 중인 Graph의 Data
 	
 	const FName GraphTabID = FName("DialogueMaker_GraphEditor");  // "DialogueGraph_Tab"
 	const FName DetailsTabID = FName("DialogueMaker_Details");	// "DialogueGraph_Tab"
 	
-	// Graph가 그려지??Slate Widget
+	// Graph가 그려지는 Slate Widget
 	TSharedPtr<SGraphEditor> WorkingGraphUI;
 	TSharedPtr<IDetailsView> SelectedDetailView;
 
@@ -65,5 +65,3 @@ private:
 	// Convert to DataTable
 	UDataTable* DataTable;
 };
-
-

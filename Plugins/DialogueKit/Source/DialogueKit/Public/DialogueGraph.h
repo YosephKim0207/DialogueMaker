@@ -74,14 +74,12 @@ public:	// Properties
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")
 	EChapterID ChapterID;
 	
-	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "?�당 Tag?�이 모두 ?�어???�출 조건 충족"))
-	FGameplayTagContainer RequiredAllTags;
+	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들이 모두 있어야 노출 조건 충족"))	FGameplayTagContainer RequiredAllTags;
 
-	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "?�당 Tag??�??�나?�도 ?�으�??�출 조건 충족"))
+	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들 중 하나라도 있으면 노출 조건 충족"))
 	FGameplayTagContainer RequiredAnyTags;
 
-	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "?�당 Tag?�이 ?�나?�도 ?�으�?미노�?))
-	FGameplayTagContainer BlockedAnyTags;
+	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들이 하나라도 있으면 미노출"))	FGameplayTagContainer BlockedAnyTags;
 	
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Order")
 	EDialogueGraphType DialogueGraphType;
