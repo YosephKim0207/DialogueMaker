@@ -15,9 +15,9 @@ struct FPortraitData
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EPortraitActionType ActionType = EPortraitActionType::None;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEmoteType EmoteType = EEmoteType::None;	// 감정 ?�황??맞는 ?��?지 ?�용
+	EEmoteType EmoteType = EEmoteType::None;        // 감정 상황에 맞는 이미지 사용
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EPortraitSide SidePosition = EPortraitSide::Center;
@@ -30,18 +30,18 @@ struct FPortraitActionData
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait")
 	ESpeakerID ActionTargetSpeakerID;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait", meta = (ToolTip = "ActionType??Move??경우 Action ?�후 변?�하??Portarit Image, \nActionType??Emote??경우 Portrait??붙어???�출?�는 Emoji Type"))
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait", meta = (ToolTip = "ActionType이 Move인 경우 Action 이후 변화하는 Portarit Image, \nActionType이 Emote인 경우 Portrait에 붙어서 연출되는 Emoji Type"))
 	EEmoteType PortraitActionEmoteType = EEmoteType::None;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Action")
 	EPortraitActionType ActionType = EPortraitActionType::None;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tween")
-	float Delay = 0.0f;	// Action???�작?�기 ??Delay ?�간
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tween")
-	float Duration = 0.0f;	// Action ?�작부??종료까�????�체 ?�요 ?�간
+	float Delay = 0.0f;     // Action을 시작하기 전 Delay 시간
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tween")
+	float Duration = 0.0f;  // Action 시작부터 종료까지의 전체 소요 시간
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tween")
 	FVector2D FromTranslation = FVector2D::ZeroVector;
@@ -70,11 +70,11 @@ public:
 	{
 		return GET_MEMBER_NAME_CHECKED(UDialoguePortraitData, EmoteType);
 	}
-	
+
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Speaker", AssetRegistrySearchable, meta = (AllowPrivateAccess = "true"))
 	ESpeakerID SpeakerId;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portrait", meta = (AssetBundles = "Portrait", AllowPrivateAccess = "true"))
 	TSoftObjectPtr<UTexture2D> Portrait;
 

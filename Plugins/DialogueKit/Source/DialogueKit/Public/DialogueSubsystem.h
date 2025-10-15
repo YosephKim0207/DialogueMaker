@@ -147,7 +147,7 @@ private:
 	UDialogueGraph* CurrentDialogueGraph;
 
 	UPROPERTY()
-	TArray<UDialogueNodeInfo*> DialogueHistory;	// Dialogue Recall???�한 캐싱
+	TArray<UDialogueNodeInfo*> DialogueHistory;	// Dialogue Recall을 위한 캐싱
 
 	UPROPERTY()
 	FGuidList ShownDialogueGuids;
