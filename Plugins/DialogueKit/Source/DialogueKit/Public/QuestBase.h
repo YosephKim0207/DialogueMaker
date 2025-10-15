@@ -12,7 +12,7 @@ struct FQuestStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
 	FGameplayTag ClearTag;
 
-	UPROPERTY(EditAnywhere, Category = "Reward", meta = (RowType = "/Script/DialogueMaker.ItemRow", TitleProperty = "DisplayName"))
+	UPROPERTY(EditAnywhere, Category = "Reward", meta = (RowType = "/Script/DialogueKit.ItemRow", TitleProperty = "DisplayName"))
 	TArray<FDataTableRowHandle> RewardItems;
 };
 
