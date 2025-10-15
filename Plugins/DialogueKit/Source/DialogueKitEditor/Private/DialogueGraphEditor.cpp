@@ -15,14 +15,14 @@
 #include "Widgets/SBoxPanel.h"
 #include "GraphEditor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "DialogueMaker/DialogueGraph.h"
-#include "DialogueMaker/DialogueNodeInfo.h"
-#include "DialogueMaker/Struct/DialogueStructure.h"
+#include "DialogueKit/DialogueGraph.h"
+#include "DialogueKit/DialogueNodeInfo.h"
+#include "DialogueKit/Struct/DialogueStructure.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
-DEFINE_LOG_CATEGORY_STATIC(DialogueMakerEditorSub, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(DialogueKitEditorSub, Log, All);
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
@@ -191,7 +191,7 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
         }
         else
         {
-            UE_LOG(DialogueMakerEditorSub, Error, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : Unknown Node Type"));
+            UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : Unknown Node Type"));
             continue;
         }
         
@@ -319,7 +319,7 @@ bool FDialogueGraphEditor::CanConvertToDataTable() const
 // Convert to DataTable 로직
 void FDialogueGraphEditor::OnConvertToDataTableButtonClicked()
 {
-    UE_LOG(DialogueMakerEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
+    UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
 
     if (DataTable == nullptr)
     {
