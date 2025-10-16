@@ -669,6 +669,8 @@ FARFilter UDialogueSubsystem::GetDialogueGraphAssetFilter(ESpeakerID SpeakerID, 
 
 void UDialogueSubsystem::InitializeDialogueData()
 {
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::InitializeDialogueData : Enter"));
+	
 	DialogueHistory.Reset();
 
 	// 반복회차 진행시 skip 및 Text 색 변경을 위함
@@ -828,6 +830,8 @@ EChapterID UDialogueSubsystem::GetCurrentChapter() const
 // DialogueGraph 에셋 내 사용되는 Portrait들을 메모리에 사전 탑재
 void UDialogueSubsystem::PreloadPortraits()
 {
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::PreloadPortraits : Enter"));
+	
 	// Current DialogueGraph를 순회하며 필요한 Portrait 리소스들 Load
 	TMultiMap<ESpeakerID, EEmoteType> RequiredPortraitPairs;
 	for (const UDialogueRuntimeNode* Node : CurrentDialogueGraph->Graph->Nodes)
@@ -838,6 +842,8 @@ void UDialogueSubsystem::PreloadPortraits()
 			RequiredPortraitPairs.AddUnique(SpeakerEmotePair.Speaker, SpeakerEmotePair.EmoteType);
 		}
 	}
+
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::PreloadPortraits : Pass Cache RequiredPortraitPairs"));
 
 	// ESpeakerID, EEmoteType가 일치하는 Portrait를 가져오기 위해  DialoguePortraitData로부터 PrimaryAssetId 얻기
 	TArray<FPrimaryAssetId> AssetIds;
@@ -853,6 +859,8 @@ void UDialogueSubsystem::PreloadPortraits()
 		IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
 		AssetRegistry.WaitForCompletion();
 		AssetRegistry.GetAssets(ARFilter, AssetDatas);
+
+		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::PreloadPortraits : Get %s's Portraits"), *NPCEnumName);
 
 		// Major한 조건인 ESpeakerID 1차 필터링 후 EEmoteType이 일치하는 Asset 추출
 		for (FAssetData AssetData : AssetDatas)
@@ -876,6 +884,8 @@ void UDialogueSubsystem::PreloadPortraits()
 					{
 						CachedPortraitEmotePairMap.Add(PortraitPair.Key, FPortraitEmoteIDPair(PortraitPair.Value, AssetId));
 						AssetIds.Add(AssetId);
+
+						UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::PreloadPortraits : Emote %s"), *AssetEmoteString);
 					}
 					else
 					{
