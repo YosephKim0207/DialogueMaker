@@ -6,7 +6,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueSettingsLog, Log, All);
 
-void UDialogueSettings::ApplyKitAssetToAssetManager(const bool bForceSyncScan) const
+void UDialogueSettings::ApplyKitAssetToAssetManager() const
 {
 	UE_LOG(DialogueSettingsLog, Display, TEXT("UDialogueSettings::ApplyKitAssetToAssetManager : Enter"));
 
@@ -45,7 +45,7 @@ void UDialogueSettings::ApplyKitAssetToAssetManager(const bool bForceSyncScan) c
 					BaseClass,
 					Entry.bHasBlueprintClasses,
 					Entry.bIsEditorOnly,
-					bForceSyncScan
+					true
 				);
 				
 				if (!Entry.Rules.IsDefault())

@@ -39,10 +39,9 @@ class DIALOGUEKIT_API UDialogueSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	// ini 기반 스캔 적용
 	UFUNCTION(BlueprintCallable, Category="DialogueKit|AssetManager")
-	void ApplyKitAssetToAssetManager(const bool bForceSyncScan = true) const;
-	
+	void ApplyKitAssetToAssetManager() const;
+
 public:
 	UPROPERTY(Config, EditAnywhere, Category = "UI")
 	TSoftClassPtr<UUserWidget> DialogueWidgetClass;
