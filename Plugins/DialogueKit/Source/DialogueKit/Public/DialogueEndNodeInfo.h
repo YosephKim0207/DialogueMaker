@@ -21,14 +21,14 @@ class DIALOGUEKIT_API UDialogueEndNodeInfo : public UDialogueNodeInfoBase
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere)
-	EDialogueNodeAction Action = EDialogueNodeAction::None;
+        UPROPERTY(EditAnywhere, Category = "Dialogue|End Node")
+        EDialogueNodeAction Action = EDialogueNodeAction::None;
 
-	UPROPERTY(EditAnywhere)
-	FString ActionDetails;
+        UPROPERTY(EditAnywhere, Category = "Dialogue|End Node")
+        FString ActionDetails;
 
-	UPROPERTY(EditAnywhere, meta = (ToolTip = "Quest가 없고, 대화 종료시 처리할 Tag가 있는 경우 사용"))
-	FGameplayTag ClearTag;
+        UPROPERTY(EditAnywhere, Category = "Dialogue|End Node", meta = (ToolTip = "Quest가 없고, 대화 종료시 처리할 Tag가 있는 경우 사용"))
+        FGameplayTag ClearTag;
 
 	UPROPERTY(EditAnywhere, Category = "Quest")
 	TSoftObjectPtr<UQuestBase> QuestBase;

@@ -11,16 +11,16 @@
 USTRUCT(BlueprintType)
 struct FPortraitData
 {
-	GENERATED_BODY()
+        GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EPortraitActionType ActionType = EPortraitActionType::None;
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dialogue|Portrait")
+        EPortraitActionType ActionType = EPortraitActionType::None;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEmoteType EmoteType = EEmoteType::None;        // 감정 상황에 맞는 이미지 사용
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dialogue|Portrait")
+        EEmoteType EmoteType = EEmoteType::None;        // 감정 상황에 맞는 이미지 사용
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EPortraitSide SidePosition = EPortraitSide::Center;
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Dialogue|Portrait")
+        EPortraitSide SidePosition = EPortraitSide::Center;
 };
 
 USTRUCT(BlueprintType)

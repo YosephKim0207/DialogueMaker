@@ -24,11 +24,11 @@ struct FPortraitEmoteIDPair
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	EEmoteType EmoteType;
+        UPROPERTY(Category = "Dialogue|Portrait Cache")
+        EEmoteType EmoteType;
 
-	UPROPERTY()
-	FPrimaryAssetId PortraitAssetId;
+        UPROPERTY(Category = "Dialogue|Portrait Cache")
+        FPrimaryAssetId PortraitAssetId;
 
 	FPortraitEmoteIDPair() {EmoteType = EEmoteType::None; PortraitAssetId = FPrimaryAssetId(); };
 	FPortraitEmoteIDPair(EEmoteType EmoteType, const FPrimaryAssetId& PortraitAssetId) : EmoteType(EmoteType), PortraitAssetId(PortraitAssetId) {};
@@ -45,11 +45,11 @@ public:
 
 	void BeginDialogue(ESpeakerID SpeakerID);
 	
-	UFUNCTION(BlueprintCallable)
-	class UDialogueNodeInfo* ProgressNextDialogue(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Flow")
+        class UDialogueNodeInfo* ProgressNextDialogue(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
 
-	UFUNCTION(BlueprintCallable)
-	const UDialogueNodeInfo* GetCurrentDialogueNodeInfo() const;
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Flow")
+        const UDialogueNodeInfo* GetCurrentDialogueNodeInfo() const;
 	
 	UFUNCTION(BlueprintCallable, Category = "Choice")
 	bool HasChoicesInCurrentDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
@@ -63,28 +63,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Shown Dialogue")
 	bool IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const;
 
-	UFUNCTION(BlueprintCallable)
-	FTimerHandle& GetSkipHandler();
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Skip")
+        FTimerHandle& GetSkipHandler();
 
-	UFUNCTION(BlueprintCallable)
-	void SetSkipHandler(const FTimerHandle& Handle);
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Skip")
+        void SetSkipHandler(const FTimerHandle& Handle);
 
-	UFUNCTION(BlueprintCallable)
-	const TArray<UDialogueNodeInfo*>& GetDialogueHistory();
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|History")
+        const TArray<UDialogueNodeInfo*>& GetDialogueHistory();
 
-	UFUNCTION(BlueprintCallable)
-	void SetDialogueRecallWidget(UUserWidget* UserWidget);
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|History")
+        void SetDialogueRecallWidget(UUserWidget* UserWidget);
 
-	UFUNCTION(BlueprintCallable)
-	UUserWidget* GetDialogueRecallWidget() const;
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|History")
+        UUserWidget* GetDialogueRecallWidget() const;
 	
 	FPlayerCondition GetPlayerEvalCondition() const;
 
-	UFUNCTION(BlueprintCallable)
-	const TArray<FPortraitInitData> GetInitPortraitDatas() const;
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Portrait")
+        const TArray<FPortraitInitData> GetInitPortraitDatas() const;
 
-	UFUNCTION(BlueprintCallable)
-	const TArray<FPortraitActionData> GetPortraitActionDatas() const;
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Portrait")
+        const TArray<FPortraitActionData> GetPortraitActionDatas() const;
 
 	#if !UE_BUILD_SHIPPING
 	void PlayDialogueGraph(UDialogueGraph* DialogueGraph);
@@ -118,11 +118,11 @@ private:
 
 	void PreloadPortraits();
 
-	UFUNCTION(BlueprintCallable)
-	UTexture2D* GetPortrait(const ESpeakerID NPCID, const EEmoteType EmoteType) const;
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Portrait")
+        UTexture2D* GetPortrait(const ESpeakerID NPCID, const EEmoteType EmoteType) const;
 
-	UFUNCTION(BlueprintCallable)
-	const FPortraitData GetPortraitData() const;
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Portrait")
+        const FPortraitData GetPortraitData() const;
 
 	template<typename TEnum>
 	FString GetEnumNameString(TEnum EnumValue) const
@@ -168,13 +168,13 @@ private:
 	
 	FOnCurrentDialogueNodeChange OnCurrentDialogueChanged;
 
-	UPROPERTY(BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Delegates")
 	FOnDialogueNodeInfoChanged OnDialogueNodeInfoChanged;
 
-	UPROPERTY(BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Delegates")
 	FOnDialogueEnd OnDialogueEnded;
 
-	UPROPERTY(BlueprintAssignable)
+	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Delegates")
 	FOnStopSkip OnStopSkip;
 	
 	UPROPERTY()
@@ -189,7 +189,7 @@ private:
 	UPROPERTY()
 	TMap<ESpeakerID, FPortraitEmoteIDPair> CachedPortraitEmotePairMap;
 
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadWrite, Category = "Dialogue|Portrait", meta = (AllowPrivateAccess = true))
 	TMap<ESpeakerID, EPortraitSide> CachedPortraitSideMap;
 	
 	TSharedPtr<FStreamableHandle> PortraitPreLoadHandle;

@@ -18,21 +18,21 @@ class DIALOGUEKIT_API UActionSequencer : public UObject
 	GENERATED_BODY()
 
 public :
-	UFUNCTION(BlueprintCallable)
-	void Initialize(UObject* NewInWorldContextObject);
-	
-	UFUNCTION(BlueprintCallable)
-	void AddPortraitWidget(const ESpeakerID PortraitOwner, UWidget* Widget);
-	
-	UFUNCTION(BlueprintCallable)
-	void StartSequence(const TArray<FPortraitActionData>& ActionDatas, const bool bIsSkip = false);
-	
-	UFUNCTION(BlueprintCallable)
-	void StopSequence();
-	
-	UFUNCTION(BlueprintCallable)
-	bool TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
-	const EPortraitSide PortraitSide, FVector2D& OutPosition);
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Action Sequencer")
+        void Initialize(UObject* NewInWorldContextObject);
+
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Action Sequencer")
+        void AddPortraitWidget(const ESpeakerID PortraitOwner, UWidget* Widget);
+
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Action Sequencer")
+        void StartSequence(const TArray<FPortraitActionData>& ActionDatas, const bool bIsSkip = false);
+
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Action Sequencer")
+        void StopSequence();
+
+        UFUNCTION(BlueprintCallable, Category = "Dialogue|Action Sequencer")
+        bool TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
+        const EPortraitSide PortraitSide, FVector2D& OutPosition);
 	
 	virtual class UWorld* GetWorld() const override;
 	
@@ -46,29 +46,29 @@ private:
 	void ClearAllTimer();
 	
 private:
-	UPROPERTY()
-	TWeakObjectPtr<UObject> InWorldContextObject;
-	
-	UPROPERTY()
-	TArray<FPortraitActionData> CachedActionDatas;
-	
-	UPROPERTY()
-	TWeakObjectPtr<UPortraitItemWidget> CurrentActionTargetWidget;
+        UPROPERTY(Category = "Dialogue|Action Sequencer")
+        TWeakObjectPtr<UObject> InWorldContextObject;
 
-	UPROPERTY()
-	TMap<ESpeakerID, TWeakObjectPtr<UPortraitItemWidget>> CachedWidgetMap;
+        UPROPERTY(Category = "Dialogue|Action Sequencer")
+        TArray<FPortraitActionData> CachedActionDatas;
+
+        UPROPERTY(Category = "Dialogue|Action Sequencer")
+        TWeakObjectPtr<UPortraitItemWidget> CurrentActionTargetWidget;
+
+        UPROPERTY(Category = "Dialogue|Action Sequencer")
+        TMap<ESpeakerID, TWeakObjectPtr<UPortraitItemWidget>> CachedWidgetMap;
 
 	int32 CurrentActionIndex = INDEX_NONE;
 	float CurrentActionElapsedTime = 0.0f;
 
-	UPROPERTY()
-	FTimerHandle DelayTimerHandle;
-	
-	UPROPERTY()
-	FTimerHandle TickTimerHandle;
+        UPROPERTY(Category = "Dialogue|Action Sequencer")
+        FTimerHandle DelayTimerHandle;
+
+        UPROPERTY(Category = "Dialogue|Action Sequencer")
+        FTimerHandle TickTimerHandle;
 
 	const float SequenceTickInterval = 1.0f / 60.0f;
 
-	UPROPERTY()
-	FVector2D CachedOriginalRenderTranslation = FVector2D::ZeroVector;
+        UPROPERTY(Category = "Dialogue|Action Sequencer")
+        FVector2D CachedOriginalRenderTranslation = FVector2D::ZeroVector;
 };
