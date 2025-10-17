@@ -7,10 +7,15 @@
 #include "DialogueNodeInfo.h"
 #include "ShownDialogueSaveData.h"
 #include "AssetRegistry/ARFilter.h"
-#include "Struct/DialogueConditionEvalCriteria.h"
+#include "AssetRegistry/AssetData.h"
+#include "Blueprint/UserWidget.h"
 #include "Engine/StreamableManager.h"
+#include "Engine/Texture2D.h"
+#include "Engine/TimerHandle.h"
 #include "Enum/Portrait.h"
-#include "Subsystems/Subsystem.h"
+#include "Struct/DialogueConditionEvalCriteria.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "UObject/SoftObjectPtr.h"
 #include "DialogueSubsystem.generated.h"
 
 DECLARE_DELEGATE_OneParam(FOnDialogueReady, UDialogueGraph*);

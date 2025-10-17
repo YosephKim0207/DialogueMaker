@@ -13,6 +13,9 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/AssetManager.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Struct/DialogueStructure.h"
 

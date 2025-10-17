@@ -5,11 +5,15 @@
 #include "CoreMinimal.h"
 #include "DialoguePortraitData.h"
 #include "PortraitItemWidget.h"
+#include "Engine/TimerHandle.h"
 #include "Enum/PlayerProgress.h"
 #include "ActionSequencer.generated.h"
 
+class UCanvasPanelSlot;
+class UWidget;
+
 /**
- * 
+ *
  */
 
 UCLASS(BlueprintType)

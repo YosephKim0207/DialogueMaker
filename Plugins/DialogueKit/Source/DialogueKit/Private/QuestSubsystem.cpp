@@ -4,6 +4,8 @@
 #include "PlayerProgressSubsystem.h"
 #include "QuestProgressSaveData.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(QuestSubsystem, Log, All);
 

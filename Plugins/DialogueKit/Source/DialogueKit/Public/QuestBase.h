@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataTable.h"
+#include "Engine/PrimaryDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "QuestBase.generated.h"
 

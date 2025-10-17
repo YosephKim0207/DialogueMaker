@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "QuestBase.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "QuestSubsystem.generated.h"
 
 /**

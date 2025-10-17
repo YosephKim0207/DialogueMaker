@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DataAsset.h"
+#include "Engine/PrimaryDataAsset.h"
+#include "Engine/Texture2D.h"
+#include "UObject/SoftObjectPtr.h"
 #include "Enum/PlayerProgress.h"
 #include "Enum/Portrait.h"
 #include "DialoguePortraitData.generated.h"

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Enum/Portrait.h"
-#include "Subsystems/Subsystem.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "Widgets/Layout/Anchors.h"
 #include "PortraitSubsystem.generated.h"
 

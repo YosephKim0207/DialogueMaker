@@ -2,6 +2,7 @@
 
 #include "DialogueSettings.h"
 #include "Engine/AssetManager.h"
+#include "Engine/Engine.h"
 #include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueKitModuleLog, Log, All);
