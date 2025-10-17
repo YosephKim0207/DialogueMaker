@@ -21,26 +21,26 @@ class DIALOGUEKIT_API UDialogueEndNodeInfo : public UDialogueNodeInfoBase
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere)
-	EDialogueNodeAction Action = EDialogueNodeAction::None;
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Action")
+    EDialogueNodeAction Action = EDialogueNodeAction::None;
 
-	UPROPERTY(EditAnywhere)
-	FString ActionDetails;
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Action")
+    FString ActionDetails;
 
-	UPROPERTY(EditAnywhere, meta = (ToolTip = "Quest가 없고, 대화 종료시 처리할 Tag가 있는 경우 사용"))
-	FGameplayTag ClearTag;
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Action", meta = (ToolTip = "Quest가 없고, 대화 종료시 처리할 Tag가 있는 경우 사용"))
+    FGameplayTag ClearTag;
 
-	UPROPERTY(EditAnywhere, Category = "Quest")
-	TSoftObjectPtr<UQuestBase> QuestBase;
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Quest")
+    TSoftObjectPtr<UQuestBase> QuestBase;
 
-	UPROPERTY(VisibleAnywhere, Category = "Quest")
-	FGameplayTag QuestRootTag;
+    UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Quest")
+    FGameplayTag QuestRootTag;
 
-	UPROPERTY(EditAnywhere, Category = "Quest", meta = (GetOptions = "GetQuestStepTagOptions"))
-	FName SelectedQuestStepTag;
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Quest", meta = (GetOptions = "GetQuestStepTagOptions"))
+    FName SelectedQuestStepTag;
 
-	UPROPERTY(VisibleAnywhere, Category = "Quest")
-	FQuestStep SelectedQuestStep;
+    UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Quest")
+    FQuestStep SelectedQuestStep;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

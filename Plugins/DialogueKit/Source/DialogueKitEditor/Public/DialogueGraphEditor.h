@@ -46,8 +46,8 @@ private:
 	TSharedPtr<SGraphEditor> GraphEditor;
 	TSharedPtr<IDetailsView> DetailsView;
 	
-	UPROPERTY(EditAnywhere)
-	TObjectPtr<UDialogueGraph> WorkingAsset;
+        UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraphEditor|Asset")
+        TObjectPtr<UDialogueGraph> WorkingAsset;
 	
 	UPROPERTY()
 	TObjectPtr<UEdGraph> WorkingGraph;	// 작업 중인 Graph의 Data

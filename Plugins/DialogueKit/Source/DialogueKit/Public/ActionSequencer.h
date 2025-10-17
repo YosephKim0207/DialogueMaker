@@ -18,21 +18,21 @@ class DIALOGUEKIT_API UActionSequencer : public UObject
 	GENERATED_BODY()
 
 public :
-	UFUNCTION(BlueprintCallable)
-	void Initialize(UObject* NewInWorldContextObject);
-	
-	UFUNCTION(BlueprintCallable)
-	void AddPortraitWidget(const ESpeakerID PortraitOwner, UWidget* Widget);
-	
-	UFUNCTION(BlueprintCallable)
-	void StartSequence(const TArray<FPortraitActionData>& ActionDatas, const bool bIsSkip = false);
-	
-	UFUNCTION(BlueprintCallable)
-	void StopSequence();
-	
-	UFUNCTION(BlueprintCallable)
-	bool TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
-	const EPortraitSide PortraitSide, FVector2D& OutPosition);
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|ActionSequencer|Initialization")
+    void Initialize(UObject* NewInWorldContextObject);
+
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|ActionSequencer|Portrait")
+    void AddPortraitWidget(const ESpeakerID PortraitOwner, UWidget* Widget);
+
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|ActionSequencer|Sequence")
+    void StartSequence(const TArray<FPortraitActionData>& ActionDatas, const bool bIsSkip = false);
+
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|ActionSequencer|Sequence")
+    void StopSequence();
+
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|ActionSequencer|Layout")
+    bool TryGetOffScreenPosition(const UCanvasPanelSlot* CanvasPanelSlot,
+    const EPortraitSide PortraitSide, FVector2D& OutPosition);
 	
 	virtual class UWorld* GetWorld() const override;
 	

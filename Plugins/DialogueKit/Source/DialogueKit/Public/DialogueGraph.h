@@ -24,14 +24,14 @@ struct FPortraitInitData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	ESpeakerID Speaker;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitInitData|Speaker")
+    ESpeakerID Speaker;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EEmoteType EmoteType;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitInitData|Emote")
+    EEmoteType EmoteType;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EPortraitSide PortraitSide;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitInitData|Portrait")
+    EPortraitSide PortraitSide;
 };
 
 UCLASS(BlueprintType)
@@ -65,29 +65,31 @@ public:
 public:	// Properties
 	// UPROPERTY(EditAnywhere)
 	// FString SpeakerName = FString("Enter Dialogue Name Here");
-	UPROPERTY(VisibleAnywhere)
-	TObjectPtr<UDialogueRuntimeGraph> Graph;
+        UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueGraph|Runtime")
+        TObjectPtr<UDialogueRuntimeGraph> Graph;
 
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")
-	ESpeakerID SpeakerID;
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Default")
+        ESpeakerID SpeakerID;
 
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Default")
-	EChapterID ChapterID;
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Default")
+        EChapterID ChapterID;
 	
-	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들이 모두 있어야 노출 조건 충족"))	FGameplayTagContainer RequiredAllTags;
+	UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraph|Filter - Tags", meta = (ToolTip = "해당 Tag들이 모두 있어야 노출 조건 충족"))
+	FGameplayTagContainer RequiredAllTags;
 
-	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들 중 하나라도 있으면 노출 조건 충족"))
+	UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraph|Filter - Tags", meta = (ToolTip = "해당 Tag들 중 하나라도 있으면 노출 조건 충족"))
 	FGameplayTagContainer RequiredAnyTags;
 
-	UPROPERTY(EditAnywhere, Category = "Filter - Tags", meta = (ToolTip = "해당 Tag들이 하나라도 있으면 미노출"))	FGameplayTagContainer BlockedAnyTags;
+	UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraph|Filter - Tags", meta = (ToolTip = "해당 Tag들이 하나라도 있으면 미노출"))
+	FGameplayTagContainer BlockedAnyTags;
 	
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Order")
-	EDialogueGraphType DialogueGraphType;
-	
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Filter - Order")
-	int32 DialoguePriorityWeight;
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Order")
+        EDialogueGraphType DialogueGraphType;
 
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "Initial Portrait")
-	TArray<FPortraitInitData> InitPortraits;
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Order")
+        int32 DialoguePriorityWeight;
+
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Initial Portrait")
+        TArray<FPortraitInitData> InitPortraits;
 };
 

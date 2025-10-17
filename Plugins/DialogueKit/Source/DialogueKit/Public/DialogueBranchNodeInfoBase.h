@@ -12,6 +12,6 @@ class DIALOGUEKIT_API UDialogueBranchNodeInfoBase : public UDialogueNodeInfoBase
 public:
 	bool ConditionCheck(const FPlayerCondition& PlayerEvalCondition) const;
 	
-	UPROPERTY(EditAnywhere)
-	FDialogueConditionEvalCriteria DialoguePassCondition;
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueBranchNodeInfoBase|Condition")
+    FDialogueConditionEvalCriteria DialoguePassCondition;
 };
