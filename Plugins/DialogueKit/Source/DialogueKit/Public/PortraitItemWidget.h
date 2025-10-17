@@ -15,24 +15,24 @@ class DIALOGUEKIT_API UPortraitItemWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable)
-	void SetBaseTranslation(const FVector2D& TargetPosition);
-	
-	UFUNCTION(BlueprintCallable)
-	void SetEmoteImageTranslation(const FVector2D& TargetPosition);
-	
-	UFUNCTION(BlueprintCallable)
-	void ResetTranslation();
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|PortraitItemWidget|Layout")
+    void SetBaseTranslation(const FVector2D& TargetPosition);
+
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|PortraitItemWidget|Layout")
+    void SetEmoteImageTranslation(const FVector2D& TargetPosition);
+
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|PortraitItemWidget|Layout")
+    void ResetTranslation();
 
 protected:
 	virtual void NativeOnInitialized() override;
 	
 protected:
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	class UImage* PortraitImage = nullptr;
+    UPROPERTY(BlueprintReadWrite, Category = "DialogueKit|PortraitItemWidget|Widget", meta = (BindWidget))
+    class UImage* PortraitImage = nullptr;
 
-	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
-	UImage* EmoteImage = nullptr;
+    UPROPERTY(BlueprintReadWrite, Category = "DialogueKit|PortraitItemWidget|Widget", meta = (BindWidget))
+    UImage* EmoteImage = nullptr;
 
 private:
 	UPROPERTY()

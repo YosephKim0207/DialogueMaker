@@ -9,11 +9,11 @@ struct FQuestStep
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
-	FGameplayTag ClearTag;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FQuestStep|Tag")
+    FGameplayTag ClearTag;
 
-	UPROPERTY(EditAnywhere, Category = "Reward", meta = (RowType = "/Script/DialogueMaker.ItemRow", TitleProperty = "DisplayName"))
-	TArray<FDataTableRowHandle> RewardItems;
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|FQuestStep|Reward", meta = (RowType = "/Script/DialogueMaker.ItemRow", TitleProperty = "DisplayName"))
+    TArray<FDataTableRowHandle> RewardItems;
 };
 
 UCLASS()
@@ -33,12 +33,12 @@ public:
 #endif
 	
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Quest|ID", meta = (AllowPrivateAccess=true))
-	FName QuestID;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|QuestBase|Quest|ID", meta = (AllowPrivateAccess=true))
+    FName QuestID;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest|Tag", meta = (AllowPrivateAccess=true))
-	FGameplayTag QuestRootTag;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|QuestBase|Quest|Tag", meta = (AllowPrivateAccess=true))
+    FGameplayTag QuestRootTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest|Progress", meta = (AllowPrivateAccess=true))
-	TArray<FQuestStep> QuestSteps;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|QuestBase|Quest|Progress", meta = (AllowPrivateAccess=true))
+    TArray<FQuestStep> QuestSteps;
 };

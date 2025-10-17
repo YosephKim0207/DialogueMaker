@@ -16,22 +16,22 @@ struct FItemRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName Id;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Identity")
+    FName Id;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	EItemType ItemType;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FText DisplayName;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Type")
+    EItemType ItemType;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FText Desc;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 Value;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Display")
+    FText DisplayName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TSoftObjectPtr<UTexture2D> Icon;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Display")
+    FText Desc;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Attributes")
+    int32 Value;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Display")
+    TSoftObjectPtr<UTexture2D> Icon;
 	
 };

@@ -11,11 +11,11 @@ struct FDialogueChoice
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FText ResponseText;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Text")
+    FText ResponseText;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FDialogueConditionEvalCriteria SelectableChoiceEvalCriteria;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Conditions")
+    FDialogueConditionEvalCriteria SelectableChoiceEvalCriteria;
 
 	FDialogueChoice(){}
 	explicit FDialogueChoice(const FText& NewResponseText) : ResponseText(NewResponseText) {}

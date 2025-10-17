@@ -16,11 +16,11 @@ class DIALOGUEKIT_API UPortraitSubsystem : public UGameInstanceSubsystem
 public:
 	static UPortraitSubsystem* Get(const UObject* WorldContextObject);
 
-	UFUNCTION(BlueprintCallable, Category = "Portrait")
-	FAnchors GetPortraitAnchors(EPortraitSide PortraitSide) const;
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|PortraitSubsystem|Portrait")
+    FAnchors GetPortraitAnchors(EPortraitSide PortraitSide) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Portrait")
-	FVector2D GetPortraitAlignment(EPortraitSide PortraitSide) const;
+    UFUNCTION(BlueprintCallable, Category = "DialogueKit|PortraitSubsystem|Portrait")
+    FVector2D GetPortraitAlignment(EPortraitSide PortraitSide) const;
 
 private:
 	const FAnchors LeftAnchors = FAnchors(0.1f,   0.5f, 0.1f,   0.5f);
