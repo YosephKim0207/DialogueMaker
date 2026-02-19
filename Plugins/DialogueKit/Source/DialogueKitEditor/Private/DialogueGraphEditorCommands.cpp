@@ -14,7 +14,7 @@ FDialogueGraphEditorCommands::FDialogueGraphEditorCommands()
 
 void FDialogueGraphEditorCommands::RegisterCommands()
 {
-	UI_COMMAND(ConvertToDataTable, "Convert To DataTable", "Convert and Create DataTable from Dialogue Graph Editor", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ConvertToCSV, "Convert To CSV", "Export Dialogue Graph data to CSV", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

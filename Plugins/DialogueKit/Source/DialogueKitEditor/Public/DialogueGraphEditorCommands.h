@@ -11,5 +11,5 @@ public:
 	virtual void RegisterCommands() override;
 
 public:
-	TSharedPtr<FUICommandInfo> ConvertToDataTable;
+	TSharedPtr<FUICommandInfo> ConvertToCSV;
 };

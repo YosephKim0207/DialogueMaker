@@ -8,6 +8,10 @@ public class DialogueKitEditor : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
+		// IWYU 도구가 실제로 코드를 수정/적용하도록 허용하는 수준 지정
+		IWYUSupport = IWYUSupport.Full; // 엔진 버전에 따라 사용
+		bUseUnity = false;
+		
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine" });
 
                 PrivateDependencyModuleNames.AddRange(new string[]
@@ -21,9 +25,11 @@ public class DialogueKitEditor : ModuleRules
                         "BlueprintGraph",
                         "PropertyEditor",
                         "EditorStyle",
+                        "GameplayTags",
                         "AssetDefinition",
                         "Projects",
-                        "ToolMenus"
+                        "ToolMenus",
+                        "DesktopPlatform"
                 });
 		
 		// Uncomment if you are using Slate UI

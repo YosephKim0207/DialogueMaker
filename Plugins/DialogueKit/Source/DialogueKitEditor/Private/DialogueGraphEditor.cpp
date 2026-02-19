@@ -1,28 +1,108 @@
 #include "DialogueGraphEditor.h"
 
 #include "AssetToolsModule.h"
+#include "DesktopPlatformModule.h"
 #include "DialogueBranchEdGraphNode.h"
+#include "DialogueBranchNodeInfoBase.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
 #include "DialogueEdStartGraphNode.h"
+#include "DialogueEndNodeInfo.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueGraphEditorMode.h"
-#include "EditorStyleSet.h"
 #include "EdGraph/EdGraph.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "PropertyEditorModule.h"
-#include "Widgets/SBoxPanel.h"
+#include "Engine/DataTable.h"
 #include "GraphEditor.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "IDesktopPlatform.h"
+#include "PropertyEditorModule.h"
+#include "DialogueRuntimeGraph.h"
 #include "DialogueGraph.h"
 #include "DialogueNodeInfo.h"
-#include "Struct/DialogueStructure.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/FileManager.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/FileHelper.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/Paths.h"
+#include "Styling/AppStyle.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueKitEditorSub, Log, All);
+
+namespace
+{
+FString CSVEscape(const FString& Input)
+{
+    FString Escaped = Input;
+    Escaped.ReplaceInline(TEXT("\""), TEXT("\"\""));
+
+    if (Escaped.Contains(TEXT(",")) || Escaped.Contains(TEXT("\"")) || Escaped.Contains(TEXT("\n")) || Escaped.Contains(TEXT("\r")))
+    {
+        return FString::Printf(TEXT("\"%s\""), *Escaped);
+    }
+
+    return Escaped;
+}
+
+void AppendCSVRow(FString& OutCSV, const TArray<FString>& Columns)
+{
+    TArray<FString> EscapedColumns;
+    EscapedColumns.Reserve(Columns.Num());
+    for (const FString& Column : Columns)
+    {
+        EscapedColumns.Add(CSVEscape(Column));
+    }
+
+    OutCSV += FString::Join(EscapedColumns, TEXT(","));
+    OutCSV += LINE_TERMINATOR;
+}
+
+template <typename TEnum>
+FString EnumToString(const TEnum EnumValue)
+{
+    if (const UEnum* Enum = StaticEnum<TEnum>())
+    {
+        return Enum->GetNameStringByValue(static_cast<int64>(EnumValue));
+    }
+
+    return LexToString(static_cast<int64>(EnumValue));
+}
+
+FString GuidToString(const FGuid& Guid)
+{
+    return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphensLower) : TEXT("");
+}
+
+FString ExportTagQuery(const FGameplayTagQuery& TagQuery)
+{
+    FString Exported;
+    FGameplayTagQuery::StaticStruct()->ExportText(Exported, &TagQuery, nullptr, nullptr, PPF_None, nullptr);
+    return Exported;
+}
+
+FString ExportPrivatePropertyText(const UObject* SourceObject, const FName PropertyName)
+{
+    if (SourceObject == nullptr)
+    {
+        return TEXT("");
+    }
+
+    const FProperty* Property = SourceObject->GetClass()->FindPropertyByName(PropertyName);
+    if (Property == nullptr)
+    {
+        return TEXT("");
+    }
+
+    UObject* MutableSourceObject = const_cast<UObject*>(SourceObject);
+    const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(MutableSourceObject);
+    FString Exported;
+    Property->ExportTextItem_Direct(Exported, ValuePtr, nullptr, MutableSourceObject, PPF_None);
+    return Exported;
+}
+}
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
@@ -43,9 +123,9 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     GraphEditorCommands = MakeShareable(new FUICommandList);
     const FDialogueGraphEditorCommands& Commands = FDialogueGraphEditorCommands::Get();
     GraphEditorCommands->MapAction(
-        Commands.ConvertToDataTable,
-        FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnConvertToDataTableButtonClicked),
-        FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertToDataTable)
+        Commands.ConvertToCSV,
+        FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnConvertToCSVButtonClicked),
+        FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertCSV)
         );
 
     // Toolbar 생성
@@ -315,246 +395,317 @@ void FDialogueGraphEditor::OnWorkingAssetPreSave()
    UpdateWorkingAssetFromGraph();
 }
 
-// Toolbar에 Convert to DataTable을 위한 버튼 생성
+// Toolbar에 Convert to CSV를 위한 버튼 생성
 void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
     ToolbarBuilder.BeginSection("DialogueFunctions");
     ToolbarBuilder.AddToolBarButton(
-        FDialogueGraphEditorCommands::Get().ConvertToDataTable,
+        FDialogueGraphEditorCommands::Get().ConvertToCSV,
         NAME_None,
-        LOCTEXT("ConvertToDataTable_Toolbar", "Convert to DataTable"),
-        LOCTEXT("ConvertToDataTable_Toolbar_Tooltip", "Convert to DataTable"),
+        LOCTEXT("ConvertToCSV_Toolbar", "Convert to CSV"),
+        LOCTEXT("ConvertToCSV_Toolbar_Tooltip", "Export DialogueGraph to CSV"),
         FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.DataLayers")
         );
     ToolbarBuilder.EndSection();
 }
 
-bool FDialogueGraphEditor::CanConvertToDataTable() const
+bool FDialogueGraphEditor::CanConvertCSV() const
 {
-    return true;
+    return WorkingAsset != nullptr && WorkingGraph != nullptr;
 }
 
-// Convert to DataTable 로직
-void FDialogueGraphEditor::OnConvertToDataTableButtonClicked()
+void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
 {
-    UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToDataTableButtonClicked : Enter"));
+    UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToCSVButtonClicked : Enter"));
 
-    if (DataTable == nullptr)
+    if (CanConvertCSV() == false)
     {
-        CreateNewDataTable();
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSV_InvalidEditorState", "Cannot export CSV because editor state is invalid."));
+        return;
     }
-    
 
-}
+    // 에디터에서 편집 중인 내용을 먼저 런타임 그래프로 동기화한다.
+    UpdateWorkingAssetFromGraph();
 
-void FDialogueGraphEditor::CreateNewDataTable()
-{
-
-    // // Check Speaker Name
-    // // TODO WorkingAsset의 이름이 기본 이름("Enter Dialogue Name Here")인 경우 경고 팝업 띄우기
-    //
-    // // Creat DataTable Asset
-    // const FString DataTableRoot = TEXT("/Game/DialogueDataTable");
-    // // const FString FileName = TEXT("DT_Dialogue_") + WorkingAsset->GetSpeakerName();
-    // const FString FileName = FString("DT_Dialogue_") + FString("TEST");
-    //
-    // const FString AssetPath = DataTableRoot + "/" + FileName;
-    // UPackage* Package = CreatePackage(*AssetPath);
-    // DataTable = NewObject<UDataTable>(Package, UDataTable::StaticClass(), *FileName, RF_Public|RF_Standalone);
-    // DataTable->RowStruct = FDialogueStructure::StaticStruct();
-    //
-    // FAssetRegistryModule::AssetCreated(DataTable);
-    // Package->MarkPackageDirty();
-    //
-    // // Nodes를 순회하며 Node의 정보들을 DialogueStructure의 형태로 DataTable에 저장
-    // TMap<FGuid, FDialogueStructure> DialogueNodeDataMap;
-    // CollectDialogueData(DialogueNodeDataMap);
-    // int32 DataRowIndex = 0;
-    // for (TPair<FGuid, FDialogueStructure> Pair : DialogueNodeDataMap)
-    // {
-    //     DataTable->AddRow(*Pair.Key.ToString(), Pair.Value);
-    //     DataRowIndex++;
-    // }
-    //
-    // // Save Asset
-    // FString FilePath = FPackageName::LongPackageNameToFilename(AssetPath, FPackageName::GetAssetPackageExtension());
-    // UPackage::SavePackage(Package, DataTable, RF_Public|RF_Standalone, *FilePath);
-}
-
-/* Dialogue Nodes를 outpin을 기준으로 DFS 탐색하며
- * 대화 노드의 연결과 Dialogue Data를 추출한다.
- * 이때 DFS를 하는 이유는 DataTable에서 대화를 살필 때 편의성을 위한다.
-*/
-void FDialogueGraphEditor::CollectDialogueData(TMap<FGuid, FDialogueStructure>& OutDialogueDataMap)
-{
-    // UDialogueEdGraphNodeBase* StartNode = FindStartNode();
-    // if (StartNode == nullptr)
-    // {
-    //     return;
-    // }
-    //
-    // // Start Node에서부터 DFS 탐색하며 Dialogue 정리
-    // TSet<FGuid> VisitedNodeSet;
-    // DFSDialogueGraph(StartNode, OutDialogueDataMap, VisitedNodeSet);
-}
-
-UDialogueEdGraphNodeBase* FDialogueGraphEditor::FindStartNode() const
-{
-    for (auto EdGraphNode : WorkingGraph->Nodes)
+    const FString CSVFilePath = OpenCSVSaveWindow();
+    if (CSVFilePath.IsEmpty())
     {
-        if (UDialogueEdGraphNodeBase* DialogueEdGraphNodeBase = Cast<UDialogueEdGraphNodeBase>(EdGraphNode))
+        return;
+    }
+
+    // Dialogue Graph를 CSV로 변환
+    if (ExportDialogueGraphToCSV(CSVFilePath))
+    {
+        FMessageDialog::Open(
+            EAppMsgType::Ok,
+            FText::Format(LOCTEXT("ConvertCSV_Success", "DialogueGraph exported to CSV.\n{0}"), FText::FromString(CSVFilePath)));
+        return;
+    }
+
+    FMessageDialog::Open(
+        EAppMsgType::Ok,
+        FText::Format(LOCTEXT("ConvertCSV_Fail", "Failed to export DialogueGraph to CSV.\n{0}"), FText::FromString(CSVFilePath)));
+}
+
+bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) const
+{
+    const FString CSVContent = BuildDialogueGraphCSV();
+    if (CSVContent.IsEmpty())
+    {
+        return false;
+    }
+
+    const FString DirectoryPath = FPaths::GetPath(CSVFilePath);
+    if (!DirectoryPath.IsEmpty())
+    {
+        IFileManager::Get().MakeDirectory(*DirectoryPath, true);
+    }
+
+    return FFileHelper::SaveStringToFile(CSVContent, *CSVFilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+}
+
+FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
+{
+    if (WorkingAsset == nullptr)
+    {
+        return TEXT("");
+    }
+
+    FString OutCSV;
+    AppendCSVRow(OutCSV, {
+        TEXT("RecordType"),
+        TEXT("GraphAssetPath"),
+        TEXT("GraphName"),
+        TEXT("NodeGuid"),
+        TEXT("NodeType"),
+        TEXT("PinId"),
+        TEXT("LinkedNodeGuid"),
+        TEXT("Index"),
+        TEXT("Key"),
+        TEXT("Value")
+    });
+
+    const FString GraphAssetPath = WorkingAsset->GetPathName();
+    const FString GraphName = WorkingAsset->GetName();
+    const auto AddRecord = [&OutCSV, &GraphAssetPath, &GraphName](
+        const FString& RecordType,
+        const FString& NodeGuid,
+        const FString& NodeType,
+        const FString& PinId,
+        const FString& LinkedNodeGuid,
+        const FString& Index,
+        const FString& Key,
+        const FString& Value)
+    {
+        AppendCSVRow(OutCSV, {
+            RecordType,
+            GraphAssetPath,
+            GraphName,
+            NodeGuid,
+            NodeType,
+            PinId,
+            LinkedNodeGuid,
+            Index,
+            Key,
+            Value
+        });
+    };
+
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("PrimaryAssetId"), WorkingAsset->GetPrimaryAssetId().ToString());
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("SpeakerID"), EnumToString(WorkingAsset->SpeakerID));
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("ChapterID"), EnumToString(WorkingAsset->ChapterID));
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("DialogueGraphType"), EnumToString(WorkingAsset->DialogueGraphType));
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("DialoguePriorityWeight"), LexToString(WorkingAsset->DialoguePriorityWeight));
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredAllTags"), WorkingAsset->RequiredAllTags.ToString());
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredAnyTags"), WorkingAsset->RequiredAnyTags.ToString());
+    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("BlockedAnyTags"), WorkingAsset->BlockedAnyTags.ToString());
+
+    for (int32 PortraitIndex = 0; PortraitIndex < WorkingAsset->InitPortraits.Num(); ++PortraitIndex)
+    {
+        const FPortraitInitData& InitPortrait = WorkingAsset->InitPortraits[PortraitIndex];
+        AddRecord(TEXT("InitPortrait"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), LexToString(PortraitIndex), TEXT("SpeakerID"), EnumToString(InitPortrait.Speaker));
+        AddRecord(TEXT("InitPortrait"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), LexToString(PortraitIndex), TEXT("EmoteType"), EnumToString(InitPortrait.EmoteType));
+        AddRecord(TEXT("InitPortrait"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), LexToString(PortraitIndex), TEXT("PortraitSide"), EnumToString(InitPortrait.PortraitSide));
+    }
+
+    if (WorkingAsset->Graph == nullptr)
+    {
+        return OutCSV;
+    }
+
+    for (const UDialogueRuntimeNode* RuntimeNode : WorkingAsset->Graph->Nodes)
+    {
+        if (RuntimeNode == nullptr)
         {
-            if (DialogueEdGraphNodeBase->GetDialogueNodeType() == EDialogueType::StartNode)
+            continue;
+        }
+
+        const FString NodeGuid = GuidToString(RuntimeNode->NodeGuid);
+        const FString NodeType = EnumToString(RuntimeNode->DialogueNodeType);
+
+        AddRecord(TEXT("Node"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("PositionX"), LexToString(RuntimeNode->Position.X));
+        AddRecord(TEXT("Node"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("PositionY"), LexToString(RuntimeNode->Position.Y));
+        AddRecord(TEXT("Node"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("NodeInfoClass"), RuntimeNode->NodeInfo ? RuntimeNode->NodeInfo->GetClass()->GetPathName() : TEXT(""));
+
+        if (RuntimeNode->InputPin != nullptr)
+        {
+            AddRecord(TEXT("Pin"), NodeGuid, NodeType, GuidToString(RuntimeNode->InputPin->PinId), GuidToString(RuntimeNode->InputPin->LinkedToNodeGuid), TEXT("0"), TEXT("Direction"), TEXT("Input"));
+            AddRecord(TEXT("Pin"), NodeGuid, NodeType, GuidToString(RuntimeNode->InputPin->PinId), GuidToString(RuntimeNode->InputPin->LinkedToNodeGuid), TEXT("0"), TEXT("PinName"), RuntimeNode->InputPin->PinName.ToString());
+        }
+
+        for (int32 PinIndex = 0; PinIndex < RuntimeNode->OutputPins.Num(); ++PinIndex)
+        {
+            const UDialogueRuntimePin* OutputPin = RuntimeNode->OutputPins[PinIndex];
+            if (OutputPin == nullptr)
             {
-                return DialogueEdGraphNodeBase;
+                continue;
+            }
+
+            const FString OutputPinId = GuidToString(OutputPin->PinId);
+            AddRecord(TEXT("Pin"), NodeGuid, NodeType, OutputPinId, GuidToString(OutputPin->LinkedToNodeGuid), LexToString(PinIndex), TEXT("Direction"), TEXT("Output"));
+            AddRecord(TEXT("Pin"), NodeGuid, NodeType, OutputPinId, GuidToString(OutputPin->LinkedToNodeGuid), LexToString(PinIndex), TEXT("PinName"), OutputPin->PinName.ToString());
+
+            for (int32 ConnectionIndex = 0; ConnectionIndex < OutputPin->Connections.Num(); ++ConnectionIndex)
+            {
+                const UDialogueRuntimePin* ConnectedPin = OutputPin->Connections[ConnectionIndex];
+                if (ConnectedPin == nullptr)
+                {
+                    continue;
+                }
+
+                AddRecord(TEXT("Edge"), NodeGuid, NodeType, OutputPinId, GuidToString(ConnectedPin->OwnerNodeGuid), LexToString(ConnectionIndex), TEXT("ToPinId"), GuidToString(ConnectedPin->PinId));
+                AddRecord(TEXT("Edge"), NodeGuid, NodeType, OutputPinId, GuidToString(ConnectedPin->OwnerNodeGuid), LexToString(ConnectionIndex), TEXT("ToPinName"), ConnectedPin->PinName.ToString());
+            }
+        }
+
+        if (const UDialogueNodeInfo* DialogueNodeInfo = Cast<UDialogueNodeInfo>(RuntimeNode->NodeInfo))
+        {
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Title"), DialogueNodeInfo->GetTitle().ToString());
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("DialogueText"), DialogueNodeInfo->GetDialogueText().ToString());
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("SpeakerID"), EnumToString(DialogueNodeInfo->GetSpeakerEmotePair().Speaker));
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("IsShown"), DialogueNodeInfo->IsDialogueAlreadyShown() ? TEXT("true") : TEXT("false"));
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestToGive"), ExportPrivatePropertyText(DialogueNodeInfo, TEXT("QuestToGive")));
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestToClear"), ExportPrivatePropertyText(DialogueNodeInfo, TEXT("QuestToClear")));
+
+            const FPortraitData PortraitData = DialogueNodeInfo->GetPortraitData();
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Portrait.ActionType"), EnumToString(PortraitData.ActionType));
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Portrait.EmoteType"), EnumToString(PortraitData.EmoteType));
+            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Portrait.SidePosition"), EnumToString(PortraitData.SidePosition));
+
+            const TArray<FDialogueChoice>& Choices = DialogueNodeInfo->GetDialogueChoices();
+            for (int32 ChoiceIndex = 0; ChoiceIndex < Choices.Num(); ++ChoiceIndex)
+            {
+                const FDialogueChoice& Choice = Choices[ChoiceIndex];
+                const UDialogueRuntimePin* ChoicePin = RuntimeNode->OutputPins.IsValidIndex(ChoiceIndex) ? RuntimeNode->OutputPins[ChoiceIndex] : nullptr;
+                const FString ChoicePinId = ChoicePin ? GuidToString(ChoicePin->PinId) : TEXT("");
+                const FString ChoiceLinkedNodeGuid = ChoicePin ? GuidToString(ChoicePin->LinkedToNodeGuid) : TEXT("");
+
+                AddRecord(TEXT("Choice"), NodeGuid, NodeType, ChoicePinId, ChoiceLinkedNodeGuid, LexToString(ChoiceIndex), TEXT("ResponseText"), Choice.ResponseText.ToString());
+                AddRecord(TEXT("Choice"), NodeGuid, NodeType, ChoicePinId, ChoiceLinkedNodeGuid, LexToString(ChoiceIndex), TEXT("RequiredLevel"), LexToString(Choice.SelectableChoiceEvalCriteria.RequiredLevel));
+                AddRecord(TEXT("Choice"), NodeGuid, NodeType, ChoicePinId, ChoiceLinkedNodeGuid, LexToString(ChoiceIndex), TEXT("RequiredTagQuery"), ExportTagQuery(Choice.SelectableChoiceEvalCriteria.RequiredTagQuery));
+            }
+
+            const TArray<FPortraitActionData>& PortraitActions = DialogueNodeInfo->GetPortraitActionDatas();
+            for (int32 ActionIndex = 0; ActionIndex < PortraitActions.Num(); ++ActionIndex)
+            {
+                const FPortraitActionData& Action = PortraitActions[ActionIndex];
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("ActionTargetSpeakerID"), EnumToString(Action.ActionTargetSpeakerID));
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("PortraitActionEmoteType"), EnumToString(Action.PortraitActionEmoteType));
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("ActionType"), EnumToString(Action.ActionType));
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("Delay"), LexToString(Action.Delay));
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("Duration"), LexToString(Action.Duration));
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("FromTranslation"), FString::Printf(TEXT("%.3f,%.3f"), Action.FromTranslation.X, Action.FromTranslation.Y));
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("TargetSide"), EnumToString(Action.TargetSide));
+                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("TargetSideOffset"), FString::Printf(TEXT("%.3f,%.3f"), Action.TargetSideOffset.X, Action.TargetSideOffset.Y));
+            }
+        }
+
+        if (const UDialogueBranchNodeInfoBase* BranchNodeInfo = Cast<UDialogueBranchNodeInfoBase>(RuntimeNode->NodeInfo))
+        {
+            AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredLevel"), LexToString(BranchNodeInfo->DialoguePassCondition.RequiredLevel));
+            AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredTagQuery"), ExportTagQuery(BranchNodeInfo->DialoguePassCondition.RequiredTagQuery));
+
+            for (const UDialogueRuntimePin* OutputPin : RuntimeNode->OutputPins)
+            {
+                if (OutputPin == nullptr)
+                {
+                    continue;
+                }
+
+                if (OutputPin->PinName.ToString().Equals(TEXT("True"), ESearchCase::IgnoreCase))
+                {
+                    AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, GuidToString(OutputPin->PinId), GuidToString(OutputPin->LinkedToNodeGuid), TEXT(""), TEXT("TrueNodeGuid"), GuidToString(OutputPin->LinkedToNodeGuid));
+                }
+                else if (OutputPin->PinName.ToString().Equals(TEXT("False"), ESearchCase::IgnoreCase))
+                {
+                    AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, GuidToString(OutputPin->PinId), GuidToString(OutputPin->LinkedToNodeGuid), TEXT(""), TEXT("FalseNodeGuid"), GuidToString(OutputPin->LinkedToNodeGuid));
+                }
+            }
+        }
+
+        if (const UDialogueEndNodeInfo* EndNodeInfo = Cast<UDialogueEndNodeInfo>(RuntimeNode->NodeInfo))
+        {
+            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Action"), EnumToString(EndNodeInfo->Action));
+            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("ActionDetails"), EndNodeInfo->ActionDetails);
+            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("ClearTag"), EndNodeInfo->ClearTag.ToString());
+            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestBase"), EndNodeInfo->QuestBase.ToSoftObjectPath().ToString());
+            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestRootTag"), EndNodeInfo->QuestRootTag.ToString());
+            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("SelectedQuestStepTag"), EndNodeInfo->SelectedQuestStepTag.ToString());
+            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("SelectedQuestStepClearTag"), EndNodeInfo->SelectedQuestStep.ClearTag.ToString());
+
+            for (int32 RewardIndex = 0; RewardIndex < EndNodeInfo->SelectedQuestStep.RewardItems.Num(); ++RewardIndex)
+            {
+                const FDataTableRowHandle& RewardHandle = EndNodeInfo->SelectedQuestStep.RewardItems[RewardIndex];
+                const FString RewardDataTablePath = RewardHandle.DataTable ? RewardHandle.DataTable->GetPathName() : TEXT("");
+                const FString RewardRowName = RewardHandle.RowName.ToString();
+                AddRecord(TEXT("EndReward"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(RewardIndex), TEXT("DataTableRow"), FString::Printf(TEXT("%s|%s"), *RewardDataTablePath, *RewardRowName));
             }
         }
     }
 
-    return nullptr;
+    return OutCSV;
 }
 
-void FDialogueGraphEditor::DFSDialogueGraph(UDialogueEdGraphNodeBase* Node, TMap<FGuid, FDialogueStructure>& OutDialogueDataMap, TSet<FGuid>& VisitedSet)
+FString FDialogueGraphEditor::OpenCSVSaveWindow() const
 {
-    // if (Node == nullptr)
-    // {
-    //     UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Node is null"));
-    //     return;
-    // }
-    //
-    // if (Node->GetDialogueNodeType() == EDialogueType::EndNode)
-    // {
-    //     UE_LOG(DialogueKitEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : DialogueType is EndNode"));
-    //     return;
-    // }
-    //
-    // FGuid NodeGuid = Node->NodeGuid;
-    // if (VisitedSet.Contains(NodeGuid))
-    // {
-    //     UE_LOG(DialogueKitEditorSub, Verbose, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Already visited - %s"), *NodeGuid.ToString());
-    //     return;
-    // }
-    //
-    // VisitedSet.Add(NodeGuid);
-    //
-    // TArray<UEdGraphPin*> OutputPins;
-    // for (UEdGraphPin* Pin : Node->Pins)
-    // {
-    //     if (Pin->Direction == EGPD_Output)
-    //     {
-    //         OutputPins.Add(Pin);
-    //     }
-    // }
-    //
-    // if (Node->GetDialogueNodeType() == EDialogueType::StartNode)
-    // {
-    //     if (OutputPins.Num() > 0)
-    //     {
-    //         if (OutputPins[0]->LinkedTo.Num() == 0)
-    //         {
-                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPins[0]->PinName.ToString());
-    //             return;
-    //         }
-    //         
-    //         UEdGraphPin* LinkedPin = OutputPins[0]->LinkedTo[0];
-    //         UEdGraphNode* LinkedNode = LinkedPin->GetOwningNode();
-    //         if (UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(LinkedNode))
-    //         {
-    //             DFSDialogueGraph(DialogueNode, OutDialogueDataMap, VisitedSet);
-    //             return;
-    //         }
-    //     }
-    // }
-    //
-    // UDialogueEdGraphNode* DialogueNode = Cast<UDialogueEdGraphNode>(Node);
-    // if (DialogueNode == nullptr)
-    // {
-    //     UE_LOG(DialogueKitEditorSub, Error, TEXT(""));
-    //     return;
-    // }
-    //
-    // // DialogueStruct 생성
-    // UDialogueNodeInfo* DialogueNodeInfo = DialogueNode->GetDialogueNodeInfo();
-    // FDialogueStructure DialogueStructure;
-    //
-    // DialogueStructure.CurrentDialogueId = NodeGuid;
-    // DialogueStructure.SpeakerName = FText::FromString(WorkingAsset->GetSpeakerName());
-    // DialogueStructure.DialogueText = DialogueNodeInfo->DialogueText;
-    //
-    // // 선택지 존재시 선택지 내용 입력
-    // bool bHasChoices = DialogueNodeInfo->DialogueResponses.Num() > 1;
-    // if (bHasChoices)
-    // {
-    //     int32 ChoicesIndex = 0;
-    //     for (UEdGraphPin* OutputPin : OutputPins)
-    //     {
-    //         if (ChoicesIndex >= DialogueNodeInfo->DialogueResponses.Num())
-    //         {
-                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : ChoicesIndex %d, DialogueResponses %d, %s"),
-    //                 ChoicesIndex, DialogueNodeInfo->DialogueResponses.Num(), *OutputPin->PinName.ToString());
-    //             return;
-    //         }
-    //
-    //         FDialogueChoice DialogueChoice;;
-    //         DialogueChoice.ResponseText = DialogueNodeInfo->DialogueResponses[ChoicesIndex];
-    //
-    //         if (OutputPin->LinkedTo.Num() > 0)
-    //         {
-    //             // outputPin에 연결된 pin은 1개로 가정한다.
-    //             UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
-    //             DialogueChoice.NextDialogueId = LinkedNode->NodeGuid;
-    //             
-    //             DialogueStructure.Choices.Add(DialogueChoice);
-    //             ChoicesIndex++;
-    //         }
-    //         else
-    //         {
-                //             UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Responses Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
-    //             return;
-    //         }
-    //     }
-    //
-    //     // DialogueStructure에 복수의 Response와 연결된 Node의 Guid 저장 후 Add
-    //     OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
-    //
-    //     for (UEdGraphPin* OutputPin : OutputPins)
-    //     {
-    //         if (OutputPin->LinkedTo.Num() == 0)
-    //         {
-                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
-    //             return;
-    //         }
-    //         
-    //         UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
-    //         UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
-    //         DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
-    //     }
-    // }
-    // else if (OutputPins.Num() == 1)
-    // {
-    //     UEdGraphPin* OutputPin = OutputPins[0];
-    //     if (OutputPin->LinkedTo.Num() > 0)
-    //     {
-    //         if (OutputPin->LinkedTo.Num() == 0)
-    //         {
-                //             UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Linking pin is nullptr - %s"), *OutputPin->PinName.ToString());
-    //             return;
-    //         }
-    //         
-    //         // outputPin에 연결된 pin은 1개로 가정한다.
-    //         UEdGraphNode* LinkedNode = OutputPin->LinkedTo[0]->GetOwningNode();
-    //         DialogueStructure.NextDialogueId = LinkedNode->NodeGuid;
-    //
-    //         OutDialogueDataMap.Add(NodeGuid, DialogueStructure);
-    //         UDialogueEdGraphNodeBase* NextDialogueNode = Cast<UDialogueEdGraphNodeBase>(LinkedNode);
-    //         DFSDialogueGraph(NextDialogueNode, OutDialogueDataMap, VisitedSet);
-    //     }
-    //     else
-    //     {
-        //         UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::DFSDialogueGraph : Output pin is not linking - %s-%s"), *NodeGuid.ToString(), *OutputPin->PinName.ToString());
-    //         return;
-    //     }
-    // }
+    if (WorkingAsset == nullptr)
+    {
+        return TEXT("");
+    }
+
+    const FString DefaultDirectory = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("DialogueCSV"));
+    IFileManager::Get().MakeDirectory(*DefaultDirectory, true);
+
+    const FString DefaultFileName = FString::Printf(TEXT("%s.csv"), *WorkingAsset->GetName());
+    IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+    if (DesktopPlatform == nullptr)
+    {
+        return FPaths::Combine(DefaultDirectory, DefaultFileName);
+    }
+
+    TArray<FString> OutFilePaths;
+    const void* ParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+    const bool bSelected = DesktopPlatform->SaveFileDialog(
+        ParentWindowHandle,
+        TEXT("Export DialogueGraph to CSV"),
+        DefaultDirectory,
+        DefaultFileName,
+        TEXT("CSV file (*.csv)|*.csv"),
+        EFileDialogFlags::None,
+        OutFilePaths);
+
+    if (!bSelected || OutFilePaths.Num() == 0)
+    {
+        return TEXT("");
+    }
+
+    FString CSVFilePath = OutFilePaths[0];
+    if (FPaths::GetExtension(CSVFilePath).IsEmpty())
+    {
+        CSVFilePath += TEXT(".csv");
+    }
+
+    return CSVFilePath;
 }
 
 FName FDialogueGraphEditor::GetToolkitFName() const
