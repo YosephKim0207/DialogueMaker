@@ -59,6 +59,7 @@
 - 라이프사이클과 유효성(`Initialize/Deinitialize`, `IsValid`, `nullptr` 체크)을 명시적으로 처리한다.
 - 이벤트/델리게이트 기반 흐름을 우선하고, 불필요한 Tick 의존을 피한다.
 - 하드코딩 문자열보다 `FName`, `FGameplayTag`, 데이터 기반 설정을 우선한다.
+- 줄바꿈은 `LF`를 기준으로 한다.
 
 ## 8) Runtime 유지보수 규칙
 - `UDialogueSubsystem` 변경 시 아래 영향을 함께 점검한다.
