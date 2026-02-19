@@ -111,7 +111,16 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
     {
         UDialogueRuntimeNode* RuntimeNode = NewObject<UDialogueRuntimeNode>(WorkingGraph);
         RuntimeNode->Position = FVector2D(Node->NodePosX, Node->NodePosY);
-        RuntimeNode->NodeGuid = FGuid::NewGuid();
+        if (Node->NodeGuid.IsValid())
+        {
+            RuntimeNode->NodeGuid = Node->NodeGuid;
+        }
+        else
+        {
+            Node->CreateNewGuid();
+            RuntimeNode->NodeGuid = Node->NodeGuid;
+            UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::UpdateWorkingAssetFromGraph : Regenerate invalid NodeGuid"));
+        }
 
         for (UEdGraphPin* Pin : Node->Pins)
         {
@@ -195,7 +204,16 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
             continue;
         }
         
-        NewNode->CreateNewGuid();
+        if (RuntimeNode->NodeGuid.IsValid())
+        {
+            NewNode->NodeGuid = RuntimeNode->NodeGuid;
+        }
+        else
+        {
+            NewNode->CreateNewGuid();
+            RuntimeNode->NodeGuid = NewNode->NodeGuid;
+            UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : RuntimeNodeGuid is invalid. Generated new Guid"));
+        }
         NewNode->NodePosX = RuntimeNode->Position.X;
         NewNode->NodePosY = RuntimeNode->Position.Y;
         
