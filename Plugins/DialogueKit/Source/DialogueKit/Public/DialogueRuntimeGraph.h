@@ -1,0 +1,63 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "DialogueNodeInfoBase.h"
+#include "DialogueNodeType.h"
+#include "DialogueRuntimeGraph.generated.h"
+
+UCLASS()
+class DIALOGUEKIT_API UDialogueRuntimePin : public UObject
+{
+	GENERATED_BODY()
+	
+public:
+	UPROPERTY()
+	FName PinName;
+
+	UPROPERTY()
+	FGuid PinId;
+
+	UPROPERTY()
+	FGuid OwnerNodeGuid;
+
+	UPROPERTY()
+	FGuid LinkedToNodeGuid;
+
+	UPROPERTY()
+	TArray<UDialogueRuntimePin*> Connections;
+};
+
+UCLASS()
+class DIALOGUEKIT_API UDialogueRuntimeNode : public UObject
+{
+	GENERATED_BODY()
+	
+public:
+	UPROPERTY()
+	EDialogueType DialogueNodeType = EDialogueType::DialogueNode;
+
+	UPROPERTY()
+	FGuid NodeGuid;
+	
+	UPROPERTY()
+	UDialogueRuntimePin* InputPin;
+
+	UPROPERTY()
+	TArray<UDialogueRuntimePin*> OutputPins;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	UDialogueNodeInfoBase * NodeInfo;
+};
+
+UCLASS()
+class DIALOGUEKIT_API UDialogueRuntimeGraph : public UObject
+{
+	GENERATED_BODY()
+	
+public:
+	UPROPERTY()
+	TArray<UDialogueRuntimeNode*> Nodes;
+};
