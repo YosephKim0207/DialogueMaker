@@ -2,6 +2,8 @@
 
 #include "PlayerProgressSaveData.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(PlayerProgressSubsystemLog, Log, All);
 

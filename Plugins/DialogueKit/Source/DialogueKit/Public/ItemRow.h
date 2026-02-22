@@ -1,5 +1,7 @@
 #pragma once
 #include "Engine/DataTable.h"
+#include "Engine/Texture2D.h"
+#include "UObject/SoftObjectPtr.h"
 #include "ItemRow.generated.h"
 
 UENUM(BlueprintType)

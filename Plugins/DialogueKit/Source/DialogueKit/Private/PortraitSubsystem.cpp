@@ -3,6 +3,9 @@
 
 #include "PortraitSubsystem.h"
 
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+
 DEFINE_LOG_CATEGORY_STATIC(PortraitSubsystemLog, Log, All);
 
 UPortraitSubsystem* UPortraitSubsystem::Get(const UObject* WorldContextObject)

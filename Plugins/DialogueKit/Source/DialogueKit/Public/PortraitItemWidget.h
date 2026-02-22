@@ -6,8 +6,10 @@
 #include "Blueprint/UserWidget.h"
 #include "PortraitItemWidget.generated.h"
 
+class UImage;
+
 /**
- * 
+ *
  */
 UCLASS()
 class DIALOGUEKIT_API UPortraitItemWidget : public UUserWidget
