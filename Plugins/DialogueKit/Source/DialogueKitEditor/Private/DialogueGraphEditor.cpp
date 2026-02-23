@@ -22,6 +22,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Styling/AppStyle.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
@@ -59,6 +60,135 @@ FString GuidToString(const FGuid& Guid)
 {
     return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphensLower) : TEXT("");
 }
+
+FString NormalizeCSVToken(const FString& Token)
+{
+    return Token.TrimStartAndEnd().ToLower();
+}
+
+bool ParseCSVRows(const FString& InContent, TArray<TArray<FString>>& OutRows)
+{
+    OutRows.Reset();
+
+    TArray<FString> CurrentRow;
+    FString CurrentField;
+    bool bInQuotes = false;
+
+    const int32 Length = InContent.Len();
+    for (int32 Index = 0; Index < Length; ++Index)
+    {
+        const TCHAR Char = InContent[Index];
+
+        if (Char == TEXT('"'))
+        {
+            if (bInQuotes && (Index + 1 < Length) && InContent[Index + 1] == TEXT('"'))
+            {
+                CurrentField.AppendChar(TEXT('"'));
+                ++Index;
+            }
+            else
+            {
+                bInQuotes = !bInQuotes;
+            }
+            continue;
+        }
+
+        if (!bInQuotes && Char == TEXT(','))
+        {
+            CurrentRow.Add(CurrentField);
+            CurrentField.Reset();
+            continue;
+        }
+
+        if (!bInQuotes && (Char == TEXT('\n') || Char == TEXT('\r')))
+        {
+            CurrentRow.Add(CurrentField);
+            CurrentField.Reset();
+            OutRows.Add(CurrentRow);
+            CurrentRow.Reset();
+
+            if (Char == TEXT('\r') && Index + 1 < Length && InContent[Index + 1] == TEXT('\n'))
+            {
+                ++Index;
+            }
+
+            continue;
+        }
+
+        CurrentField.AppendChar(Char);
+    }
+
+    if (!CurrentField.IsEmpty() || CurrentRow.Num() > 0)
+    {
+        CurrentRow.Add(CurrentField);
+        OutRows.Add(CurrentRow);
+    }
+
+    if (OutRows.Num() > 0 && OutRows[0].Num() > 0)
+    {
+        OutRows[0][0].RemoveFromStart(TEXT("\xFEFF"));
+    }
+
+    return OutRows.Num() > 0;
+}
+
+bool SetDialogueTextProperty(UDialogueNodeInfo* NodeInfo, const FText& NewText)
+{
+    if (NodeInfo == nullptr)
+    {
+        return false;
+    }
+
+    FProperty* Property = NodeInfo->GetClass()->FindPropertyByName(TEXT("DialogueText"));
+    FTextProperty* TextProperty = CastField<FTextProperty>(Property);
+    if (TextProperty == nullptr)
+    {
+        return false;
+    }
+
+    void* ValuePtr = TextProperty->ContainerPtrToValuePtr<void>(NodeInfo);
+    TextProperty->SetPropertyValue(ValuePtr, NewText);
+    return true;
+}
+
+bool SetChoiceResponseTextProperty(UDialogueNodeInfo* NodeInfo, const int32 ChoiceIndex, const FText& NewText)
+{
+    if (NodeInfo == nullptr || ChoiceIndex < 0)
+    {
+        return false;
+    }
+
+    FProperty* Property = NodeInfo->GetClass()->FindPropertyByName(TEXT("DialogueChoices"));
+    FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+    if (ArrayProperty == nullptr)
+    {
+        return false;
+    }
+
+    FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(NodeInfo));
+    if (!ArrayHelper.IsValidIndex(ChoiceIndex))
+    {
+        return false;
+    }
+
+    FStructProperty* StructProperty = CastField<FStructProperty>(ArrayProperty->Inner);
+    if (StructProperty == nullptr || StructProperty->Struct == nullptr)
+    {
+        return false;
+    }
+
+    FProperty* ResponseTextPropertyRaw = StructProperty->Struct->FindPropertyByName(TEXT("ResponseText"));
+    FTextProperty* ResponseTextProperty = CastField<FTextProperty>(ResponseTextPropertyRaw);
+    if (ResponseTextProperty == nullptr)
+    {
+        return false;
+    }
+
+    void* ChoiceData = ArrayHelper.GetRawPtr(ChoiceIndex);
+    void* ResponseTextPtr = ResponseTextProperty->ContainerPtrToValuePtr<void>(ChoiceData);
+    ResponseTextProperty->SetPropertyValue(ResponseTextPtr, NewText);
+    return true;
+}
 }
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -82,6 +212,11 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     GraphEditorCommands->MapAction(
         Commands.ConvertToCSV,
         FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnConvertToCSVButtonClicked),
+        FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertCSV)
+        );
+    GraphEditorCommands->MapAction(
+        Commands.ChangeDialogueText,
+        FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnChangeDialgoueTextButtonClicked),
         FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertCSV)
         );
 
@@ -363,6 +498,13 @@ void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
         LOCTEXT("ConvertToCSV_Toolbar_Tooltip", "Export DialogueGraph to CSV"),
         FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.DataLayers")
         );
+    ToolbarBuilder.AddToolBarButton(
+        FDialogueGraphEditorCommands::Get().ChangeDialogueText,
+        NAME_None,
+        LOCTEXT("ChangeDialogueText_Toolbar", "Change Dialogue Text"),
+        LOCTEXT("ChangeDialogueText_Toolbar_Tooltip", "Import DialogueText and ResponseText from CSV"),
+        FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import")
+        );
     ToolbarBuilder.EndSection();
 }
 
@@ -402,6 +544,201 @@ void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
     FMessageDialog::Open(
         EAppMsgType::Ok,
         FText::Format(LOCTEXT("ConvertCSV_Fail", "Failed to export DialogueGraph to CSV.\n{0}"), FText::FromString(CSVFilePath)));
+}
+
+void FDialogueGraphEditor::OnChangeDialgoueTextButtonClicked()
+{
+    if (CanConvertCSV() == false)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_InvalidEditorState", "Cannot change dialogue text because editor state is invalid."));
+        return;
+    }
+
+    const FString CSVFilePath = OpenCSVLoadWindow();
+    if (CSVFilePath.IsEmpty())
+    {
+        return;
+    }
+
+    if (!ApplyDialogueTextFromCSV(CSVFilePath))
+    {
+        return;
+    }
+
+    UpdateWorkingAssetFromGraph();
+
+    if (WorkingGraph != nullptr)
+    {
+        WorkingGraph->NotifyGraphChanged();
+    }
+
+    if (WorkingGraphUI != nullptr)
+    {
+        WorkingGraphUI->NotifyGraphChanged();
+    }
+
+    FMessageDialog::Open(
+        EAppMsgType::Ok,
+        LOCTEXT("ChangeDialogueText_Success", "Change Dialogue Text 작업이 완료되었습니다."));
+}
+
+// Load한 CSV파일로부터 DialogueGraph의 대사/선택지 수정
+bool FDialogueGraphEditor::ApplyDialogueTextFromCSV(const FString& CSVFilePath)
+{
+    if (WorkingGraph == nullptr)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_WorkingGraphError", "WorkingGraph is null."));
+        return false;
+    }
+
+    FString CSVContent;
+    if (!FFileHelper::LoadFileToString(CSVContent, *CSVFilePath))
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_LoadFail", "Failed to read CSV file."));
+        return false;
+    }
+
+    TArray<TArray<FString>> Rows;
+    if (!ParseCSVRows(CSVContent, Rows) || Rows.Num() <= 1)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_InvalidCSV", "Invalid CSV format."));
+        return false;
+    }
+
+    const TArray<FString>& Header = Rows[0];
+    int32 NodeGuidColumn = INDEX_NONE;
+    int32 PinIdColumn = INDEX_NONE;
+    int32 KeyColumn = INDEX_NONE;
+    int32 ValueColumn = INDEX_NONE;
+    for (int32 HeaderIndex = 0; HeaderIndex < Header.Num(); ++HeaderIndex)
+    {
+        const FString NormalizedHeader = NormalizeCSVToken(Header[HeaderIndex]);
+        if (NormalizedHeader == TEXT("NodeGuid"))
+        {
+            NodeGuidColumn = HeaderIndex;
+        }
+        else if (NormalizedHeader == TEXT("PinId"))
+        {
+            PinIdColumn = HeaderIndex;
+        }
+        else if (NormalizedHeader == TEXT("Key"))
+        {
+            KeyColumn = HeaderIndex;
+        }
+        else if (NormalizedHeader == TEXT("Value"))
+        {
+            ValueColumn = HeaderIndex;
+        }
+        else
+        {
+            const FString ErrorHeader = FString::Printf(TEXT("Invalid CSV Header - %s."), *NormalizedHeader);
+            FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ErrorHeader));
+            return false;
+        }
+    }
+
+    if (NodeGuidColumn == INDEX_NONE || PinIdColumn == INDEX_NONE || KeyColumn == INDEX_NONE || ValueColumn == INDEX_NONE)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_InvalidHeader", "Invalid CSV header. Required columns: NodeGuid, PinId, Key, Value"));
+        return false;
+    }
+
+    TMap<FGuid, UDialogueEdGraphNodeBase*> NodeGuidToNodeMap;
+    for (UEdGraphNode* GraphNode : WorkingGraph->Nodes)
+    {
+        UDialogueEdGraphNodeBase* DialogueNode = Cast<UDialogueEdGraphNodeBase>(GraphNode);
+        if (DialogueNode == nullptr || !DialogueNode->NodeGuid.IsValid())
+        {
+            continue;
+        }
+
+        NodeGuidToNodeMap.FindOrAdd(DialogueNode->NodeGuid) = DialogueNode;
+    }
+
+    auto GetColumnValue = [](const TArray<FString>& Row, const int32 ColumnIndex) -> FString
+    {
+        return Row.IsValidIndex(ColumnIndex) ? Row[ColumnIndex] : TEXT("");
+    };
+
+    for (int32 RowIndex = 1; RowIndex < Rows.Num(); ++RowIndex)
+    {
+        const TArray<FString>& Row = Rows[RowIndex];
+        if (Row.Num() == 0)
+        {
+            continue;
+        }
+
+        const FString Key = NormalizeCSVToken(GetColumnValue(Row, KeyColumn));
+        if (Key != TEXT("dialoguetext") && Key != TEXT("responsetext"))
+        {
+            continue;
+        }
+
+        FGuid NodeGuid;
+        const FString NodeGuidString = GetColumnValue(Row, NodeGuidColumn).TrimStartAndEnd();
+        if (!FGuid::Parse(NodeGuidString, NodeGuid))
+        {
+            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_NodeGuidError", "Node Guid Error! Please Check CSV file match to DialogueGraph Asset"));
+            return false;
+        }
+
+        UDialogueEdGraphNodeBase* DialogueGraphNode = NodeGuidToNodeMap.FindRef(NodeGuid);
+        UDialogueNodeInfo* DialogueNodeInfo = DialogueGraphNode ? Cast<UDialogueNodeInfo>(DialogueGraphNode->GetNodeInfo()) : nullptr;
+        if (DialogueGraphNode == nullptr || DialogueNodeInfo == nullptr)
+        {
+            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_NodeGuidError_2", "Node Guid Error! Please Check CSV file match to DialogueGraph Asset"));
+            return false;
+        }
+
+        const FText NewText = FText::FromString(GetColumnValue(Row, ValueColumn));
+        if (Key == TEXT("dialoguetext"))
+        {
+            if (!SetDialogueTextProperty(DialogueNodeInfo, NewText))
+            {
+                FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_NodeGuidError_3", "Node Guid Error! Please Check CSV file match to DialogueGraph Asset"));
+                return false;
+            }
+
+            DialogueGraphNode->OnPropertiesChanged();
+            continue;
+        }
+
+        FGuid PinId;
+        const FString PinIdString = GetColumnValue(Row, PinIdColumn).TrimStartAndEnd();
+        if (!FGuid::Parse(PinIdString, PinId))
+        {
+            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_PinIdError", "PinId Error! Please Check DialogueGraph Asset Conflict"));
+            return false;
+        }
+
+        int32 MatchedChoiceIndex = INDEX_NONE;
+        int32 OutputPinIndex = 0;
+        for (UEdGraphPin* Pin : DialogueGraphNode->Pins)
+        {
+            if (Pin == nullptr || Pin->Direction != EGPD_Output)
+            {
+                continue;
+            }
+
+            if (Pin->PinId == PinId)
+            {
+                MatchedChoiceIndex = OutputPinIndex;
+                break;
+            }
+
+            ++OutputPinIndex;
+        }
+
+        if (MatchedChoiceIndex == INDEX_NONE || !SetChoiceResponseTextProperty(DialogueNodeInfo, MatchedChoiceIndex, NewText))
+        {
+            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ChangeDialogueText_PinIdError_2", "PinId Error! Please Check DialogueGraph Asset Conflict"));
+            return false;
+        }
+
+        DialogueGraphNode->OnPropertiesChanged();
+    }
+
+    return true;
 }
 
 bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) const
@@ -468,6 +805,36 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
     }
 
     return OutCSV;
+}
+
+FString FDialogueGraphEditor::OpenCSVLoadWindow() const
+{
+    const FString DefaultDirectory = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("DialogueCSV"));
+    IFileManager::Get().MakeDirectory(*DefaultDirectory, true);
+
+    IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+    if (DesktopPlatform == nullptr)
+    {
+        return TEXT("");
+    }
+
+    TArray<FString> OutFilePaths;
+    const void* ParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+    const bool bSelected = DesktopPlatform->OpenFileDialog(
+        ParentWindowHandle,
+        TEXT("Select CSV file"),
+        DefaultDirectory,
+        TEXT(""),
+        TEXT("CSV file (*.csv)|*.csv"),
+        EFileDialogFlags::None,
+        OutFilePaths);
+
+    if (!bSelected || OutFilePaths.Num() == 0)
+    {
+        return TEXT("");
+    }
+
+    return OutFilePaths[0];
 }
 
 FString FDialogueGraphEditor::OpenCSVSaveWindow() const

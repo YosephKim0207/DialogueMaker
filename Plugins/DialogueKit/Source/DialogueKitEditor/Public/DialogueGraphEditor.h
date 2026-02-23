@@ -41,6 +41,11 @@ protected:
 	FString BuildDialogueGraphCSV() const;
 	FString OpenCSVSaveWindow() const;
 
+	// Change Dialogue Text
+	void OnChangeDialgoueTextButtonClicked();
+	bool ApplyDialogueTextFromCSV(const FString& CSVFilePath);
+	FString OpenCSVLoadWindow() const;
+
 	
 private:
 	TSharedPtr<SGraphEditor> GraphEditor;
