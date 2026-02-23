@@ -1,18 +1,14 @@
 #include "DialogueGraphEditor.h"
 
-#include "AssetToolsModule.h"
 #include "DesktopPlatformModule.h"
 #include "DialogueBranchEdGraphNode.h"
-#include "DialogueBranchNodeInfoBase.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdGraphSchema.h"
 #include "DialogueEdStartGraphNode.h"
-#include "DialogueEndNodeInfo.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueGraphEditorMode.h"
 #include "EdGraph/EdGraph.h"
-#include "Engine/DataTable.h"
 #include "GraphEditor.h"
 #include "IDesktopPlatform.h"
 #include "PropertyEditorModule.h"
@@ -26,7 +22,6 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Styling/AppStyle.h"
-#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
@@ -60,47 +55,9 @@ void AppendCSVRow(FString& OutCSV, const TArray<FString>& Columns)
     OutCSV += LINE_TERMINATOR;
 }
 
-template <typename TEnum>
-FString EnumToString(const TEnum EnumValue)
-{
-    if (const UEnum* Enum = StaticEnum<TEnum>())
-    {
-        return Enum->GetNameStringByValue(static_cast<int64>(EnumValue));
-    }
-
-    return LexToString(static_cast<int64>(EnumValue));
-}
-
 FString GuidToString(const FGuid& Guid)
 {
     return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphensLower) : TEXT("");
-}
-
-FString ExportTagQuery(const FGameplayTagQuery& TagQuery)
-{
-    FString Exported;
-    FGameplayTagQuery::StaticStruct()->ExportText(Exported, &TagQuery, nullptr, nullptr, PPF_None, nullptr);
-    return Exported;
-}
-
-FString ExportPrivatePropertyText(const UObject* SourceObject, const FName PropertyName)
-{
-    if (SourceObject == nullptr)
-    {
-        return TEXT("");
-    }
-
-    const FProperty* Property = SourceObject->GetClass()->FindPropertyByName(PropertyName);
-    if (Property == nullptr)
-    {
-        return TEXT("");
-    }
-
-    UObject* MutableSourceObject = const_cast<UObject*>(SourceObject);
-    const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(MutableSourceObject);
-    FString Exported;
-    Property->ExportTextItem_Direct(Exported, ValuePtr, nullptr, MutableSourceObject, PPF_None);
-    return Exported;
 }
 }
 
@@ -472,62 +429,13 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
     }
 
     FString OutCSV;
-    AppendCSVRow(OutCSV, {
-        TEXT("RecordType"),
-        TEXT("GraphAssetPath"),
-        TEXT("GraphName"),
-        TEXT("NodeGuid"),
-        TEXT("NodeType"),
-        TEXT("PinId"),
-        TEXT("LinkedNodeGuid"),
-        TEXT("Index"),
-        TEXT("Key"),
-        TEXT("Value")
-    });
+    AppendCSVRow(OutCSV, {TEXT("NodeGuid"), TEXT("PinId"), TEXT("Key"), TEXT("Value")});
 
-    const FString GraphAssetPath = WorkingAsset->GetPathName();
-    const FString GraphName = WorkingAsset->GetName();
-    const auto AddRecord = [&OutCSV, &GraphAssetPath, &GraphName](
-        const FString& RecordType,
-        const FString& NodeGuid,
-        const FString& NodeType,
-        const FString& PinId,
-        const FString& LinkedNodeGuid,
-        const FString& Index,
-        const FString& Key,
-        const FString& Value)
+    const auto AddRecord = [&OutCSV](const FString& NodeGuid, const FString& PinId, const FString& Key, const FString& Value)
     {
-        AppendCSVRow(OutCSV, {
-            RecordType,
-            GraphAssetPath,
-            GraphName,
-            NodeGuid,
-            NodeType,
-            PinId,
-            LinkedNodeGuid,
-            Index,
-            Key,
-            Value
-        });
+        AppendCSVRow(OutCSV, {NodeGuid, PinId, Key, Value});
     };
-
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("PrimaryAssetId"), WorkingAsset->GetPrimaryAssetId().ToString());
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("SpeakerID"), EnumToString(WorkingAsset->SpeakerID));
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("ChapterID"), EnumToString(WorkingAsset->ChapterID));
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("DialogueGraphType"), EnumToString(WorkingAsset->DialogueGraphType));
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("DialoguePriorityWeight"), LexToString(WorkingAsset->DialoguePriorityWeight));
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredAllTags"), WorkingAsset->RequiredAllTags.ToString());
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredAnyTags"), WorkingAsset->RequiredAnyTags.ToString());
-    AddRecord(TEXT("Graph"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT(""), TEXT("BlockedAnyTags"), WorkingAsset->BlockedAnyTags.ToString());
-
-    for (int32 PortraitIndex = 0; PortraitIndex < WorkingAsset->InitPortraits.Num(); ++PortraitIndex)
-    {
-        const FPortraitInitData& InitPortrait = WorkingAsset->InitPortraits[PortraitIndex];
-        AddRecord(TEXT("InitPortrait"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), LexToString(PortraitIndex), TEXT("SpeakerID"), EnumToString(InitPortrait.Speaker));
-        AddRecord(TEXT("InitPortrait"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), LexToString(PortraitIndex), TEXT("EmoteType"), EnumToString(InitPortrait.EmoteType));
-        AddRecord(TEXT("InitPortrait"), TEXT(""), TEXT(""), TEXT(""), TEXT(""), LexToString(PortraitIndex), TEXT("PortraitSide"), EnumToString(InitPortrait.PortraitSide));
-    }
-
+    
     if (WorkingAsset->Graph == nullptr)
     {
         return OutCSV;
@@ -540,126 +448,22 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
             continue;
         }
 
+        const UDialogueNodeInfo* DialogueNodeInfo = Cast<UDialogueNodeInfo>(RuntimeNode->NodeInfo);
+        if (DialogueNodeInfo == nullptr)
+        {
+            continue;
+        }
+
         const FString NodeGuid = GuidToString(RuntimeNode->NodeGuid);
-        const FString NodeType = EnumToString(RuntimeNode->DialogueNodeType);
+        AddRecord(NodeGuid, TEXT(""), TEXT("DialogueText"), DialogueNodeInfo->GetDialogueText().ToString());
 
-        AddRecord(TEXT("Node"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("PositionX"), LexToString(RuntimeNode->Position.X));
-        AddRecord(TEXT("Node"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("PositionY"), LexToString(RuntimeNode->Position.Y));
-        AddRecord(TEXT("Node"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("NodeInfoClass"), RuntimeNode->NodeInfo ? RuntimeNode->NodeInfo->GetClass()->GetPathName() : TEXT(""));
-
-        if (RuntimeNode->InputPin != nullptr)
+        const TArray<FDialogueChoice>& Choices = DialogueNodeInfo->GetDialogueChoices();
+        for (int32 ChoiceIndex = 0; ChoiceIndex < Choices.Num(); ++ChoiceIndex)
         {
-            AddRecord(TEXT("Pin"), NodeGuid, NodeType, GuidToString(RuntimeNode->InputPin->PinId), GuidToString(RuntimeNode->InputPin->LinkedToNodeGuid), TEXT("0"), TEXT("Direction"), TEXT("Input"));
-            AddRecord(TEXT("Pin"), NodeGuid, NodeType, GuidToString(RuntimeNode->InputPin->PinId), GuidToString(RuntimeNode->InputPin->LinkedToNodeGuid), TEXT("0"), TEXT("PinName"), RuntimeNode->InputPin->PinName.ToString());
-        }
-
-        for (int32 PinIndex = 0; PinIndex < RuntimeNode->OutputPins.Num(); ++PinIndex)
-        {
-            const UDialogueRuntimePin* OutputPin = RuntimeNode->OutputPins[PinIndex];
-            if (OutputPin == nullptr)
-            {
-                continue;
-            }
-
-            const FString OutputPinId = GuidToString(OutputPin->PinId);
-            AddRecord(TEXT("Pin"), NodeGuid, NodeType, OutputPinId, GuidToString(OutputPin->LinkedToNodeGuid), LexToString(PinIndex), TEXT("Direction"), TEXT("Output"));
-            AddRecord(TEXT("Pin"), NodeGuid, NodeType, OutputPinId, GuidToString(OutputPin->LinkedToNodeGuid), LexToString(PinIndex), TEXT("PinName"), OutputPin->PinName.ToString());
-
-            for (int32 ConnectionIndex = 0; ConnectionIndex < OutputPin->Connections.Num(); ++ConnectionIndex)
-            {
-                const UDialogueRuntimePin* ConnectedPin = OutputPin->Connections[ConnectionIndex];
-                if (ConnectedPin == nullptr)
-                {
-                    continue;
-                }
-
-                AddRecord(TEXT("Edge"), NodeGuid, NodeType, OutputPinId, GuidToString(ConnectedPin->OwnerNodeGuid), LexToString(ConnectionIndex), TEXT("ToPinId"), GuidToString(ConnectedPin->PinId));
-                AddRecord(TEXT("Edge"), NodeGuid, NodeType, OutputPinId, GuidToString(ConnectedPin->OwnerNodeGuid), LexToString(ConnectionIndex), TEXT("ToPinName"), ConnectedPin->PinName.ToString());
-            }
-        }
-
-        if (const UDialogueNodeInfo* DialogueNodeInfo = Cast<UDialogueNodeInfo>(RuntimeNode->NodeInfo))
-        {
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Title"), DialogueNodeInfo->GetTitle().ToString());
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("DialogueText"), DialogueNodeInfo->GetDialogueText().ToString());
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("SpeakerID"), EnumToString(DialogueNodeInfo->GetSpeakerEmotePair().Speaker));
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("IsShown"), DialogueNodeInfo->IsDialogueAlreadyShown() ? TEXT("true") : TEXT("false"));
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestToGive"), ExportPrivatePropertyText(DialogueNodeInfo, TEXT("QuestToGive")));
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestToClear"), ExportPrivatePropertyText(DialogueNodeInfo, TEXT("QuestToClear")));
-
-            const FPortraitData PortraitData = DialogueNodeInfo->GetPortraitData();
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Portrait.ActionType"), EnumToString(PortraitData.ActionType));
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Portrait.EmoteType"), EnumToString(PortraitData.EmoteType));
-            AddRecord(TEXT("DialogueInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Portrait.SidePosition"), EnumToString(PortraitData.SidePosition));
-
-            const TArray<FDialogueChoice>& Choices = DialogueNodeInfo->GetDialogueChoices();
-            for (int32 ChoiceIndex = 0; ChoiceIndex < Choices.Num(); ++ChoiceIndex)
-            {
-                const FDialogueChoice& Choice = Choices[ChoiceIndex];
-                const UDialogueRuntimePin* ChoicePin = RuntimeNode->OutputPins.IsValidIndex(ChoiceIndex) ? RuntimeNode->OutputPins[ChoiceIndex] : nullptr;
-                const FString ChoicePinId = ChoicePin ? GuidToString(ChoicePin->PinId) : TEXT("");
-                const FString ChoiceLinkedNodeGuid = ChoicePin ? GuidToString(ChoicePin->LinkedToNodeGuid) : TEXT("");
-
-                AddRecord(TEXT("Choice"), NodeGuid, NodeType, ChoicePinId, ChoiceLinkedNodeGuid, LexToString(ChoiceIndex), TEXT("ResponseText"), Choice.ResponseText.ToString());
-                AddRecord(TEXT("Choice"), NodeGuid, NodeType, ChoicePinId, ChoiceLinkedNodeGuid, LexToString(ChoiceIndex), TEXT("RequiredLevel"), LexToString(Choice.SelectableChoiceEvalCriteria.RequiredLevel));
-                AddRecord(TEXT("Choice"), NodeGuid, NodeType, ChoicePinId, ChoiceLinkedNodeGuid, LexToString(ChoiceIndex), TEXT("RequiredTagQuery"), ExportTagQuery(Choice.SelectableChoiceEvalCriteria.RequiredTagQuery));
-            }
-
-            const TArray<FPortraitActionData>& PortraitActions = DialogueNodeInfo->GetPortraitActionDatas();
-            for (int32 ActionIndex = 0; ActionIndex < PortraitActions.Num(); ++ActionIndex)
-            {
-                const FPortraitActionData& Action = PortraitActions[ActionIndex];
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("ActionTargetSpeakerID"), EnumToString(Action.ActionTargetSpeakerID));
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("PortraitActionEmoteType"), EnumToString(Action.PortraitActionEmoteType));
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("ActionType"), EnumToString(Action.ActionType));
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("Delay"), LexToString(Action.Delay));
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("Duration"), LexToString(Action.Duration));
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("FromTranslation"), FString::Printf(TEXT("%.3f,%.3f"), Action.FromTranslation.X, Action.FromTranslation.Y));
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("TargetSide"), EnumToString(Action.TargetSide));
-                AddRecord(TEXT("PortraitAction"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(ActionIndex), TEXT("TargetSideOffset"), FString::Printf(TEXT("%.3f,%.3f"), Action.TargetSideOffset.X, Action.TargetSideOffset.Y));
-            }
-        }
-
-        if (const UDialogueBranchNodeInfoBase* BranchNodeInfo = Cast<UDialogueBranchNodeInfoBase>(RuntimeNode->NodeInfo))
-        {
-            AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredLevel"), LexToString(BranchNodeInfo->DialoguePassCondition.RequiredLevel));
-            AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("RequiredTagQuery"), ExportTagQuery(BranchNodeInfo->DialoguePassCondition.RequiredTagQuery));
-
-            for (const UDialogueRuntimePin* OutputPin : RuntimeNode->OutputPins)
-            {
-                if (OutputPin == nullptr)
-                {
-                    continue;
-                }
-
-                if (OutputPin->PinName.ToString().Equals(TEXT("True"), ESearchCase::IgnoreCase))
-                {
-                    AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, GuidToString(OutputPin->PinId), GuidToString(OutputPin->LinkedToNodeGuid), TEXT(""), TEXT("TrueNodeGuid"), GuidToString(OutputPin->LinkedToNodeGuid));
-                }
-                else if (OutputPin->PinName.ToString().Equals(TEXT("False"), ESearchCase::IgnoreCase))
-                {
-                    AddRecord(TEXT("BranchCondition"), NodeGuid, NodeType, GuidToString(OutputPin->PinId), GuidToString(OutputPin->LinkedToNodeGuid), TEXT(""), TEXT("FalseNodeGuid"), GuidToString(OutputPin->LinkedToNodeGuid));
-                }
-            }
-        }
-
-        if (const UDialogueEndNodeInfo* EndNodeInfo = Cast<UDialogueEndNodeInfo>(RuntimeNode->NodeInfo))
-        {
-            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("Action"), EnumToString(EndNodeInfo->Action));
-            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("ActionDetails"), EndNodeInfo->ActionDetails);
-            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("ClearTag"), EndNodeInfo->ClearTag.ToString());
-            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestBase"), EndNodeInfo->QuestBase.ToSoftObjectPath().ToString());
-            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("QuestRootTag"), EndNodeInfo->QuestRootTag.ToString());
-            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("SelectedQuestStepTag"), EndNodeInfo->SelectedQuestStepTag.ToString());
-            AddRecord(TEXT("EndInfo"), NodeGuid, NodeType, TEXT(""), TEXT(""), TEXT(""), TEXT("SelectedQuestStepClearTag"), EndNodeInfo->SelectedQuestStep.ClearTag.ToString());
-
-            for (int32 RewardIndex = 0; RewardIndex < EndNodeInfo->SelectedQuestStep.RewardItems.Num(); ++RewardIndex)
-            {
-                const FDataTableRowHandle& RewardHandle = EndNodeInfo->SelectedQuestStep.RewardItems[RewardIndex];
-                const FString RewardDataTablePath = RewardHandle.DataTable ? RewardHandle.DataTable->GetPathName() : TEXT("");
-                const FString RewardRowName = RewardHandle.RowName.ToString();
-                AddRecord(TEXT("EndReward"), NodeGuid, NodeType, TEXT(""), TEXT(""), LexToString(RewardIndex), TEXT("DataTableRow"), FString::Printf(TEXT("%s|%s"), *RewardDataTablePath, *RewardRowName));
-            }
+            const FDialogueChoice& Choice = Choices[ChoiceIndex];
+            const UDialogueRuntimePin* ChoicePin = RuntimeNode->OutputPins.IsValidIndex(ChoiceIndex) ? RuntimeNode->OutputPins[ChoiceIndex] : nullptr;
+            const FString PinId = ChoicePin ? GuidToString(ChoicePin->PinId) : TEXT("");
+            AddRecord(NodeGuid, PinId, TEXT("ResponseText"), Choice.ResponseText.ToString());
         }
     }
 
