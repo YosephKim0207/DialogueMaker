@@ -15,6 +15,7 @@ FDialogueGraphEditorCommands::FDialogueGraphEditorCommands()
 void FDialogueGraphEditorCommands::RegisterCommands()
 {
 	UI_COMMAND(ConvertToCSV, "Convert To CSV", "Export Dialogue Graph data to CSV", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ConvertCSVToDialogueLocalization, "CSV To DialogueLocalization", "Convert localization CSV to DialogueLocalization DataAsset", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

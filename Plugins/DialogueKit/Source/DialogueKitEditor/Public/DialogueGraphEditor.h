@@ -41,6 +41,11 @@ protected:
 	FString BuildDialogueGraphCSV() const;
 	FString OpenCSVSaveWindow() const;
 
+	// CSV To DialogueLocalization DataAsset
+	void OnConvertCSVToDialogueLocalizationButtonClicked();
+	bool ConvertCSVToDialogueLocalizationDataAsset(const FString& CSVFilePath);
+	FString OpenCSVLoadWindow() const;
+
 	
 private:
 	TSharedPtr<SGraphEditor> GraphEditor;

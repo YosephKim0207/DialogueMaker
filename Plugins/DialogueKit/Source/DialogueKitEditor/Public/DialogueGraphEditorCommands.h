@@ -12,4 +12,5 @@ public:
 
 public:
 	TSharedPtr<FUICommandInfo> ConvertToCSV;
+	TSharedPtr<FUICommandInfo> ConvertCSVToDialogueLocalization;
 };

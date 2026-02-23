@@ -8,6 +8,8 @@
 #include "DialogueEdStartGraphNode.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueGraphEditorMode.h"
+#include "DialogueLocalizationDataAsset.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraph/EdGraph.h"
 #include "GraphEditor.h"
 #include "IDesktopPlatform.h"
@@ -20,8 +22,12 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Styling/AppStyle.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Culture.h"
+#include "UObject/SavePackage.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
@@ -59,6 +65,138 @@ FString GuidToString(const FGuid& Guid)
 {
     return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphensLower) : TEXT("");
 }
+
+FString NormalizeCSVToken(const FString& Input)
+{
+    return Input.TrimStartAndEnd().ToLower();
+}
+
+FString GetCSVValueAt(const TArray<FString>& Row, const int32 Index)
+{
+    return Row.IsValidIndex(Index) ? Row[Index] : TEXT("");
+}
+
+bool ParseCSVRows(const FString& CSVContent, TArray<TArray<FString>>& OutRows)
+{
+    OutRows.Reset();
+
+    TArray<FString> CurrentRow;
+    FString CurrentCell;
+    bool bInQuotes = false;
+
+    for (int32 Index = 0; Index < CSVContent.Len(); ++Index)
+    {
+        const TCHAR Character = CSVContent[Index];
+        if (Character == TEXT('"'))
+        {
+            if (bInQuotes && (Index + 1) < CSVContent.Len() && CSVContent[Index + 1] == TEXT('"'))
+            {
+                CurrentCell.AppendChar(TEXT('"'));
+                ++Index;
+            }
+            else
+            {
+                bInQuotes = !bInQuotes;
+            }
+            continue;
+        }
+
+        if (!bInQuotes && Character == TEXT(','))
+        {
+            CurrentRow.Add(CurrentCell);
+            CurrentCell.Reset();
+            continue;
+        }
+
+        if (!bInQuotes && (Character == TEXT('\n') || Character == TEXT('\r')))
+        {
+            CurrentRow.Add(CurrentCell);
+            CurrentCell.Reset();
+            OutRows.Add(CurrentRow);
+            CurrentRow.Reset();
+
+            if (Character == TEXT('\r') && (Index + 1) < CSVContent.Len() && CSVContent[Index + 1] == TEXT('\n'))
+            {
+                ++Index;
+            }
+            continue;
+        }
+
+        CurrentCell.AppendChar(Character);
+    }
+
+    if (!CurrentCell.IsEmpty() || CurrentRow.Num() > 0)
+    {
+        CurrentRow.Add(CurrentCell);
+        OutRows.Add(CurrentRow);
+    }
+
+    if (OutRows.Num() > 0 && OutRows[0].Num() > 0)
+    {
+        OutRows[0][0].RemoveFromStart(TEXT("\xFEFF"));
+    }
+
+    return OutRows.Num() > 0;
+}
+
+bool TryParsePrimaryAssetIdString(const FString& InPrimaryAssetId, FPrimaryAssetId& OutPrimaryAssetId)
+{
+    FString PrimaryAssetTypeString;
+    FString PrimaryAssetNameString;
+    if (!InPrimaryAssetId.Split(TEXT(":"), &PrimaryAssetTypeString, &PrimaryAssetNameString))
+    {
+        return false;
+    }
+
+    if (PrimaryAssetTypeString.IsEmpty() || PrimaryAssetNameString.IsEmpty())
+    {
+        return false;
+    }
+
+    OutPrimaryAssetId = FPrimaryAssetId(FName(*PrimaryAssetTypeString), FName(*PrimaryAssetNameString));
+    return true;
+}
+
+FString SanitizeForObjectName(const FString& Input)
+{
+    FString Result;
+    Result.Reserve(Input.Len());
+    for (const TCHAR Character : Input)
+    {
+        if (FChar::IsAlnum(Character) || Character == TEXT('_'))
+        {
+            Result.AppendChar(Character);
+        }
+        else
+        {
+            Result.AppendChar(TEXT('_'));
+        }
+    }
+
+    if (Result.IsEmpty())
+    {
+        return TEXT("Unknown");
+    }
+
+    return Result;
+}
+
+FString ResolveCultureNameFromCSVPath(const FString& CSVFilePath)
+{
+    const FString ParentDirectory = FPaths::GetPath(CSVFilePath);
+    const FString CultureCandidate = FPaths::GetCleanFilename(ParentDirectory).TrimStartAndEnd();
+    if (!CultureCandidate.IsEmpty())
+    {
+        return CultureCandidate;
+    }
+
+    if (const FCulturePtr CurrentCulture = FInternationalization::Get().GetCurrentCulture())
+    {
+        return CurrentCulture->GetName();
+    }
+
+    return TEXT("Invariant");
+}
 }
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -82,6 +220,11 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     GraphEditorCommands->MapAction(
         Commands.ConvertToCSV,
         FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnConvertToCSVButtonClicked),
+        FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertCSV)
+        );
+    GraphEditorCommands->MapAction(
+        Commands.ConvertCSVToDialogueLocalization,
+        FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnConvertCSVToDialogueLocalizationButtonClicked),
         FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertCSV)
         );
 
@@ -363,6 +506,13 @@ void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
         LOCTEXT("ConvertToCSV_Toolbar_Tooltip", "Export DialogueGraph to CSV"),
         FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.DataLayers")
         );
+    ToolbarBuilder.AddToolBarButton(
+        FDialogueGraphEditorCommands::Get().ConvertCSVToDialogueLocalization,
+        NAME_None,
+        LOCTEXT("ConvertCSVToDialogueLocalization_Toolbar", "CSV to DialogueLocalization"),
+        LOCTEXT("ConvertCSVToDialogueLocalization_Tooltip", "Convert CSV to DialogueLocalization DataAsset"),
+        FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import")
+        );
     ToolbarBuilder.EndSection();
 }
 
@@ -404,6 +554,202 @@ void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
         FText::Format(LOCTEXT("ConvertCSV_Fail", "Failed to export DialogueGraph to CSV.\n{0}"), FText::FromString(CSVFilePath)));
 }
 
+void FDialogueGraphEditor::OnConvertCSVToDialogueLocalizationButtonClicked()
+{
+    if (CanConvertCSV() == false)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_InvalidState", "Cannot convert CSV because editor state is invalid."));
+        return;
+    }
+
+    const FString CSVFilePath = OpenCSVLoadWindow();
+    if (CSVFilePath.IsEmpty())
+    {
+        return;
+    }
+
+    if (!ConvertCSVToDialogueLocalizationDataAsset(CSVFilePath))
+    {
+        return;
+    }
+
+    FMessageDialog::Open(
+        EAppMsgType::Ok,
+        FText::Format(LOCTEXT("ConvertCSVToDialogueLocalization_Success", "DialogueLocalization DataAsset created/updated from CSV.\n{0}"), FText::FromString(CSVFilePath)));
+}
+
+bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FString& CSVFilePath)
+{
+    if (WorkingAsset == nullptr)
+    {
+        return false;
+    }
+
+    FString CSVContent;
+    if (!FFileHelper::LoadFileToString(CSVContent, *CSVFilePath))
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_LoadFail", "Failed to read CSV file."));
+        return false;
+    }
+
+    TArray<TArray<FString>> Rows;
+    if (!ParseCSVRows(CSVContent, Rows) || Rows.Num() < 2)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_InvalidCSV", "Invalid CSV format."));
+        return false;
+    }
+
+    const TArray<FString>& Header = Rows[0];
+    int32 NodeGuidColumn = INDEX_NONE;
+    int32 PinIdColumn = INDEX_NONE;
+    int32 KeyColumn = INDEX_NONE;
+    int32 ValueColumn = INDEX_NONE;
+
+    for (int32 HeaderIndex = 0; HeaderIndex < Header.Num(); ++HeaderIndex)
+    {
+        const FString NormalizedHeader = NormalizeCSVToken(Header[HeaderIndex]);
+        if (NormalizedHeader == TEXT("nodeguid"))
+        {
+            NodeGuidColumn = HeaderIndex;
+        }
+        else if (NormalizedHeader == TEXT("pinid"))
+        {
+            PinIdColumn = HeaderIndex;
+        }
+        else if (NormalizedHeader == TEXT("key"))
+        {
+            KeyColumn = HeaderIndex;
+        }
+        else if (NormalizedHeader == TEXT("value"))
+        {
+            ValueColumn = HeaderIndex;
+        }
+    }
+
+    if (NodeGuidColumn == INDEX_NONE || PinIdColumn == INDEX_NONE || KeyColumn == INDEX_NONE || ValueColumn == INDEX_NONE)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_InvalidHeader", "Invalid CSV header. Required columns: NodeGuid, PinId, Key, Value"));
+        return false;
+    }
+
+    FPrimaryAssetId TargetDialoguePrimaryAssetId;
+    bool bPrimaryAssetIdFound = false;
+    TArray<FDialogueLocalizationEntry> Entries;
+    Entries.Reserve(Rows.Num() - 1);
+
+    for (int32 RowIndex = 1; RowIndex < Rows.Num(); ++RowIndex)
+    {
+        const TArray<FString>& Row = Rows[RowIndex];
+        const FString Key = NormalizeCSVToken(GetCSVValueAt(Row, KeyColumn));
+        const FString Value = GetCSVValueAt(Row, ValueColumn);
+
+        if (Key == TEXT("primaryassetid"))
+        {
+            FPrimaryAssetId ParsedPrimaryAssetId;
+            if (!TryParsePrimaryAssetIdString(Value.TrimStartAndEnd(), ParsedPrimaryAssetId))
+            {
+                FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_InvalidPrimaryAssetId", "PrimaryAssetId parse failed. Please check CSV file."));
+                return false;
+            }
+
+            TargetDialoguePrimaryAssetId = ParsedPrimaryAssetId;
+            bPrimaryAssetIdFound = true;
+            continue;
+        }
+
+        if (Key != TEXT("dialoguetext") && Key != TEXT("responsetext"))
+        {
+            continue;
+        }
+
+        FGuid ParsedNodeGuid;
+        if (!FGuid::Parse(GetCSVValueAt(Row, NodeGuidColumn).TrimStartAndEnd(), ParsedNodeGuid))
+        {
+            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_NodeGuidParseFail", "NodeGuid parse failed. Please check CSV file."));
+            return false;
+        }
+
+        FDialogueLocalizationEntry NewEntry;
+        NewEntry.NodeGuid = ParsedNodeGuid;
+        NewEntry.Key = (Key == TEXT("dialoguetext")) ? FName(TEXT("DialogueText")) : FName(TEXT("ResponseText"));
+        NewEntry.Value = FText::FromString(Value);
+
+        if (Key == TEXT("responsetext"))
+        {
+            if (!FGuid::Parse(GetCSVValueAt(Row, PinIdColumn).TrimStartAndEnd(), NewEntry.PinId))
+            {
+                FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_PinIdParseFail", "PinId parse failed. Please check CSV file."));
+                return false;
+            }
+        }
+
+        Entries.Add(MoveTemp(NewEntry));
+    }
+
+    if (!bPrimaryAssetIdFound)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_MissingPrimaryAssetId", "PrimaryAssetId is missing in CSV file."));
+        return false;
+    }
+
+    if (TargetDialoguePrimaryAssetId != WorkingAsset->GetPrimaryAssetId())
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_AssetMismatch", "PrimaryAssetId in CSV does not match current DialogueGraph asset."));
+        return false;
+    }
+
+    const FString CultureName = ResolveCultureNameFromCSVPath(CSVFilePath);
+    const FString CulturePackageSegment = SanitizeForObjectName(CultureName);
+    const FString DialogueGraphAssetName = SanitizeForObjectName(WorkingAsset->GetName());
+    const FString LocalizationAssetName = FString::Printf(TEXT("DL_%s_%s"), *DialogueGraphAssetName, *CulturePackageSegment);
+    const FString LocalizationFolder = FString::Printf(TEXT("/Game/DialogueLocalization/%s"), *CulturePackageSegment);
+    const FString LocalizationPackageName = LocalizationFolder + TEXT("/") + LocalizationAssetName;
+
+    UPackage* Package = CreatePackage(*LocalizationPackageName);
+    if (Package == nullptr)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_PackageCreateFail", "Failed to create package for DialogueLocalization DataAsset."));
+        return false;
+    }
+
+    UDialogueLocalizationDataAsset* LocalizationAsset = LoadObject<UDialogueLocalizationDataAsset>(nullptr, *(LocalizationPackageName + TEXT(".") + LocalizationAssetName));
+    bool bCreated = false;
+    if (LocalizationAsset == nullptr)
+    {
+        LocalizationAsset = NewObject<UDialogueLocalizationDataAsset>(Package, *LocalizationAssetName, RF_Public | RF_Standalone | RF_Transactional);
+        if (LocalizationAsset == nullptr)
+        {
+            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_CreateFail", "Failed to create DialogueLocalization DataAsset."));
+            return false;
+        }
+        bCreated = true;
+    }
+
+    LocalizationAsset->Modify();
+    LocalizationAsset->TargetDialoguePrimaryAssetId = TargetDialoguePrimaryAssetId;
+    LocalizationAsset->CultureName = CultureName;
+    LocalizationAsset->Entries = MoveTemp(Entries);
+    LocalizationAsset->MarkPackageDirty();
+    Package->MarkPackageDirty();
+
+    if (bCreated)
+    {
+        FAssetRegistryModule::AssetCreated(LocalizationAsset);
+    }
+
+    const FString PackageFilePath = FPackageName::LongPackageNameToFilename(LocalizationPackageName, FPackageName::GetAssetPackageExtension());
+    FSavePackageArgs SaveArgs;
+    SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+    SaveArgs.SaveFlags = SAVE_NoError;
+    if (!UPackage::SavePackage(Package, LocalizationAsset, *PackageFilePath, SaveArgs))
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_SaveFail", "Failed to save DialogueLocalization DataAsset package."));
+        return false;
+    }
+
+    return true;
+}
+
 bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) const
 {
     const FString CSVContent = BuildDialogueGraphCSV();
@@ -435,6 +781,8 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
     {
         AppendCSVRow(OutCSV, {NodeGuid, PinId, Key, Value});
     };
+
+    AddRecord(TEXT(""), TEXT(""), TEXT("PrimaryAssetId"), WorkingAsset->GetPrimaryAssetId().ToString());
     
     if (WorkingAsset->Graph == nullptr)
     {
@@ -470,6 +818,42 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
     return OutCSV;
 }
 
+FString FDialogueGraphEditor::OpenCSVLoadWindow() const
+{
+    FString LanguageName = TEXT("Invariant");
+    if (const FCulturePtr CurrentLanguage = FInternationalization::Get().GetCurrentLanguage())
+    {
+        LanguageName = CurrentLanguage->GetName();
+    }
+
+    const FString DefaultDirectory = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("DialogueCSV"), LanguageName);
+    IFileManager::Get().MakeDirectory(*DefaultDirectory, true);
+
+    IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+    if (DesktopPlatform == nullptr)
+    {
+        return TEXT("");
+    }
+
+    TArray<FString> OutFilePaths;
+    const void* ParentWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+    const bool bSelected = DesktopPlatform->OpenFileDialog(
+        ParentWindowHandle,
+        TEXT("Load Dialogue CSV"),
+        DefaultDirectory,
+        TEXT(""),
+        TEXT("CSV file (*.csv)|*.csv"),
+        EFileDialogFlags::None,
+        OutFilePaths);
+
+    if (!bSelected || OutFilePaths.Num() == 0)
+    {
+        return TEXT("");
+    }
+
+    return OutFilePaths[0];
+}
+
 FString FDialogueGraphEditor::OpenCSVSaveWindow() const
 {
     if (WorkingAsset == nullptr)
@@ -477,7 +861,13 @@ FString FDialogueGraphEditor::OpenCSVSaveWindow() const
         return TEXT("");
     }
 
-    const FString DefaultDirectory = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("DialogueCSV"));
+    FString LanguageName = TEXT("Invariant");
+    if (const FCulturePtr CurrentLanguage = FInternationalization::Get().GetCurrentLanguage())
+    {
+        LanguageName = CurrentLanguage->GetName();
+    }
+
+    const FString DefaultDirectory = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("DialogueCSV"), LanguageName);
     IFileManager::Get().MakeDirectory(*DefaultDirectory, true);
 
     const FString DefaultFileName = FString::Printf(TEXT("%s.csv"), *WorkingAsset->GetName());
