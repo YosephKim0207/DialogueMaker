@@ -25,6 +25,7 @@ public class DialogueKitEditor : ModuleRules
                         "BlueprintGraph",
                         "PropertyEditor",
                         "EditorStyle",
+                        "AssetRegistry",
                         "GameplayTags",
                         "AssetDefinition",
                         "Projects",
