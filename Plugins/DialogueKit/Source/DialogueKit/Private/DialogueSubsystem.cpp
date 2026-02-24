@@ -6,6 +6,7 @@
 #include "DialogueEndNodeInfo.h"
 #include "ShownDialogueSaveData.h"
 #include "DialogueNodeInfo.h"
+#include "DialogueLocalizationSubsystem.h"
 #include "DialogueSettings.h"
 #include "GameplayTags.h"
 #include "PlayerProgressSubsystem.h"
@@ -15,8 +16,72 @@
 #include "Engine/AssetManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Struct/DialogueStructure.h"
+#include "UObject/UnrealType.h"
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueSubSystemLog, Log, All);
+
+namespace
+{
+// NodeInfo 파생형이 달라도 공통적으로 DialogueText를 갱신하기 위해 리플렉션으로 값을 쓴다.
+bool SetDialogueTextByReflection(UDialogueNodeInfo* DialogueNodeInfo, const FText& NewDialogueText)
+{
+	if (DialogueNodeInfo == nullptr)
+	{
+		return false;
+	}
+
+	FProperty* DialogueTextPropertyRaw = DialogueNodeInfo->GetClass()->FindPropertyByName(TEXT("DialogueText"));
+	FTextProperty* DialogueTextProperty = CastField<FTextProperty>(DialogueTextPropertyRaw);
+	if (DialogueTextProperty == nullptr)
+	{
+		return false;
+	}
+
+	void* DialogueTextValuePtr = DialogueTextProperty->ContainerPtrToValuePtr<void>(DialogueNodeInfo);
+	DialogueTextProperty->SetPropertyValue(DialogueTextValuePtr, NewDialogueText);
+	return true;
+}
+
+// 복제된 NodeInfo의 DialogueChoices[ChoiceIndex].ResponseText를 리플렉션으로 갱신한다.
+bool SetChoiceResponseTextByReflection(UDialogueNodeInfo* DialogueNodeInfo, const int32 ChoiceIndex, const FText& NewResponseText)
+{
+	if (DialogueNodeInfo == nullptr || ChoiceIndex < 0)
+	{
+		return false;
+	}
+
+	FProperty* DialogueChoicesPropertyRaw = DialogueNodeInfo->GetClass()->FindPropertyByName(TEXT("DialogueChoices"));
+	FArrayProperty* DialogueChoicesArrayProperty = CastField<FArrayProperty>(DialogueChoicesPropertyRaw);
+	if (DialogueChoicesArrayProperty == nullptr)
+	{
+		return false;
+	}
+
+	FScriptArrayHelper ChoicesArrayHelper(DialogueChoicesArrayProperty, DialogueChoicesArrayProperty->ContainerPtrToValuePtr<void>(DialogueNodeInfo));
+	if (!ChoicesArrayHelper.IsValidIndex(ChoiceIndex))
+	{
+		return false;
+	}
+
+	FStructProperty* ChoiceStructProperty = CastField<FStructProperty>(DialogueChoicesArrayProperty->Inner);
+	if (ChoiceStructProperty == nullptr || ChoiceStructProperty->Struct == nullptr)
+	{
+		return false;
+	}
+
+	FProperty* ResponseTextPropertyRaw = ChoiceStructProperty->Struct->FindPropertyByName(TEXT("ResponseText"));
+	FTextProperty* ResponseTextProperty = CastField<FTextProperty>(ResponseTextPropertyRaw);
+	if (ResponseTextProperty == nullptr)
+	{
+		return false;
+	}
+
+	void* ChoiceStructPtr = ChoicesArrayHelper.GetRawPtr(ChoiceIndex);
+	void* ResponseTextValuePtr = ResponseTextProperty->ContainerPtrToValuePtr<void>(ChoiceStructPtr);
+	ResponseTextProperty->SetPropertyValue(ResponseTextValuePtr, NewResponseText);
+	return true;
+}
+}
 
 UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 {
@@ -46,6 +111,7 @@ UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 void UDialogueSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	LocalizedCurrentOngoingDialogueNodeInfo = nullptr;
 
 	if (LoadDialogueSaveData() == false)
 	{
@@ -323,26 +389,44 @@ UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 Selected
 		OnStopSkip.Broadcast();
 	}
 
-	return Cast<UDialogueNodeInfo>(NextRuntimeNode->NodeInfo);
+	return LocalizedCurrentOngoingDialogueNodeInfo ? LocalizedCurrentOngoingDialogueNodeInfo : Cast<UDialogueNodeInfo>(NextRuntimeNode->NodeInfo);
 }
 
 // 현재 진행 중인 대화문에서 Choices들이 있다면 반환
 void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const
 {
-	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetSelectableChoicesText : %s Check Enter"), *DialogueNodeInfo->GetPathName());
-	
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetSelectableChoiceTexts : Localization Test - Enter"));
+
 	if (DialogueNodeInfo == nullptr)
 	{
 		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::GetSelectableChoicesText : DialogueNodeInfo is nullptr"));
+		return;
 	}
+
+	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetSelectableChoicesText : %s Check Enter"), *DialogueNodeInfo->GetPathName());
 
 	int32 SelectableChoiceOriginalIndex = 0;
 	FPlayerCondition PlayerConditionEval = GetPlayerEvalCondition();
+	const UDialogueRuntimeNode* CurrentRuntimeNode = IdToNodeMap.FindRef(CurrentOngoingNodeGuid);
+	UDialogueLocalizationSubsystem* LocalizationSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDialogueLocalizationSubsystem>() : nullptr;
+	const FPrimaryAssetId CurrentDialoguePrimaryAssetId = CurrentDialogueGraph ? CurrentDialogueGraph->GetPrimaryAssetId() : FPrimaryAssetId();
+	const FGuid CurrentNodeGuid = CurrentRuntimeNode ? CurrentRuntimeNode->NodeGuid : FGuid();
 	for (const FDialogueChoice DialogueConditionEvalCriteria : DialogueNodeInfo->GetDialogueChoices())
 	{
 		if (DialogueConditionEvalCriteria.IsPossibleToShow(PlayerConditionEval))
 		{
-			OutSelectableChoiceTexts.Add(DialogueConditionEvalCriteria.ResponseText);
+			FText ChoiceText = DialogueConditionEvalCriteria.ResponseText;
+			if (LocalizationSubsystem != nullptr && CurrentRuntimeNode != nullptr && CurrentRuntimeNode->OutputPins.IsValidIndex(SelectableChoiceOriginalIndex))
+			{
+				// DialogueGraph 변환 경로에서 선택지 인덱스와 출력 핀 인덱스는 동일 순서를 유지한다.
+				const UDialogueRuntimePin* OutputPin = CurrentRuntimeNode->OutputPins[SelectableChoiceOriginalIndex];
+				const FGuid OutputPinId = OutputPin ? OutputPin->PinId : FGuid();
+				ChoiceText = LocalizationSubsystem->ResolveResponseText(CurrentDialoguePrimaryAssetId, CurrentNodeGuid, OutputPinId, ChoiceText);
+
+				UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetSelectableChoiceTexts : Localization Test - Call ResolveResponseText"));
+			}
+
+			OutSelectableChoiceTexts.Add(ChoiceText);
 			OutSelectableChoiceOriginalIndex.Add(SelectableChoiceOriginalIndex);
 		}
 
@@ -437,7 +521,7 @@ void UDialogueSubsystem::CheckDelegates()
 // 현재 진행 중인 Dialogue Node의 Info를 반환
 const UDialogueNodeInfo* UDialogueSubsystem::GetCurrentDialogueNodeInfo() const
 {
-	return CurrentOngoingDialogueNodeInfo;
+	return LocalizedCurrentOngoingDialogueNodeInfo ? LocalizedCurrentOngoingDialogueNodeInfo : CurrentOngoingDialogueNodeInfo;
 }
 
 TArray<FGuid> UDialogueSubsystem::GetSelectableChoicesLinkedGuid(UDialogueRuntimeNode* DialogueRuntimeNode) const
@@ -614,6 +698,10 @@ void UDialogueSubsystem::MakeCurrentDialogueNodeToShown()
 	
 	DialogueHistory.Add(CurrentNodeInfo);	// 현재 노출 중인 DialogueGraph에서 진행된 대사 Recall용
 	CurrentNodeInfo->SetShownCondition(true);
+	if (LocalizedCurrentOngoingDialogueNodeInfo != nullptr)
+	{
+		LocalizedCurrentOngoingDialogueNodeInfo->SetShownCondition(true);
+	}
 	
 	if (ShownDialogueGuids.Contains(CurrentOngoingNodeGuid) == false)
 	{
@@ -623,12 +711,74 @@ void UDialogueSubsystem::MakeCurrentDialogueNodeToShown()
 
 void UDialogueSubsystem::SetCurrentDialogueInfo()
 {
-	CurrentOngoingDialogueNodeInfo = Cast<UDialogueNodeInfo>(IdToNodeMap[CurrentOngoingNodeGuid]->NodeInfo);
+	UDialogueRuntimeNode** RuntimeNodePtr = IdToNodeMap.Find(CurrentOngoingNodeGuid);
+	UDialogueRuntimeNode* RuntimeNode = RuntimeNodePtr ? *RuntimeNodePtr : nullptr;
+	CurrentOngoingDialogueNodeInfo = RuntimeNode ? Cast<UDialogueNodeInfo>(RuntimeNode->NodeInfo) : nullptr;
+	// 원본 에셋 데이터를 오염시키지 않기 위해 현재 노드 정보를 복제한 뒤 로컬라이즈 텍스트를 덮어쓴다.
+	LocalizedCurrentOngoingDialogueNodeInfo = BuildLocalizedNodeInfo(RuntimeNode);
 
 	if (OnDialogueNodeInfoChanged.IsBound())
 	{
 		OnDialogueNodeInfoChanged.Broadcast();
 	}
+}
+
+// 현재 노드 정보를 복제하고 캐시된 로컬라이즈 텍스트(Dialogue/Response)를 덮어써 반환한다.
+UDialogueNodeInfo* UDialogueSubsystem::BuildLocalizedNodeInfo(UDialogueRuntimeNode* RuntimeNode)
+{
+	UE_LOG(LogTemp, Display, TEXT("DialogueSubsystem::BuildLocalizedNodeInfo : Enter"));
+	
+	if (RuntimeNode == nullptr || CurrentDialogueGraph == nullptr)
+	{
+		return nullptr;
+	}
+
+	UDialogueNodeInfo* OriginalNodeInfo = Cast<UDialogueNodeInfo>(RuntimeNode->NodeInfo);
+	if (OriginalNodeInfo == nullptr)
+	{
+		return nullptr;
+	}
+
+	UDialogueLocalizationSubsystem* LocalizationSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDialogueLocalizationSubsystem>() : nullptr;
+	if (LocalizationSubsystem == nullptr)
+	{
+		return nullptr;
+	}
+
+	UDialogueNodeInfo* LocalizedNodeInfo = DuplicateObject(OriginalNodeInfo, this);
+	if (LocalizedNodeInfo == nullptr)
+	{
+		return nullptr;
+	}
+
+	const FPrimaryAssetId DialoguePrimaryAssetId = CurrentDialogueGraph->GetPrimaryAssetId();
+	const FGuid NodeGuid = RuntimeNode->NodeGuid;
+	const FText LocalizedDialogueText = LocalizationSubsystem->ResolveDialogueText(DialoguePrimaryAssetId, NodeGuid, OriginalNodeInfo->GetDialogueText());
+	SetDialogueTextByReflection(LocalizedNodeInfo, LocalizedDialogueText);
+
+	const int32 ChoiceCount = OriginalNodeInfo->GetDialogueChoices().Num();
+	for (int32 ChoiceIndex = 0; ChoiceIndex < ChoiceCount; ++ChoiceIndex)
+	{
+		if (!RuntimeNode->OutputPins.IsValidIndex(ChoiceIndex))
+		{
+			continue;
+		}
+
+		// 분기/선택지 식별 일관성을 위해 핀 ID 기준으로 ResponseText를 조회한다.
+		const UDialogueRuntimePin* OutputPin = RuntimeNode->OutputPins[ChoiceIndex];
+		const FGuid PinId = OutputPin ? OutputPin->PinId : FGuid();
+		const FText LocalizedResponseText = LocalizationSubsystem->ResolveResponseText(
+			DialoguePrimaryAssetId,
+			NodeGuid,
+			PinId,
+			OriginalNodeInfo->GetDialogueChoices()[ChoiceIndex].ResponseText);
+
+		SetChoiceResponseTextByReflection(LocalizedNodeInfo, ChoiceIndex, LocalizedResponseText);
+
+		UE_LOG(LogTemp, Display, TEXT("DialogueSubsystem::BuildLocalizedNodeInfo : Call ResolveResponseText"));
+	}
+
+	return LocalizedNodeInfo;
 }
 
 void UDialogueSubsystem::SetInputSettings(bool bIsShowUI) const

@@ -99,6 +99,7 @@ private:
 	UDialogueRuntimeNode* GetFirstNode();
 	void UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid);
 	void SetCurrentDialogueInfo();
+	UDialogueNodeInfo* BuildLocalizedNodeInfo(UDialogueRuntimeNode* RuntimeNode);
 	void SetInputSettings(bool bIsShowUI) const;
 	void EndDialogue();
 
@@ -155,6 +156,9 @@ private:
 	
 	UPROPERTY()
 	UDialogueNodeInfo* CurrentOngoingDialogueNodeInfo;
+
+	UPROPERTY()
+	UDialogueNodeInfo* LocalizedCurrentOngoingDialogueNodeInfo = nullptr;
 	
 	UPROPERTY()
 	FGuid CurrentOngoingNodeGuid;
