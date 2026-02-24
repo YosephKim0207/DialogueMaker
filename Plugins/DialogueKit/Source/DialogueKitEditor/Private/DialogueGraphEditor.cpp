@@ -35,6 +35,7 @@ DEFINE_LOG_CATEGORY_STATIC(DialogueKitEditorSub, Log, All);
 
 namespace
 {
+// CSV 셀 값에 포함된 따옴표/구분자를 안전하게 이스케이프한다.
 FString CSVEscape(const FString& Input)
 {
     FString Escaped = Input;
@@ -48,6 +49,7 @@ FString CSVEscape(const FString& Input)
     return Escaped;
 }
 
+// 전달된 컬럼 배열을 CSV 한 줄로 직렬화해 결과 문자열에 추가한다.
 void AppendCSVRow(FString& OutCSV, const TArray<FString>& Columns)
 {
     TArray<FString> EscapedColumns;
@@ -61,21 +63,25 @@ void AppendCSVRow(FString& OutCSV, const TArray<FString>& Columns)
     OutCSV += LINE_TERMINATOR;
 }
 
+// Guid를 CSV 저장용 문자열로 변환한다.
 FString GuidToString(const FGuid& Guid)
 {
     return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphensLower) : TEXT("");
 }
 
+// 헤더/키 비교를 위해 공백 제거 + 소문자 정규화를 수행한다.
 FString NormalizeCSVToken(const FString& Input)
 {
     return Input.TrimStartAndEnd().ToLower();
 }
 
+// CSV Row에서 인덱스 범위를 확인해 안전하게 값을 꺼낸다.
 FString GetCSVValueAt(const TArray<FString>& Row, const int32 Index)
 {
     return Row.IsValidIndex(Index) ? Row[Index] : TEXT("");
 }
 
+// 따옴표 포함 셀을 고려해 CSV 문자열 전체를 행/열 구조로 파싱한다.
 bool ParseCSVRows(const FString& CSVContent, TArray<TArray<FString>>& OutRows)
 {
     OutRows.Reset();
@@ -131,6 +137,7 @@ bool ParseCSVRows(const FString& CSVContent, TArray<TArray<FString>>& OutRows)
         OutRows.Add(CurrentRow);
     }
 
+    // UTF-8 BOM이 포함된 경우 첫 헤더 비교가 깨지지 않도록 제거한다.
     if (OutRows.Num() > 0 && OutRows[0].Num() > 0)
     {
         OutRows[0][0].RemoveFromStart(TEXT("\xFEFF"));
@@ -139,6 +146,7 @@ bool ParseCSVRows(const FString& CSVContent, TArray<TArray<FString>>& OutRows)
     return OutRows.Num() > 0;
 }
 
+// "Type:Name" 문자열을 FPrimaryAssetId로 파싱한다.
 bool TryParsePrimaryAssetIdString(const FString& InPrimaryAssetId, FPrimaryAssetId& OutPrimaryAssetId)
 {
     FString PrimaryAssetTypeString;
@@ -157,6 +165,7 @@ bool TryParsePrimaryAssetIdString(const FString& InPrimaryAssetId, FPrimaryAsset
     return true;
 }
 
+// 파일명/패키지명으로 사용할 수 있도록 문자열을 안전한 문자 집합으로 정규화한다.
 FString SanitizeForObjectName(const FString& Input)
 {
     FString Result;
@@ -181,6 +190,7 @@ FString SanitizeForObjectName(const FString& Input)
     return Result;
 }
 
+// CSV 경로의 상위 디렉토리명을 문화권명으로 해석하고, 실패 시 현재 문화권을 사용한다.
 FString ResolveCultureNameFromCSVPath(const FString& CSVFilePath)
 {
     const FString ParentDirectory = FPaths::GetPath(CSVFilePath);
@@ -521,6 +531,7 @@ bool FDialogueGraphEditor::CanConvertCSV() const
     return WorkingAsset != nullptr && WorkingGraph != nullptr;
 }
 
+// 툴바의 Convert to CSV 버튼 클릭 시 현재 그래프를 CSV 파일로 내보낸다.
 void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
 {
     UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::OnConvertToCSVButtonClicked : Enter"));
@@ -531,7 +542,7 @@ void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
         return;
     }
 
-    // 에디터에서 편집 중인 내용을 먼저 런타임 그래프로 동기화한다.
+    // 내보내기 전에 편집 중 그래프 상태를 런타임 데이터(WorkingAsset->Graph)에 먼저 반영한다.
     UpdateWorkingAssetFromGraph();
 
     const FString CSVFilePath = OpenCSVSaveWindow();
@@ -540,7 +551,7 @@ void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
         return;
     }
 
-    // Dialogue Graph를 CSV로 변환
+    // DialogueGraph를 CSV 문자열로 직렬화 후 파일로 저장한다.
     if (ExportDialogueGraphToCSV(CSVFilePath))
     {
         FMessageDialog::Open(
@@ -554,6 +565,7 @@ void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
         FText::Format(LOCTEXT("ConvertCSV_Fail", "Failed to export DialogueGraph to CSV.\n{0}"), FText::FromString(CSVFilePath)));
 }
 
+// 툴바의 CSV to DialogueLocalization 버튼 클릭 시 CSV를 DataAsset으로 변환한다.
 void FDialogueGraphEditor::OnConvertCSVToDialogueLocalizationButtonClicked()
 {
     if (CanConvertCSV() == false)
@@ -578,6 +590,7 @@ void FDialogueGraphEditor::OnConvertCSVToDialogueLocalizationButtonClicked()
         FText::Format(LOCTEXT("ConvertCSVToDialogueLocalization_Success", "DialogueLocalization DataAsset created/updated from CSV.\n{0}"), FText::FromString(CSVFilePath)));
 }
 
+// CSV 파일을 읽어 DialogueLocalization DataAsset을 생성/갱신한다.
 bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FString& CSVFilePath)
 {
     if (WorkingAsset == nullptr)
@@ -605,6 +618,7 @@ bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FStri
     int32 KeyColumn = INDEX_NONE;
     int32 ValueColumn = INDEX_NONE;
 
+    // 헤더 순서가 바뀌어도 동작하도록 컬럼 인덱스를 동적으로 찾는다.
     for (int32 HeaderIndex = 0; HeaderIndex < Header.Num(); ++HeaderIndex)
     {
         const FString NormalizedHeader = NormalizeCSVToken(Header[HeaderIndex]);
@@ -637,6 +651,7 @@ bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FStri
     TArray<FDialogueLocalizationEntry> Entries;
     Entries.Reserve(Rows.Num() - 1);
 
+    // 데이터 행을 순회하면서 PrimaryAssetId/DialogueText/ResponseText 레코드를 분리 처리한다.
     for (int32 RowIndex = 1; RowIndex < Rows.Num(); ++RowIndex)
     {
         const TArray<FString>& Row = Rows[RowIndex];
@@ -657,6 +672,7 @@ bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FStri
             continue;
         }
 
+        // 다국어 치환 대상이 아닌 키는 무시한다.
         if (Key != TEXT("dialoguetext") && Key != TEXT("responsetext"))
         {
             continue;
@@ -732,6 +748,7 @@ bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FStri
     LocalizationAsset->MarkPackageDirty();
     Package->MarkPackageDirty();
 
+    // 신규 생성 시에만 에셋 레지스트리에 등록한다.
     if (bCreated)
     {
         FAssetRegistryModule::AssetCreated(LocalizationAsset);
@@ -750,6 +767,7 @@ bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FStri
     return true;
 }
 
+// 현재 WorkingAsset 기준 CSV 문자열을 파일로 저장한다.
 bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) const
 {
     const FString CSVContent = BuildDialogueGraphCSV();
@@ -767,6 +785,7 @@ bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) 
     return FFileHelper::SaveStringToFile(CSVContent, *CSVFilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 
+// DialogueGraph의 번역 대상 데이터(PrimaryAssetId/DialogueText/ResponseText)를 CSV 문자열로 구성한다.
 FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
 {
     if (WorkingAsset == nullptr)
@@ -805,6 +824,7 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
         const FString NodeGuid = GuidToString(RuntimeNode->NodeGuid);
         AddRecord(NodeGuid, TEXT(""), TEXT("DialogueText"), DialogueNodeInfo->GetDialogueText().ToString());
 
+        // 선택지 텍스트는 OutputPin의 PinId와 함께 저장해 역변환 시 정확히 매칭한다.
         const TArray<FDialogueChoice>& Choices = DialogueNodeInfo->GetDialogueChoices();
         for (int32 ChoiceIndex = 0; ChoiceIndex < Choices.Num(); ++ChoiceIndex)
         {
@@ -818,6 +838,7 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
     return OutCSV;
 }
 
+// CSV 파일 선택 창을 띄우고 사용자가 선택한 경로를 반환한다.
 FString FDialogueGraphEditor::OpenCSVLoadWindow() const
 {
     FString LanguageName = TEXT("Invariant");
@@ -854,6 +875,7 @@ FString FDialogueGraphEditor::OpenCSVLoadWindow() const
     return OutFilePaths[0];
 }
 
+// CSV 저장 창을 띄우고 사용자가 지정한 저장 경로를 반환한다.
 FString FDialogueGraphEditor::OpenCSVSaveWindow() const
 {
     if (WorkingAsset == nullptr)
