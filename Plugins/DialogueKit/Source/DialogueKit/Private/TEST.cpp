@@ -22,13 +22,6 @@ void ATEST::BeginPlay()
 	if (UDialogueSubsystem* DialogueSubsystem = UDialogueSubsystem::Get(this))
 	{
 		UDialogueGraph* DialogueGraph = TestDialogueGraph.LoadSynchronous();
-		UDialogueLocalizationSubsystem* LocalizationSubsystem = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDialogueLocalizationSubsystem>() : nullptr;
-		if (LocalizationSubsystem)
-		{
-			UE_LOG(LogTemp, Display, TEXT("TEST::BeginPlay : LocalizationSubsystem Enter"));
-
-			LocalizationSubsystem->SetCurrentLanguage(ELanguage::Korean);
-		}
 		DialogueSubsystem->PlayDialogueGraph(DialogueGraph);
 	}
 }
