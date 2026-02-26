@@ -7,11 +7,17 @@
 #include "DialogueGraph.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueLocalizationCSVConverter.h"
+#include "DialogueLocalizationSubsystem.h"
 #include "DialogueLocalizationUtility.h"
 #include "EdGraphUtilities.h"
+#include "Editor.h"
+#include "Engine/GameInstance.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
 #include "IDesktopPlatform.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -29,6 +35,43 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "DialogueKitEditorModule"
+
+namespace
+{
+struct FDialogueEditorLanguageOption
+{
+	ELanguage Language = ELanguage::English;
+	FString CultureCode;
+	FText DisplayName;
+	FString ComboLabel;
+};
+
+// ELanguage 기반으로 에디터에서 공용으로 쓸 언어 표시 목록을 생성한다.
+bool BuildDialogueEditorLanguageOptions(TArray<FDialogueEditorLanguageOption>& OutOptions)
+{
+	OutOptions.Reset();
+
+	const UEnum* LanguageEnum = StaticEnum<ELanguage>();
+	if (LanguageEnum == nullptr)
+	{
+		return false;
+	}
+
+	TArray<FDialogueLanguageMapping> LanguageMappings;
+	FDialogueLocalizationUtility::GetSupportedLanguageMappings(LanguageMappings);
+	for (const FDialogueLanguageMapping& Mapping : LanguageMappings)
+	{
+		FDialogueEditorLanguageOption Option;
+		Option.Language = Mapping.Language;
+		Option.CultureCode = Mapping.CultureCode;
+		Option.DisplayName = LanguageEnum->GetDisplayNameTextByValue(static_cast<int64>(Mapping.Language));
+		Option.ComboLabel = FString::Printf(TEXT("%s (%s)"), *Option.DisplayName.ToString(), *Option.CultureCode);
+		OutOptions.Add(MoveTemp(Option));
+	}
+
+	return OutOptions.Num() > 0;
+}
+}
 
 class SDialogueGraphPin : public SGraphPin
 {
@@ -139,6 +182,7 @@ void FDialogueKitEditorModule::StartupModule()
 	PinFactory = MakeShareable(new FDialoguePinFactory);
 	FEdGraphUtilities::RegisterVisualPinFactory(PinFactory);
 	FDialogueGraphEditorCommands::Register();
+	LoadDialogueLanguageOverrideFromConfig();
 
 	if (UToolMenus::IsToolMenuUIEnabled())
 	{
@@ -210,6 +254,14 @@ void FDialogueKitEditorModule::BuildDialogueMainMenu(UToolMenu* InMenu)
 		LOCTEXT("DialogueMakeLocalizationDataAsset_Tooltip", "선택한 디렉토리의 CSV 파일을 DialogueLocalizationDataAsset으로 일괄 변환"),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FDialogueKitEditorModule::OnMakeDialogueLocalizationDataAssetMenuClicked)));
+
+	Section.AddSubMenu(
+		TEXT("DialogueKitSelectDialogueLanguage"),
+		LOCTEXT("DialogueSelectLanguage_Label", "SelectDialogueLanguage"),
+		LOCTEXT("DialogueSelectLanguage_Tooltip", "인게임 대사 언어를 선택"),
+		FNewToolMenuDelegate::CreateRaw(this, &FDialogueKitEditorModule::BuildSelectDialogueLanguageMenu),
+		false,
+		FSlateIcon());
 }
 
 // Make CSV 버튼 클릭 시 언어 선택과 디렉토리 선택을 거쳐 일괄 변환을 실행한다.
@@ -243,54 +295,149 @@ void FDialogueKitEditorModule::OnMakeDialogueLocalizationDataAssetMenuClicked()
 	ConvertCSVsInDirectoryToDialogueLocalizationDataAssets(SelectedDirectory);
 }
 
+// Dialogue 메뉴의 SelectDialogueLanguage 하위에 ELanguage 기반 라디오 버튼 목록을 구성한다.
+void FDialogueKitEditorModule::BuildSelectDialogueLanguageMenu(UToolMenu* InMenu)
+{
+	if (InMenu == nullptr)
+	{
+		return;
+	}
+
+	TArray<FDialogueEditorLanguageOption> LanguageOptions;
+	if (!BuildDialogueEditorLanguageOptions(LanguageOptions))
+	{
+		return;
+	}
+
+	FToolMenuSection& Section = InMenu->FindOrAddSection(TEXT("DialogueKitSelectDialogueLanguageSection"));
+	for (const FDialogueEditorLanguageOption& Option : LanguageOptions)
+	{
+		const FString EntryName = FString::Printf(TEXT("DialogueKitSelectDialogueLanguage_%s"), *Option.CultureCode.Replace(TEXT("-"), TEXT("_")));
+		const FText TooltipText = FText::Format(
+			LOCTEXT("DialogueSelectLanguage_OptionTooltip", "인게임 대사 언어를 {0}(으)로 설정"),
+			FText::FromString(Option.ComboLabel));
+
+		Section.AddMenuEntry(
+			*EntryName,
+			FText::FromString(Option.ComboLabel),
+			TooltipText,
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FDialogueKitEditorModule::OnSelectDialogueLanguage, Option.Language),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateRaw(this, &FDialogueKitEditorModule::IsDialogueLanguageSelected, Option.Language)),
+			EUserInterfaceActionType::RadioButton);
+	}
+}
+
+// 사용자가 선택한 인게임 대사 언어 override를 저장한다
+void FDialogueKitEditorModule::OnSelectDialogueLanguage(ELanguage InLanguage)
+{
+	const FString SelectedCultureCode = FDialogueLocalizationUtility::ToCultureCode(InLanguage);
+	if (SelectedCultureCode.IsEmpty())
+	{
+		return;
+	}
+
+	DialogueCultureOverride = SelectedCultureCode;
+	bHasDialogueCultureOverride = true;
+	SaveDialogueLanguageOverrideToConfig(DialogueCultureOverride);
+
+	// PIE 실행 중이면 현재 게임 인스턴스의 DialogueLocalizationSubsystem에도 즉시 반영한다.
+	if (GEditor != nullptr && GEditor->PlayWorld != nullptr)
+	{
+		if (UGameInstance* PlayGameInstance = GEditor->PlayWorld->GetGameInstance())
+		{
+			if (UDialogueLocalizationSubsystem* LocalizationSubsystem = PlayGameInstance->GetSubsystem<UDialogueLocalizationSubsystem>())
+			{
+				LocalizationSubsystem->SetCurrentCultureCode(SelectedCultureCode);
+			}
+		}
+	}
+}
+
+// 현재 선택된 라디오 언어가 유효한 인게임 대사 언어인지 판정한다.
+bool FDialogueKitEditorModule::IsDialogueLanguageSelected(ELanguage InLanguage) const
+{
+	const FString CandidateCultureCode = FDialogueLocalizationUtility::ToCultureCode(InLanguage);
+	return CandidateCultureCode.Equals(GetEffectiveDialogueCultureCode(), ESearchCase::IgnoreCase);
+}
+
+// 에디터 설정 ini에서 인게임 대사 언어 override를 읽어온다.
+void FDialogueKitEditorModule::LoadDialogueLanguageOverrideFromConfig()
+{
+	DialogueCultureOverride.Empty();
+	bHasDialogueCultureOverride = false;
+
+	if (GConfig == nullptr)
+	{
+		return;
+	}
+
+	FString LoadedCultureCode;
+	if (!GConfig->GetString(
+		FDialogueLocalizationUtility::GetDialogueLanguageConfigSection(),
+		FDialogueLocalizationUtility::GetDialogueLanguageConfigKey(),
+		LoadedCultureCode,
+		GEditorPerProjectIni))
+	{
+		return;
+	}
+
+	LoadedCultureCode = LoadedCultureCode.TrimStartAndEnd();
+	if (LoadedCultureCode.IsEmpty())
+	{
+		return;
+	}
+
+	DialogueCultureOverride = LoadedCultureCode;
+	bHasDialogueCultureOverride = true;
+}
+
+// TODO 게임 내 언어 선택 기능 추가시 해당 함수를 활용한다.
+// 인게임 대사 언어 override를 에디터 설정 ini로 저장한다.
+void FDialogueKitEditorModule::SaveDialogueLanguageOverrideToConfig(const FString& CultureCode) const
+{
+	if (GConfig == nullptr || CultureCode.IsEmpty())
+	{
+		return;
+	}
+
+	GConfig->SetString(
+		FDialogueLocalizationUtility::GetDialogueLanguageConfigSection(),
+		FDialogueLocalizationUtility::GetDialogueLanguageConfigKey(),
+		*CultureCode,
+		GEditorPerProjectIni);
+	GConfig->Flush(false, GEditorPerProjectIni);
+}
+
+// 현재 유효한 인게임 대사 문화권 코드를 반환한다(override가 없으면 시스템 언어 사용).
+FString FDialogueKitEditorModule::GetEffectiveDialogueCultureCode() const
+{
+	if (bHasDialogueCultureOverride && !DialogueCultureOverride.IsEmpty())
+	{
+		return DialogueCultureOverride;
+	}
+
+	if (const FCulturePtr CurrentLanguage = FInternationalization::Get().GetCurrentLanguage())
+	{
+		const FString CurrentCultureCode = CurrentLanguage->GetName();
+		if (!CurrentCultureCode.IsEmpty())
+		{
+			return CurrentCultureCode;
+		}
+	}
+
+	return TEXT("en-US");
+}
+
 // ELanguage 목록을 팝업 콤보박스로 노출하고 선택된 CultureCode를 반환한다.
 bool FDialogueKitEditorModule::PromptLanguageForCSVExport(ELanguage& OutLanguage, FString& OutCultureCode) const
 {
-	struct FLanguageOption
-	{
-		ELanguage Language = ELanguage::English;
-		FString CultureCode;
-		FString DisplayText;
-	};
-
-	const UEnum* LanguageEnum = StaticEnum<ELanguage>();
-	if (LanguageEnum == nullptr)
+	TArray<FDialogueEditorLanguageOption> LanguageOptions;
+	if (!BuildDialogueEditorLanguageOptions(LanguageOptions))
 	{
 		return false;
-	}
-
-	TArray<FLanguageOption> LanguageOptions;
-	for (int32 EnumIndex = 0; EnumIndex < LanguageEnum->NumEnums(); ++EnumIndex)
-	{
-		if (LanguageEnum->HasMetaData(TEXT("Hidden"), EnumIndex))
-		{
-			continue;
-		}
-
-		const int64 EnumValue = LanguageEnum->GetValueByIndex(EnumIndex);
-		if (EnumValue == INDEX_NONE)
-		{
-			continue;
-		}
-
-		const FString EnumName = LanguageEnum->GetNameStringByIndex(EnumIndex);
-		if (EnumName.EndsWith(TEXT("_MAX")))
-		{
-			continue;
-		}
-
-		const ELanguage Language = static_cast<ELanguage>(EnumValue);
-		const FString CultureCode = FDialogueLocalizationUtility::ToCultureCode(Language);
-		if (CultureCode.IsEmpty())
-		{
-			continue;
-		}
-
-		FLanguageOption Option;
-		Option.Language = Language;
-		Option.CultureCode = CultureCode;
-		Option.DisplayText = FString::Printf(TEXT("%s (%s)"), *LanguageEnum->GetDisplayNameTextByValue(EnumValue).ToString(), *CultureCode);
-		LanguageOptions.Add(MoveTemp(Option));
 	}
 
 	if (LanguageOptions.Num() == 0)
@@ -301,9 +448,9 @@ bool FDialogueKitEditorModule::PromptLanguageForCSVExport(ELanguage& OutLanguage
 
 	TArray<TSharedPtr<FString>> ComboOptions;
 	ComboOptions.Reserve(LanguageOptions.Num());
-	for (const FLanguageOption& Option : LanguageOptions)
+	for (const FDialogueEditorLanguageOption& Option : LanguageOptions)
 	{
-		ComboOptions.Add(MakeShared<FString>(Option.DisplayText));
+		ComboOptions.Add(MakeShared<FString>(Option.ComboLabel));
 	}
 
 	bool bConfirmed = false;

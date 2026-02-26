@@ -2,6 +2,7 @@
 #include "DialogueLocalizationUtility.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
+#include "Misc/ConfigCacheIni.h"
 
 // 서브시스템 초기화 시 엔진의 현재 언어 코드를 읽어 기본 문화권 값을 설정한다.
 void UDialogueLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -11,6 +12,24 @@ void UDialogueLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collec
 	if (const FCulturePtr CurrentLanguage = FInternationalization::Get().GetCurrentLanguage())
 	{
 		CurrentCultureCode = CurrentLanguage->GetName();
+	}
+	
+	// 사용자 선택 override가 있으면 시스템 언어보다 우선 적용한다.
+	if (GConfig != nullptr)
+	{
+		FString OverrideCultureCode;
+		if (GConfig->GetString(
+			FDialogueLocalizationUtility::GetDialogueLanguageConfigSection(),
+			FDialogueLocalizationUtility::GetDialogueLanguageConfigKey(),
+			OverrideCultureCode,
+			GEditorPerProjectIni))
+		{
+			OverrideCultureCode = OverrideCultureCode.TrimStartAndEnd();
+			if (!OverrideCultureCode.IsEmpty())
+			{
+				CurrentCultureCode = OverrideCultureCode;
+			}
+		}
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("DialogueLocalizationSubsystem::Initialize - %s"), *CurrentCultureCode);
@@ -22,16 +41,10 @@ bool UDialogueLocalizationSubsystem::SetCurrentLanguage(ELanguage NewLanguage)
 	return SetCurrentCultureCode(FDialogueLocalizationUtility::ToCultureCode(NewLanguage));
 }
 
-// 엔진 국제화 시스템에 문화권 코드를 적용하고 로컬라이제이션 캐시를 초기화한다.
+// 대사 로컬라이제이션용 문화권 코드만 교체하고 캐시를 초기화한다.
 bool UDialogueLocalizationSubsystem::SetCurrentCultureCode(const FString& NewCultureCode)
 {
 	if (NewCultureCode.IsEmpty())
-	{
-		return false;
-	}
-
-	const bool bSuccess = FInternationalization::Get().SetCurrentLanguageAndLocale(NewCultureCode);
-	if (!bSuccess)
 	{
 		return false;
 	}

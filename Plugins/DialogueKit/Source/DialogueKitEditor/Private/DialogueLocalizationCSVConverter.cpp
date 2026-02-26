@@ -189,39 +189,11 @@ TMap<FString, FString> BuildSupportedCultureCodeMap()
 {
 	TMap<FString, FString> CultureMap;
 
-	const UEnum* LanguageEnum = StaticEnum<ELanguage>();
-	if (LanguageEnum == nullptr)
+	TArray<FDialogueLanguageMapping> LanguageMappings;
+	FDialogueLocalizationUtility::GetSupportedLanguageMappings(LanguageMappings);
+	for (const FDialogueLanguageMapping& Mapping : LanguageMappings)
 	{
-		return CultureMap;
-	}
-
-	for (int32 EnumIndex = 0; EnumIndex < LanguageEnum->NumEnums(); ++EnumIndex)
-	{
-		if (LanguageEnum->HasMetaData(TEXT("Hidden"), EnumIndex))
-		{
-			continue;
-		}
-
-		const int64 EnumValue = LanguageEnum->GetValueByIndex(EnumIndex);
-		if (EnumValue == INDEX_NONE)
-		{
-			continue;
-		}
-
-		const FString EnumName = LanguageEnum->GetNameStringByIndex(EnumIndex);
-		if (EnumName.EndsWith(TEXT("_MAX")))
-		{
-			continue;
-		}
-
-		const ELanguage Language = static_cast<ELanguage>(EnumValue);
-		const FString CultureCode = FDialogueLocalizationUtility::ToCultureCode(Language);
-		if (CultureCode.IsEmpty())
-		{
-			continue;
-		}
-
-		CultureMap.Add(NormalizeCultureToken(CultureCode), CultureCode);
+		CultureMap.Add(NormalizeCultureToken(Mapping.CultureCode), Mapping.CultureCode);
 	}
 
 	return CultureMap;
