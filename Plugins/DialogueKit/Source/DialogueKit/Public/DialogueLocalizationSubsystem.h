@@ -69,6 +69,9 @@ public:
 	FText ResolveDialogueText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FText& FallbackText);
 	FText ResolveResponseText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FGuid& PinId, const FText& FallbackText);
 
+	// 언어 enum을 문화권 코드 문자열로 변환한다.
+	static FString ToCultureCode(ELanguage Language);
+
 private:
 	struct FDialogueLocalizationCacheEntry
 	{
@@ -77,7 +80,6 @@ private:
 		TMap<FDialogueLocalizationLookupKey, FText> LocalizedTexts;
 	};
 
-	static FString ToCultureCode(ELanguage Language);
 	static FString SanitizeForObjectName(const FString& Input);
 
 	bool EnsureLocalizationLoaded(const FPrimaryAssetId& DialogueGraphPrimaryAssetId);

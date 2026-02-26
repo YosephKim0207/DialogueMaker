@@ -767,10 +767,10 @@ bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FStri
     return true;
 }
 
-// 현재 WorkingAsset 기준 CSV 문자열을 파일로 저장한다.
-bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) const
+// 지정한 DialogueGraph 에셋을 CSV 파일로 저장한다.
+bool FDialogueGraphEditor::ExportDialogueGraphAssetToCSV(const UDialogueGraph* InDialogueGraph, const FString& CSVFilePath)
 {
-    const FString CSVContent = BuildDialogueGraphCSV();
+    const FString CSVContent = BuildDialogueGraphCSVFromAsset(InDialogueGraph);
     if (CSVContent.IsEmpty())
     {
         return false;
@@ -785,10 +785,16 @@ bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) 
     return FFileHelper::SaveStringToFile(CSVContent, *CSVFilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 
-// DialogueGraph의 번역 대상 데이터(PrimaryAssetId/DialogueText/ResponseText)를 CSV 문자열로 구성한다.
-FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
+// 현재 에디터에서 작업 중인 DialogueGraph를 CSV 파일로 저장한다.
+bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) const
 {
-    if (WorkingAsset == nullptr)
+    return ExportDialogueGraphAssetToCSV(WorkingAsset, CSVFilePath);
+}
+
+// 지정한 DialogueGraph의 번역 대상 데이터(PrimaryAssetId/DialogueText/ResponseText)를 CSV 문자열로 구성한다.
+FString FDialogueGraphEditor::BuildDialogueGraphCSVFromAsset(const UDialogueGraph* InDialogueGraph)
+{
+    if (InDialogueGraph == nullptr)
     {
         return TEXT("");
     }
@@ -801,14 +807,14 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
         AppendCSVRow(OutCSV, {NodeGuid, PinId, Key, Value});
     };
 
-    AddRecord(TEXT(""), TEXT(""), TEXT("PrimaryAssetId"), WorkingAsset->GetPrimaryAssetId().ToString());
+    AddRecord(TEXT(""), TEXT(""), TEXT("PrimaryAssetId"), InDialogueGraph->GetPrimaryAssetId().ToString());
     
-    if (WorkingAsset->Graph == nullptr)
+    if (InDialogueGraph->Graph == nullptr)
     {
         return OutCSV;
     }
 
-    for (const UDialogueRuntimeNode* RuntimeNode : WorkingAsset->Graph->Nodes)
+    for (const UDialogueRuntimeNode* RuntimeNode : InDialogueGraph->Graph->Nodes)
     {
         if (RuntimeNode == nullptr)
         {
@@ -836,6 +842,12 @@ FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
     }
 
     return OutCSV;
+}
+
+// 현재 에디터에서 작업 중인 DialogueGraph의 CSV 문자열을 반환한다.
+FString FDialogueGraphEditor::BuildDialogueGraphCSV() const
+{
+    return BuildDialogueGraphCSVFromAsset(WorkingAsset);
 }
 
 // CSV 파일 선택 창을 띄우고 사용자가 선택한 경로를 반환한다.

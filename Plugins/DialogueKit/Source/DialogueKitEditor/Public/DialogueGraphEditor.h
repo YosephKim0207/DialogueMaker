@@ -22,6 +22,9 @@ public:
 	virtual void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override { };
 	virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override { };
 
+	static bool ExportDialogueGraphAssetToCSV(const UDialogueGraph* InDialogueGraph, const FString& CSVFilePath);
+	static FString BuildDialogueGraphCSVFromAsset(const UDialogueGraph* InDialogueGraph);
+
 	virtual void OnClose() override;
 	void OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event);
 	void OnWorkingAssetPreSave();
