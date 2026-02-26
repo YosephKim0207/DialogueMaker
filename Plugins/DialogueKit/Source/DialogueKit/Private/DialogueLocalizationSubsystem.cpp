@@ -1,4 +1,5 @@
 #include "DialogueLocalizationSubsystem.h"
+#include "DialogueLocalizationUtility.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 
@@ -18,7 +19,7 @@ void UDialogueLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collec
 // enum 기반 언어를 문화권 코드로 변환해 실제 언어 변경 함수로 위임한다.
 bool UDialogueLocalizationSubsystem::SetCurrentLanguage(ELanguage NewLanguage)
 {
-	return SetCurrentCultureCode(ToCultureCode(NewLanguage));
+	return SetCurrentCultureCode(FDialogueLocalizationUtility::ToCultureCode(NewLanguage));
 }
 
 // 엔진 국제화 시스템에 문화권 코드를 적용하고 로컬라이제이션 캐시를 초기화한다.
@@ -119,38 +120,6 @@ FText UDialogueLocalizationSubsystem::ResolveResponseText(const FPrimaryAssetId&
 	}
 
 	return FallbackText;
-}
-
-// 게임 언어 enum 값을 Unreal 문화권 코드 문자열로 매핑한다.
-FString UDialogueLocalizationSubsystem::ToCultureCode(ELanguage Language)
-{
-	switch (Language)
-	{
-	case ELanguage::English:
-		return TEXT("en-US");
-	case ELanguage::ChineseSimplified:
-		return TEXT("zh-Hans");
-	case ELanguage::German:
-		return TEXT("de-DE");
-	case ELanguage::Spanish:
-		return TEXT("es-ES");
-	case ELanguage::BrazilianPortuguese:
-		return TEXT("pt-BR");
-	case ELanguage::Russian:
-		return TEXT("ru-RU");
-	case ELanguage::Korean:
-		return TEXT("ko-KR");
-	case ELanguage::French:
-		return TEXT("fr-FR");
-	case ELanguage::Italian:
-		return TEXT("it-IT");
-	case ELanguage::Turkish:
-		return TEXT("tr-TR");
-	case ELanguage::Polish:
-		return TEXT("pl-PL");
-	default:
-		return TEXT("en-US");
-	}
 }
 
 // 임의 문자열을 에셋/패키지 이름으로 안전하게 사용할 수 있는 형태로 정규화한다.

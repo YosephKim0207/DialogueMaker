@@ -8,8 +8,7 @@
 #include "DialogueEdStartGraphNode.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueGraphEditorMode.h"
-#include "DialogueLocalizationDataAsset.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "DialogueLocalizationCSVConverter.h"
 #include "EdGraph/EdGraph.h"
 #include "GraphEditor.h"
 #include "IDesktopPlatform.h"
@@ -20,194 +19,15 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
-#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Styling/AppStyle.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
-#include "UObject/SavePackage.h"
 
 #define LOCTEXT_NAMESPACE "DialogueGraphEditor"
 
 DEFINE_LOG_CATEGORY_STATIC(DialogueKitEditorSub, Log, All);
-
-namespace
-{
-// CSV 셀 값에 포함된 따옴표/구분자를 안전하게 이스케이프한다.
-FString CSVEscape(const FString& Input)
-{
-    FString Escaped = Input;
-    Escaped.ReplaceInline(TEXT("\""), TEXT("\"\""));
-
-    if (Escaped.Contains(TEXT(",")) || Escaped.Contains(TEXT("\"")) || Escaped.Contains(TEXT("\n")) || Escaped.Contains(TEXT("\r")))
-    {
-        return FString::Printf(TEXT("\"%s\""), *Escaped);
-    }
-
-    return Escaped;
-}
-
-// 전달된 컬럼 배열을 CSV 한 줄로 직렬화해 결과 문자열에 추가한다.
-void AppendCSVRow(FString& OutCSV, const TArray<FString>& Columns)
-{
-    TArray<FString> EscapedColumns;
-    EscapedColumns.Reserve(Columns.Num());
-    for (const FString& Column : Columns)
-    {
-        EscapedColumns.Add(CSVEscape(Column));
-    }
-
-    OutCSV += FString::Join(EscapedColumns, TEXT(","));
-    OutCSV += LINE_TERMINATOR;
-}
-
-// Guid를 CSV 저장용 문자열로 변환한다.
-FString GuidToString(const FGuid& Guid)
-{
-    return Guid.IsValid() ? Guid.ToString(EGuidFormats::DigitsWithHyphensLower) : TEXT("");
-}
-
-// 헤더/키 비교를 위해 공백 제거 + 소문자 정규화를 수행한다.
-FString NormalizeCSVToken(const FString& Input)
-{
-    return Input.TrimStartAndEnd().ToLower();
-}
-
-// CSV Row에서 인덱스 범위를 확인해 안전하게 값을 꺼낸다.
-FString GetCSVValueAt(const TArray<FString>& Row, const int32 Index)
-{
-    return Row.IsValidIndex(Index) ? Row[Index] : TEXT("");
-}
-
-// 따옴표 포함 셀을 고려해 CSV 문자열 전체를 행/열 구조로 파싱한다.
-bool ParseCSVRows(const FString& CSVContent, TArray<TArray<FString>>& OutRows)
-{
-    OutRows.Reset();
-
-    TArray<FString> CurrentRow;
-    FString CurrentCell;
-    bool bInQuotes = false;
-
-    for (int32 Index = 0; Index < CSVContent.Len(); ++Index)
-    {
-        const TCHAR Character = CSVContent[Index];
-        if (Character == TEXT('"'))
-        {
-            if (bInQuotes && (Index + 1) < CSVContent.Len() && CSVContent[Index + 1] == TEXT('"'))
-            {
-                CurrentCell.AppendChar(TEXT('"'));
-                ++Index;
-            }
-            else
-            {
-                bInQuotes = !bInQuotes;
-            }
-            continue;
-        }
-
-        if (!bInQuotes && Character == TEXT(','))
-        {
-            CurrentRow.Add(CurrentCell);
-            CurrentCell.Reset();
-            continue;
-        }
-
-        if (!bInQuotes && (Character == TEXT('\n') || Character == TEXT('\r')))
-        {
-            CurrentRow.Add(CurrentCell);
-            CurrentCell.Reset();
-            OutRows.Add(CurrentRow);
-            CurrentRow.Reset();
-
-            if (Character == TEXT('\r') && (Index + 1) < CSVContent.Len() && CSVContent[Index + 1] == TEXT('\n'))
-            {
-                ++Index;
-            }
-            continue;
-        }
-
-        CurrentCell.AppendChar(Character);
-    }
-
-    if (!CurrentCell.IsEmpty() || CurrentRow.Num() > 0)
-    {
-        CurrentRow.Add(CurrentCell);
-        OutRows.Add(CurrentRow);
-    }
-
-    // UTF-8 BOM이 포함된 경우 첫 헤더 비교가 깨지지 않도록 제거한다.
-    if (OutRows.Num() > 0 && OutRows[0].Num() > 0)
-    {
-        OutRows[0][0].RemoveFromStart(TEXT("\xFEFF"));
-    }
-
-    return OutRows.Num() > 0;
-}
-
-// "Type:Name" 문자열을 FPrimaryAssetId로 파싱한다.
-bool TryParsePrimaryAssetIdString(const FString& InPrimaryAssetId, FPrimaryAssetId& OutPrimaryAssetId)
-{
-    FString PrimaryAssetTypeString;
-    FString PrimaryAssetNameString;
-    if (!InPrimaryAssetId.Split(TEXT(":"), &PrimaryAssetTypeString, &PrimaryAssetNameString))
-    {
-        return false;
-    }
-
-    if (PrimaryAssetTypeString.IsEmpty() || PrimaryAssetNameString.IsEmpty())
-    {
-        return false;
-    }
-
-    OutPrimaryAssetId = FPrimaryAssetId(FName(*PrimaryAssetTypeString), FName(*PrimaryAssetNameString));
-    return true;
-}
-
-// 파일명/패키지명으로 사용할 수 있도록 문자열을 안전한 문자 집합으로 정규화한다.
-FString SanitizeForObjectName(const FString& Input)
-{
-    FString Result;
-    Result.Reserve(Input.Len());
-    for (const TCHAR Character : Input)
-    {
-        if (FChar::IsAlnum(Character) || Character == TEXT('_'))
-        {
-            Result.AppendChar(Character);
-        }
-        else
-        {
-            Result.AppendChar(TEXT('_'));
-        }
-    }
-
-    if (Result.IsEmpty())
-    {
-        return TEXT("Unknown");
-    }
-
-    return Result;
-}
-
-// CSV 경로의 상위 디렉토리명을 문화권명으로 해석하고, 실패 시 현재 문화권을 사용한다.
-FString ResolveCultureNameFromCSVPath(const FString& CSVFilePath)
-{
-    const FString ParentDirectory = FPaths::GetPath(CSVFilePath);
-    const FString CultureCandidate = FPaths::GetCleanFilename(ParentDirectory).TrimStartAndEnd();
-    if (!CultureCandidate.IsEmpty())
-    {
-        return CultureCandidate;
-    }
-
-    if (const FCulturePtr CurrentCulture = FInternationalization::Get().GetCurrentCulture())
-    {
-        return CurrentCulture->GetName();
-    }
-
-    return TEXT("Invariant");
-}
-}
 
 void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
@@ -598,191 +418,30 @@ bool FDialogueGraphEditor::ConvertCSVToDialogueLocalizationDataAsset(const FStri
         return false;
     }
 
-    FString CSVContent;
-    if (!FFileHelper::LoadFileToString(CSVContent, *CSVFilePath))
+    FDialogueLocalizationCSVConvertOptions ConvertOptions;
+    ConvertOptions.bValidateExpectedPrimaryAssetId = true;
+    ConvertOptions.ExpectedPrimaryAssetId = WorkingAsset->GetPrimaryAssetId();
+    ConvertOptions.DestinationRootPackagePath = TEXT("/Game/DialogueLocalization");
+    ConvertOptions.bUseUnderscoreCultureFolder = true;
+
+    FString ErrorMessage;
+    if (FDialogueLocalizationCSVConverter::ConvertCSVToDialogueLocalizationDataAsset(CSVFilePath, ConvertOptions, &ErrorMessage, nullptr))
     {
-        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_LoadFail", "Failed to read CSV file."));
-        return false;
+        return true;
     }
 
-    TArray<TArray<FString>> Rows;
-    if (!ParseCSVRows(CSVContent, Rows) || Rows.Num() < 2)
-    {
-        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_InvalidCSV", "Invalid CSV format."));
-        return false;
-    }
-
-    const TArray<FString>& Header = Rows[0];
-    int32 NodeGuidColumn = INDEX_NONE;
-    int32 PinIdColumn = INDEX_NONE;
-    int32 KeyColumn = INDEX_NONE;
-    int32 ValueColumn = INDEX_NONE;
-
-    // 헤더 순서가 바뀌어도 동작하도록 컬럼 인덱스를 동적으로 찾는다.
-    for (int32 HeaderIndex = 0; HeaderIndex < Header.Num(); ++HeaderIndex)
-    {
-        const FString NormalizedHeader = NormalizeCSVToken(Header[HeaderIndex]);
-        if (NormalizedHeader == TEXT("nodeguid"))
-        {
-            NodeGuidColumn = HeaderIndex;
-        }
-        else if (NormalizedHeader == TEXT("pinid"))
-        {
-            PinIdColumn = HeaderIndex;
-        }
-        else if (NormalizedHeader == TEXT("key"))
-        {
-            KeyColumn = HeaderIndex;
-        }
-        else if (NormalizedHeader == TEXT("value"))
-        {
-            ValueColumn = HeaderIndex;
-        }
-    }
-
-    if (NodeGuidColumn == INDEX_NONE || PinIdColumn == INDEX_NONE || KeyColumn == INDEX_NONE || ValueColumn == INDEX_NONE)
-    {
-        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_InvalidHeader", "Invalid CSV header. Required columns: NodeGuid, PinId, Key, Value"));
-        return false;
-    }
-
-    FPrimaryAssetId TargetDialoguePrimaryAssetId;
-    bool bPrimaryAssetIdFound = false;
-    TArray<FDialogueLocalizationEntry> Entries;
-    Entries.Reserve(Rows.Num() - 1);
-
-    // 데이터 행을 순회하면서 PrimaryAssetId/DialogueText/ResponseText 레코드를 분리 처리한다.
-    for (int32 RowIndex = 1; RowIndex < Rows.Num(); ++RowIndex)
-    {
-        const TArray<FString>& Row = Rows[RowIndex];
-        const FString Key = NormalizeCSVToken(GetCSVValueAt(Row, KeyColumn));
-        const FString Value = GetCSVValueAt(Row, ValueColumn);
-
-        if (Key == TEXT("primaryassetid"))
-        {
-            FPrimaryAssetId ParsedPrimaryAssetId;
-            if (!TryParsePrimaryAssetIdString(Value.TrimStartAndEnd(), ParsedPrimaryAssetId))
-            {
-                FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_InvalidPrimaryAssetId", "PrimaryAssetId parse failed. Please check CSV file."));
-                return false;
-            }
-
-            TargetDialoguePrimaryAssetId = ParsedPrimaryAssetId;
-            bPrimaryAssetIdFound = true;
-            continue;
-        }
-
-        // 다국어 치환 대상이 아닌 키는 무시한다.
-        if (Key != TEXT("dialoguetext") && Key != TEXT("responsetext"))
-        {
-            continue;
-        }
-
-        FGuid ParsedNodeGuid;
-        if (!FGuid::Parse(GetCSVValueAt(Row, NodeGuidColumn).TrimStartAndEnd(), ParsedNodeGuid))
-        {
-            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_NodeGuidParseFail", "NodeGuid parse failed. Please check CSV file."));
-            return false;
-        }
-
-        FDialogueLocalizationEntry NewEntry;
-        NewEntry.NodeGuid = ParsedNodeGuid;
-        NewEntry.Key = (Key == TEXT("dialoguetext")) ? FName(TEXT("DialogueText")) : FName(TEXT("ResponseText"));
-        NewEntry.Value = FText::FromString(Value);
-
-        if (Key == TEXT("responsetext"))
-        {
-            if (!FGuid::Parse(GetCSVValueAt(Row, PinIdColumn).TrimStartAndEnd(), NewEntry.PinId))
-            {
-                FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_PinIdParseFail", "PinId parse failed. Please check CSV file."));
-                return false;
-            }
-        }
-
-        Entries.Add(MoveTemp(NewEntry));
-    }
-
-    if (!bPrimaryAssetIdFound)
-    {
-        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_MissingPrimaryAssetId", "PrimaryAssetId is missing in CSV file."));
-        return false;
-    }
-
-    if (TargetDialoguePrimaryAssetId != WorkingAsset->GetPrimaryAssetId())
-    {
-        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_AssetMismatch", "PrimaryAssetId in CSV does not match current DialogueGraph asset."));
-        return false;
-    }
-
-    const FString CultureName = ResolveCultureNameFromCSVPath(CSVFilePath);
-    const FString CulturePackageSegment = SanitizeForObjectName(CultureName);
-    const FString DialogueGraphAssetName = SanitizeForObjectName(WorkingAsset->GetName());
-    const FString LocalizationAssetName = FString::Printf(TEXT("DL_%s_%s"), *DialogueGraphAssetName, *CulturePackageSegment);
-    const FString LocalizationFolder = FString::Printf(TEXT("/Game/DialogueLocalization/%s"), *CulturePackageSegment);
-    const FString LocalizationPackageName = LocalizationFolder + TEXT("/") + LocalizationAssetName;
-
-    UPackage* Package = CreatePackage(*LocalizationPackageName);
-    if (Package == nullptr)
-    {
-        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_PackageCreateFail", "Failed to create package for DialogueLocalization DataAsset."));
-        return false;
-    }
-
-    UDialogueLocalizationDataAsset* LocalizationAsset = LoadObject<UDialogueLocalizationDataAsset>(nullptr, *(LocalizationPackageName + TEXT(".") + LocalizationAssetName));
-    bool bCreated = false;
-    if (LocalizationAsset == nullptr)
-    {
-        LocalizationAsset = NewObject<UDialogueLocalizationDataAsset>(Package, *LocalizationAssetName, RF_Public | RF_Standalone | RF_Transactional);
-        if (LocalizationAsset == nullptr)
-        {
-            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_CreateFail", "Failed to create DialogueLocalization DataAsset."));
-            return false;
-        }
-        bCreated = true;
-    }
-
-    LocalizationAsset->Modify();
-    LocalizationAsset->TargetDialoguePrimaryAssetId = TargetDialoguePrimaryAssetId;
-    LocalizationAsset->CultureName = CultureName;
-    LocalizationAsset->Entries = MoveTemp(Entries);
-    LocalizationAsset->MarkPackageDirty();
-    Package->MarkPackageDirty();
-
-    // 신규 생성 시에만 에셋 레지스트리에 등록한다.
-    if (bCreated)
-    {
-        FAssetRegistryModule::AssetCreated(LocalizationAsset);
-    }
-
-    const FString PackageFilePath = FPackageName::LongPackageNameToFilename(LocalizationPackageName, FPackageName::GetAssetPackageExtension());
-    FSavePackageArgs SaveArgs;
-    SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
-    SaveArgs.SaveFlags = SAVE_NoError;
-    if (!UPackage::SavePackage(Package, LocalizationAsset, *PackageFilePath, SaveArgs))
-    {
-        FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertCSVToDialogueLocalization_SaveFail", "Failed to save DialogueLocalization DataAsset package."));
-        return false;
-    }
-
-    return true;
+    FMessageDialog::Open(
+        EAppMsgType::Ok,
+        ErrorMessage.IsEmpty()
+            ? LOCTEXT("ConvertCSVToDialogueLocalization_UnknownFail", "Failed to convert CSV to DialogueLocalization DataAsset.")
+            : FText::FromString(ErrorMessage));
+    return false;
 }
 
 // 지정한 DialogueGraph 에셋을 CSV 파일로 저장한다.
 bool FDialogueGraphEditor::ExportDialogueGraphAssetToCSV(const UDialogueGraph* InDialogueGraph, const FString& CSVFilePath)
 {
-    const FString CSVContent = BuildDialogueGraphCSVFromAsset(InDialogueGraph);
-    if (CSVContent.IsEmpty())
-    {
-        return false;
-    }
-
-    const FString DirectoryPath = FPaths::GetPath(CSVFilePath);
-    if (!DirectoryPath.IsEmpty())
-    {
-        IFileManager::Get().MakeDirectory(*DirectoryPath, true);
-    }
-
-    return FFileHelper::SaveStringToFile(CSVContent, *CSVFilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+    return FDialogueLocalizationCSVConverter::ExportDialogueGraphAssetToCSV(InDialogueGraph, CSVFilePath, nullptr);
 }
 
 // 현재 에디터에서 작업 중인 DialogueGraph를 CSV 파일로 저장한다.
@@ -794,54 +453,7 @@ bool FDialogueGraphEditor::ExportDialogueGraphToCSV(const FString& CSVFilePath) 
 // 지정한 DialogueGraph의 번역 대상 데이터(PrimaryAssetId/DialogueText/ResponseText)를 CSV 문자열로 구성한다.
 FString FDialogueGraphEditor::BuildDialogueGraphCSVFromAsset(const UDialogueGraph* InDialogueGraph)
 {
-    if (InDialogueGraph == nullptr)
-    {
-        return TEXT("");
-    }
-
-    FString OutCSV;
-    AppendCSVRow(OutCSV, {TEXT("NodeGuid"), TEXT("PinId"), TEXT("Key"), TEXT("Value")});
-
-    const auto AddRecord = [&OutCSV](const FString& NodeGuid, const FString& PinId, const FString& Key, const FString& Value)
-    {
-        AppendCSVRow(OutCSV, {NodeGuid, PinId, Key, Value});
-    };
-
-    AddRecord(TEXT(""), TEXT(""), TEXT("PrimaryAssetId"), InDialogueGraph->GetPrimaryAssetId().ToString());
-    
-    if (InDialogueGraph->Graph == nullptr)
-    {
-        return OutCSV;
-    }
-
-    for (const UDialogueRuntimeNode* RuntimeNode : InDialogueGraph->Graph->Nodes)
-    {
-        if (RuntimeNode == nullptr)
-        {
-            continue;
-        }
-
-        const UDialogueNodeInfo* DialogueNodeInfo = Cast<UDialogueNodeInfo>(RuntimeNode->NodeInfo);
-        if (DialogueNodeInfo == nullptr)
-        {
-            continue;
-        }
-
-        const FString NodeGuid = GuidToString(RuntimeNode->NodeGuid);
-        AddRecord(NodeGuid, TEXT(""), TEXT("DialogueText"), DialogueNodeInfo->GetDialogueText().ToString());
-
-        // 선택지 텍스트는 OutputPin의 PinId와 함께 저장해 역변환 시 정확히 매칭한다.
-        const TArray<FDialogueChoice>& Choices = DialogueNodeInfo->GetDialogueChoices();
-        for (int32 ChoiceIndex = 0; ChoiceIndex < Choices.Num(); ++ChoiceIndex)
-        {
-            const FDialogueChoice& Choice = Choices[ChoiceIndex];
-            const UDialogueRuntimePin* ChoicePin = RuntimeNode->OutputPins.IsValidIndex(ChoiceIndex) ? RuntimeNode->OutputPins[ChoiceIndex] : nullptr;
-            const FString PinId = ChoicePin ? GuidToString(ChoicePin->PinId) : TEXT("");
-            AddRecord(NodeGuid, PinId, TEXT("ResponseText"), Choice.ResponseText.ToString());
-        }
-    }
-
-    return OutCSV;
+    return FDialogueLocalizationCSVConverter::BuildDialogueGraphCSVFromAsset(InDialogueGraph);
 }
 
 // 현재 에디터에서 작업 중인 DialogueGraph의 CSV 문자열을 반환한다.

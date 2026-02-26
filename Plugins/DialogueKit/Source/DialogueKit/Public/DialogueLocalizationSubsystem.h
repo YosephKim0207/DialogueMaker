@@ -2,24 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "DialogueLocalizationDataAsset.h"
+#include "DialogueLocalizationUtility.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "DialogueLocalizationSubsystem.generated.h"
-
-UENUM(BlueprintType)
-enum class ELanguage : uint8
-{
-	English UMETA(DisplayName = "English"),
-	ChineseSimplified UMETA(DisplayName = "Chinese (Simplified)"),
-	German UMETA(DisplayName = "German"),
-	Spanish UMETA(DisplayName = "Spanish"),
-	BrazilianPortuguese UMETA(DisplayName = "Brazilian Portuguese"),
-	Russian UMETA(DisplayName = "Russian"),
-	Korean UMETA(DisplayName = "Korean"),
-	French UMETA(DisplayName = "French"),
-	Italian UMETA(DisplayName = "Italian"),
-	Turkish UMETA(DisplayName = "Turkish"),
-	Polish UMETA(DisplayName = "Polish")
-};
 
 USTRUCT()
 struct FDialogueLocalizationLookupKey
@@ -68,9 +53,6 @@ public:
 
 	FText ResolveDialogueText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FText& FallbackText);
 	FText ResolveResponseText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FGuid& PinId, const FText& FallbackText);
-
-	// 언어 enum을 문화권 코드 문자열로 변환한다.
-	static FString ToCultureCode(ELanguage Language);
 
 private:
 	struct FDialogueLocalizationCacheEntry

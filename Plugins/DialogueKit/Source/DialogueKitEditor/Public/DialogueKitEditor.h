@@ -18,10 +18,14 @@ private:
         void RegisterMainMenu();
         void BuildDialogueMainMenu(class UToolMenu* InMenu);
         void OnMakeCSVMenuClicked();
+        void OnMakeDialogueLocalizationDataAssetMenuClicked();
         bool PromptLanguageForCSVExport(ELanguage& OutLanguage, FString& OutCultureCode) const;
         bool OpenDialogueGraphDirectoryDialog(FString& OutSelectedDirectory) const;
+        bool OpenDialogueCSVDirectoryDialog(FString& OutSelectedDirectory) const;
         bool ConvertDialogueGraphsInDirectoryToCSV(const FString& SelectedDirectory, const FString& CultureCode) const;
+        bool ConvertCSVsInDirectoryToDialogueLocalizationDataAssets(const FString& SelectedDirectory) const;
         void ShowCSVBatchResultWindow(const FString& ResultLog, int32 SuccessCount, int32 FailCount, const FString& OutputRootDirectory) const;
+        void ShowDialogueLocalizationBatchResultWindow(const FString& ResultLog, int32 SuccessCount, int32 FailCount, const FString& OutputRootDirectory) const;
 
 private:
         TSharedPtr<FSlateStyleSet> StyleSet = nullptr;

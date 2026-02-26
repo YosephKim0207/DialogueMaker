@@ -5,9 +5,9 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DesktopPlatformModule.h"
 #include "DialogueGraph.h"
-#include "DialogueGraphEditor.h"
 #include "DialogueGraphEditorCommands.h"
-#include "DialogueLocalizationSubsystem.h"
+#include "DialogueLocalizationCSVConverter.h"
+#include "DialogueLocalizationUtility.h"
 #include "EdGraphUtilities.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
@@ -203,6 +203,13 @@ void FDialogueKitEditorModule::BuildDialogueMainMenu(UToolMenu* InMenu)
 		LOCTEXT("DialogueMakeCSV_Tooltip", "선택한 디렉토리의 DialogueGraph 에셋을 일괄 CSV로 변환"),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FDialogueKitEditorModule::OnMakeCSVMenuClicked)));
+
+	Section.AddMenuEntry(
+		TEXT("DialogueKitMakeLocalizationDataAsset"),
+		LOCTEXT("DialogueMakeLocalizationDataAsset_Label", "Make Dialogue Localization DataAsset"),
+		LOCTEXT("DialogueMakeLocalizationDataAsset_Tooltip", "선택한 디렉토리의 CSV 파일을 DialogueLocalizationDataAsset으로 일괄 변환"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FDialogueKitEditorModule::OnMakeDialogueLocalizationDataAssetMenuClicked)));
 }
 
 // Make CSV 버튼 클릭 시 언어 선택과 디렉토리 선택을 거쳐 일괄 변환을 실행한다.
@@ -222,6 +229,18 @@ void FDialogueKitEditorModule::OnMakeCSVMenuClicked()
 	}
 
 	ConvertDialogueGraphsInDirectoryToCSV(SelectedDirectory, CultureCode);
+}
+
+// Make Dialogue Localization DataAsset 버튼 클릭 시 CSV 루트 디렉토리를 선택해 일괄 변환을 실행한다.
+void FDialogueKitEditorModule::OnMakeDialogueLocalizationDataAssetMenuClicked()
+{
+	FString SelectedDirectory;
+	if (!OpenDialogueCSVDirectoryDialog(SelectedDirectory))
+	{
+		return;
+	}
+
+	ConvertCSVsInDirectoryToDialogueLocalizationDataAssets(SelectedDirectory);
 }
 
 // ELanguage 목록을 팝업 콤보박스로 노출하고 선택된 CultureCode를 반환한다.
@@ -261,7 +280,7 @@ bool FDialogueKitEditorModule::PromptLanguageForCSVExport(ELanguage& OutLanguage
 		}
 
 		const ELanguage Language = static_cast<ELanguage>(EnumValue);
-		const FString CultureCode = UDialogueLocalizationSubsystem::ToCultureCode(Language);
+		const FString CultureCode = FDialogueLocalizationUtility::ToCultureCode(Language);
 		if (CultureCode.IsEmpty())
 		{
 			continue;
@@ -404,6 +423,26 @@ bool FDialogueKitEditorModule::OpenDialogueGraphDirectoryDialog(FString& OutSele
 	return bSelected && !OutSelectedDirectory.IsEmpty();
 }
 
+// 변환 대상이 될 CSV 루트 디렉토리를 선택한다.
+bool FDialogueKitEditorModule::OpenDialogueCSVDirectoryDialog(FString& OutSelectedDirectory) const
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform == nullptr)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("DialogueMakeLocalization_NoDesktopPlatform", "디렉토리 선택 기능을 초기화할 수 없습니다."));
+		return false;
+	}
+
+	const FString DefaultRootDirectory = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("DialogueCSV")));
+	const bool bSelected = DesktopPlatform->OpenDirectoryDialog(
+		FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+		TEXT("Select Dialogue CSV Directory"),
+		DefaultRootDirectory,
+		OutSelectedDirectory);
+
+	return bSelected && !OutSelectedDirectory.IsEmpty();
+}
+
 // 선택 디렉토리 하위의 DialogueGraph 에셋을 재귀 탐색해 지정 CultureCode 디렉토리로 CSV를 저장한다.
 bool FDialogueKitEditorModule::ConvertDialogueGraphsInDirectoryToCSV(const FString& SelectedDirectory, const FString& CultureCode) const
 {
@@ -474,14 +513,15 @@ bool FDialogueKitEditorModule::ConvertDialogueGraphsInDirectoryToCSV(const FStri
 		IFileManager::Get().MakeDirectory(*OutputDirectory, true);
 
 		const FString OutputCSVPath = FPaths::Combine(OutputDirectory, FString::Printf(TEXT("%s.csv"), *AssetData.AssetName.ToString()));
-		if (FDialogueGraphEditor::ExportDialogueGraphAssetToCSV(DialogueGraph, OutputCSVPath))
+		FString ExportErrorMessage;
+		if (FDialogueLocalizationCSVConverter::ExportDialogueGraphAssetToCSV(DialogueGraph, OutputCSVPath, &ExportErrorMessage))
 		{
 			ResultLog += FString::Printf(TEXT("[OK] %s -> %s%s"), *AssetObjectPath, *OutputCSVPath, LINE_TERMINATOR);
 			++SuccessCount;
 		}
 		else
 		{
-			ResultLog += FString::Printf(TEXT("[FAIL] %s - CSV 저장 실패%s"), *AssetObjectPath, LINE_TERMINATOR);
+			ResultLog += FString::Printf(TEXT("[FAIL] %s - %s%s"), *AssetObjectPath, *ExportErrorMessage, LINE_TERMINATOR);
 			++FailCount;
 		}
 	}
@@ -539,6 +579,118 @@ void FDialogueKitEditorModule::ShowCSVBatchResultWindow(const FString& ResultLog
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("DialogueMakeCSV_ResultWindowClose", "닫기"))
+				.OnClicked_Lambda([ResultWindowWeak]()
+				{
+					if (const TSharedPtr<SWindow> Window = ResultWindowWeak.Pin())
+					{
+						Window->RequestDestroyWindow();
+					}
+					return FReply::Handled();
+				})
+			]
+		]);
+
+	FSlateApplication::Get().AddWindow(ResultWindow);
+}
+
+// 선택 디렉토리 하위 CSV 파일을 재귀 탐색해 DialogueLocalizationDataAsset으로 일괄 변환한다.
+bool FDialogueKitEditorModule::ConvertCSVsInDirectoryToDialogueLocalizationDataAssets(const FString& SelectedDirectory) const
+{
+	FString SelectedDirectoryAbs = FPaths::ConvertRelativePathToFull(SelectedDirectory);
+	FPaths::NormalizeDirectoryName(SelectedDirectoryAbs);
+
+	TArray<FString> CSVFilePaths;
+	IFileManager::Get().FindFilesRecursive(CSVFilePaths, *SelectedDirectoryAbs, TEXT("*.csv"), true, false, false);
+	if (CSVFilePaths.Num() == 0)
+	{
+		FMessageDialog::Open(
+			EAppMsgType::Ok,
+			FText::Format(
+				LOCTEXT("DialogueMakeLocalization_NoCSVFiles", "선택한 경로에서 CSV 파일을 찾지 못했습니다.\n{0}"),
+				FText::FromString(SelectedDirectoryAbs)));
+		return false;
+	}
+
+	const FString OutputRootDirectory = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectContentDir(), TEXT("DialogueLocalization")));
+	IFileManager::Get().MakeDirectory(*OutputRootDirectory, true);
+
+	FDialogueLocalizationCSVConvertOptions ConvertOptions;
+	ConvertOptions.SourceRootDirectory = SelectedDirectoryAbs;
+	ConvertOptions.DestinationRootPackagePath = TEXT("/Game/DialogueLocalization");
+	ConvertOptions.bUseUnderscoreCultureFolder = true;
+	ConvertOptions.bValidateExpectedPrimaryAssetId = false;
+
+	int32 SuccessCount = 0;
+	int32 FailCount = 0;
+	FString ResultLog;
+	for (const FString& CSVFilePath : CSVFilePaths)
+	{
+		FString ErrorMessage;
+		FString SavedAssetPath;
+		if (FDialogueLocalizationCSVConverter::ConvertCSVToDialogueLocalizationDataAsset(CSVFilePath, ConvertOptions, &ErrorMessage, &SavedAssetPath))
+		{
+			ResultLog += FString::Printf(TEXT("[OK] %s -> %s%s"), *CSVFilePath, *SavedAssetPath, LINE_TERMINATOR);
+			++SuccessCount;
+		}
+		else
+		{
+			ResultLog += FString::Printf(TEXT("[FAIL] %s - %s%s"), *CSVFilePath, *ErrorMessage, LINE_TERMINATOR);
+			++FailCount;
+		}
+	}
+
+	ShowDialogueLocalizationBatchResultWindow(ResultLog, SuccessCount, FailCount, OutputRootDirectory);
+	return FailCount == 0;
+}
+
+// Make Dialogue Localization DataAsset 배치 변환 결과를 별도 로그 창으로 표시한다.
+void FDialogueKitEditorModule::ShowDialogueLocalizationBatchResultWindow(const FString& ResultLog, int32 SuccessCount, int32 FailCount, const FString& OutputRootDirectory) const
+{
+	const FString Summary = FString::Printf(
+		TEXT("Make Dialogue Localization DataAsset 완료\n성공: %d\n실패: %d\n저장 경로: %s"),
+		SuccessCount,
+		FailCount,
+		*OutputRootDirectory);
+
+	const FString LogBody = ResultLog.IsEmpty()
+		? FString::Printf(TEXT("처리 결과가 없습니다.%s"), LINE_TERMINATOR)
+		: ResultLog;
+
+	TWeakPtr<SWindow> ResultWindowWeak;
+	TSharedRef<SWindow> ResultWindow = SNew(SWindow)
+		.Title(LOCTEXT("DialogueMakeLocalization_ResultWindowTitle", "Make Dialogue Localization DataAsset 결과"))
+		.ClientSize(FVector2D(1080.0f, 680.0f))
+		.SupportsMinimize(true)
+		.SupportsMaximize(true);
+	ResultWindowWeak = ResultWindow;
+
+	ResultWindow->SetContent(
+		SNew(SBorder)
+		.Padding(12.0f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Summary))
+			]
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
+			[
+				SNew(SMultiLineEditableTextBox)
+				.IsReadOnly(true)
+				.AutoWrapText(false)
+				.Text(FText::FromString(LogBody))
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Right)
+			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("DialogueMakeLocalization_ResultWindowClose", "닫기"))
 				.OnClicked_Lambda([ResultWindowWeak]()
 				{
 					if (const TSharedPtr<SWindow> Window = ResultWindowWeak.Pin())
