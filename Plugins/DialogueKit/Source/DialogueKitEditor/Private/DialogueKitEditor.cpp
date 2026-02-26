@@ -440,11 +440,14 @@ bool FDialogueKitEditorModule::ConvertDialogueGraphsInDirectoryToCSV(const FStri
 
 	int32 SuccessCount = 0;
 	int32 FailCount = 0;
+	FString ResultLog;
 	for (const FAssetData& AssetData : AssetDatas)
 	{
+		const FString AssetObjectPath = AssetData.GetSoftObjectPath().ToString();
 		UDialogueGraph* DialogueGraph = Cast<UDialogueGraph>(AssetData.GetAsset());
 		if (DialogueGraph == nullptr)
 		{
+			ResultLog += FString::Printf(TEXT("[FAIL] %s - 에셋 로드 실패%s"), *AssetObjectPath, LINE_TERMINATOR);
 			++FailCount;
 			continue;
 		}
@@ -473,23 +476,81 @@ bool FDialogueKitEditorModule::ConvertDialogueGraphsInDirectoryToCSV(const FStri
 		const FString OutputCSVPath = FPaths::Combine(OutputDirectory, FString::Printf(TEXT("%s.csv"), *AssetData.AssetName.ToString()));
 		if (FDialogueGraphEditor::ExportDialogueGraphAssetToCSV(DialogueGraph, OutputCSVPath))
 		{
+			ResultLog += FString::Printf(TEXT("[OK] %s -> %s%s"), *AssetObjectPath, *OutputCSVPath, LINE_TERMINATOR);
 			++SuccessCount;
 		}
 		else
 		{
+			ResultLog += FString::Printf(TEXT("[FAIL] %s - CSV 저장 실패%s"), *AssetObjectPath, LINE_TERMINATOR);
 			++FailCount;
 		}
 	}
 
-	FMessageDialog::Open(
-		EAppMsgType::Ok,
-		FText::Format(
-			LOCTEXT("DialogueMakeCSV_Result", "Make CSV 완료\n성공: {0}\n실패: {1}\n저장 경로: {2}"),
-			FText::AsNumber(SuccessCount),
-			FText::AsNumber(FailCount),
-			FText::FromString(OutputRootDirectory)));
+	ShowCSVBatchResultWindow(ResultLog, SuccessCount, FailCount, OutputRootDirectory);
 
 	return FailCount == 0;
+}
+
+// Make CSV 배치 변환의 상세 결과를 별도 로그 창으로 표시한다.
+void FDialogueKitEditorModule::ShowCSVBatchResultWindow(const FString& ResultLog, int32 SuccessCount, int32 FailCount, const FString& OutputRootDirectory) const
+{
+	const FString Summary = FString::Printf(
+		TEXT("Make CSV 완료\n성공: %d\n실패: %d\n저장 경로: %s"),
+		SuccessCount,
+		FailCount,
+		*OutputRootDirectory);
+
+	const FString LogBody = ResultLog.IsEmpty()
+		? FString::Printf(TEXT("처리 결과가 없습니다.%s"), LINE_TERMINATOR)
+		: ResultLog;
+
+	TWeakPtr<SWindow> ResultWindowWeak;
+	TSharedRef<SWindow> ResultWindow = SNew(SWindow)
+		.Title(LOCTEXT("DialogueMakeCSV_ResultWindowTitle", "Make CSV 결과"))
+		.ClientSize(FVector2D(980.0f, 640.0f))
+		.SupportsMinimize(true)
+		.SupportsMaximize(true);
+	ResultWindowWeak = ResultWindow;
+
+	ResultWindow->SetContent(
+		SNew(SBorder)
+		.Padding(12.0f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(Summary))
+			]
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
+			[
+				SNew(SMultiLineEditableTextBox)
+				.IsReadOnly(true)
+				.AutoWrapText(false)
+				.Text(FText::FromString(LogBody))
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Right)
+			.Padding(0.0f, 8.0f, 0.0f, 0.0f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("DialogueMakeCSV_ResultWindowClose", "닫기"))
+				.OnClicked_Lambda([ResultWindowWeak]()
+				{
+					if (const TSharedPtr<SWindow> Window = ResultWindowWeak.Pin())
+					{
+						Window->RequestDestroyWindow();
+					}
+					return FReply::Handled();
+				})
+			]
+		]);
+
+	FSlateApplication::Get().AddWindow(ResultWindow);
 }
 
 #undef LOCTEXT_NAMESPACE
