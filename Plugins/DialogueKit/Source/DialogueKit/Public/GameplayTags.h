@@ -1,0 +1,33 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "NativeGameplayTags.h"
+
+namespace GameplayTags
+{
+	// Chapter 기준
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Chapter_01_Complete);
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Chapter_02_Complete);
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Chapter_03_Complete);
+
+	// Quest 진행 기준
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Quest_Chapter_01_VisitHome_Active);
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Quest_Chapter_01_VisitHome_Complete);
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Quest_Chapter_02_VisitHome_Active);
+
+	// Player Tier 기준
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Tier_F);
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Tier_E);
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Tier_D);
+
+	// Item 소지 여부 기준
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Item_Weapon_LegendarySword);
+
+
+	// TagContainer to Registry용 Tag
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Required_All_Tags)
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Required_Any_Tags)
+	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Blocked_Any_Tags)
+
+};
