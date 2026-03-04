@@ -17,8 +17,14 @@ public:
 private:
         void RegisterMainMenu();
         void BuildDialogueMainMenu(class UToolMenu* InMenu);
+        void BuildSelectDialogueLanguageMenu(class UToolMenu* InMenu);
         void OnMakeCSVMenuClicked();
         void OnMakeDialogueLocalizationDataAssetMenuClicked();
+        void OnSelectDialogueLanguage(ELanguage InLanguage);
+        bool IsDialogueLanguageSelected(ELanguage InLanguage) const;
+        void LoadDialogueLanguageOverrideFromConfig();
+        void SaveDialogueLanguageOverrideToConfig(const FString& CultureCode) const;
+        FString GetEffectiveDialogueCultureCode() const;
         bool PromptLanguageForCSVExport(ELanguage& OutLanguage, FString& OutCultureCode) const;
         bool OpenDialogueGraphDirectoryDialog(FString& OutSelectedDirectory) const;
         bool OpenDialogueCSVDirectoryDialog(FString& OutSelectedDirectory) const;
@@ -30,4 +36,6 @@ private:
 private:
         TSharedPtr<FSlateStyleSet> StyleSet = nullptr;
         TSharedPtr<FDialoguePinFactory> PinFactory = nullptr;
+        FString DialogueCultureOverride;
+        bool bHasDialogueCultureOverride = false;
 };
