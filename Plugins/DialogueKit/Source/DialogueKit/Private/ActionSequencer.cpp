@@ -60,12 +60,17 @@ void UActionSequencer::StartSequence(const TArray<FPortraitActionData>& ActionDa
 	}
 
 	CachedActionDatas = ActionDatas;
-	
-	if (bIsSkip)
-	{
-		StopSequence();
-		return;
-	}
+
+	/* TODO
+	 * 해당 코드 및 함수의 bIsSkip 매개변수 제거하기
+	 * Skip을 블루프린트 내 'Create Next Dialogue' 함수를 통해
+	 * UDialogueSubsystem::ProgressNextDialogue를 호출해서 진행하고 있음
+	*/
+	// if (bIsSkip)
+	// {
+	// 	StopSequence();
+	// 	return;
+	// }
 
 	ResetState();
 
