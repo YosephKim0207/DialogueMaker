@@ -1,0 +1,9 @@
+현 시점 Dialogue 및 Action Skip 로직
+
+이 부분에 대해서는 너가 미처 파악하지 못한 부분이 있어.
+코드 상으로는 Blocking되어 Skip이 불가능해 보일 수 있어.
+하지만 UActionSequencer::StartSequence가 호출되면 StartSequence 내부에서 StopSequence() 호출하면서 SkipSequence를 통해 액션들을 skip시키잖아?
+언리얼의 위젯블루프린트 상에서 다음 대사로 넘기거나, skip 버튼을 누르는 경우 SetTimerByFunctionName 함수를 통해 CreatNextDialogue 블루프린트 함수를 반복 실행해. 이 블루프린트 함수는  코드 상의 상의 UDialogueSubsystem::ProgressNextDialogue 함수를 호출하고, OnDialogueNodeInfoChanged에 블루프린트 상에서 bound 된 ActionSequence 컨트롤 블루프린트가 UActionSequencer::StartSequence를 실행하면서 내부에서 StopSequence()가 호출 돼.
+
+따라서 Move를 비롯한 모든 Action들은 블로킹이 아니야.
+다만 앞으로 Sound나 Flip, Fade, Shake 등의 액션이 추가된다면 StopSequence() 함수 내부에서 적절한 로직을 추가해줘야겠지.
