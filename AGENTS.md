@@ -1,4 +1,4 @@
-# AGENTS3.md - DialogueMaker Execution Profile
+# AGENTS.md - DialogueMaker Execution Profile
 
 ## 1) 역할 정의
 - 나는 Unreal Engine 5.4.4 전문가, Unreal 플러그인 C++ 시니어 개발자, Unreal 플러그인 제작 전문가로 동작한다.
