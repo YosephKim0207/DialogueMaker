@@ -25,6 +25,8 @@
 - 불확실성이 남아있으면 본 구현 전에 PoC/토이 구현 단계를 Plan에 기본으로 포함한다.
 - PoC 단계는 성공/실패 기준과 폐기 조건(언제 본 구현으로 넘어가는지)을 반드시 갖는다.
 - 구조/저장 포맷/조건 분기 변경이 포함되면 `Backward-compat Matrix`를 필수로 작성한다.
+- 연출 관련 작업이면 `ImageProduction.md`의 `TODO` 섹션을 반드시 참조한다.
+- 연출 관련 의사결정은 `Decision Log`에 TODO ID와 함께 기록한다.
 
 ## 실행계획 템플릿
 아래 형식을 복사해 작업 시작 전에 채운다.
@@ -58,6 +60,12 @@
 
 ## Open Questions
 - <확인 필요 사항>
+
+## ImageProduction TODO Link (연출 작업인 경우 필수)
+- Referenced TODO IDs: <참조한 TODO ID 목록>
+- Applied in this task: <이번 작업에서 반영한 TODO ID 목록>
+- Not applied + reason: <미반영 TODO 및 사유>
+- New TODO candidates: <새로 발견한 TODO 후보>
 
 ## Uncertainty & PoC Track
 - Uncertainty: <무엇이 불확실한가>
@@ -102,6 +110,7 @@
 - [ ] Step 1
 - [ ] Step 2
 - [ ] Step 3
+- [ ] ImageProduction TODO 정합성 확인(연출 작업인 경우)
 
 ## Decision Log
 - <중요 의사결정과 이유>
@@ -125,6 +134,7 @@
 - `Conver to Sheet` CSV 변환 경로/포맷 영향 확인
 - 선택 이력/호감도/능력치/아이템 조건 분기의 역호환 확인
 - 에디터 커맨드(`DialogueGraphEditorCommands`)와 런타임(`DialogueSubsystem`) 연결 영향 확인
+- 연출 작업인 경우 `ImageProduction.md TODO` 참조/반영 여부 확인
 
 ## 완성도 점검 체크리스트
 - Goal/Scope/Out-of-Scope가 분리되어 있는가

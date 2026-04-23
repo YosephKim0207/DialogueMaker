@@ -53,6 +53,22 @@
 - 계획 문서는 리빙 문서로 유지한다.
 - 구현 중 사실이 바뀌면 `Assumptions`, `Open Questions`, `Decision Log`, `Discoveries`를 즉시 갱신한다.
 
+## 6-1) ImageProduction 연계 규칙 (연출 작업 전용)
+- 아래 항목 중 하나라도 포함되면 `연출 작업`으로 분류한다.
+- `PortraitAction`/`ActionSequencer`/`PortraitItemWidget`/`PortraitSubsystem` 수정
+- `Fade`/`Flip`/`Shake`/`Emote` 등 캐릭터 이미지 연출 추가/변경
+- 효과음(`SFX`) 또는 배경음(`BGM`) 연출 타이밍/스킵 정책 추가/변경
+- `SkipSequence`/`StopSequence` 등 연출 종결 상태(EndState) 규칙 변경
+
+- 연출 작업 시작 전 반드시 `ImageProduction.md`의 `TODO` 섹션을 먼저 확인한다.
+- 작업 시작 보고 시 이번 작업과 연결되는 TODO 항목(또는 TODO 없음)을 1줄로 명시한다.
+- 구현 방향이 TODO와 충돌하면 구현 전에 사용자 승인 게이트를 거친다.
+- TODO에 없는 새 연출 방향이 필요하면 TODO 후보를 먼저 제시하고 승인 후 구현한다.
+- 작업 완료 보고에는 아래를 반드시 포함한다.
+- 반영한 TODO 항목
+- 반영하지 않은 TODO 항목과 사유
+- 새로 발견한 TODO 후보
+
 ## 7) Unreal 5.4 C++ 구현 규칙
 - Unreal Reflection은 필요한 범위에만 선언한다.
 - UObject 참조는 UE5 권장 포인터(`TObjectPtr`, `TWeakObjectPtr`, `TSoftObjectPtr`)를 용도에 맞게 사용한다.
@@ -89,6 +105,7 @@
 - 사용자 영향
 - 검증 결과
 - 미실행 검증과 사유
+- 연출 작업인 경우 `ImageProduction.md TODO` 연계 결과
 
 ## 12) 금지 사항
 - 사용자 승인 없이 구조 변경을 강행하지 않는다.
