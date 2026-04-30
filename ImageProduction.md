@@ -82,9 +82,15 @@
 - TODO 항목은 `IP-TODO-###` 형식의 고유 ID를 사용한다.
 - 상태는 `Planned | In Progress | Done | Deferred` 중 하나로 기록한다.
 - 항목 작성 템플릿:
-  - `- [ ] IP-TODO-001 | 상태: Planned | 요약: <작업 요약> | 근거: <배경/이유>`
+  - `- [ ] 연출 : Flip | IP-TODO-001 | 상태: Planned | 영향영역: Runtime, Asset | 요약: <작업 요약> | 근거: <배경/이유> | 검증: <완료 확인 기준>`
 - 진행 중 방향 변경이 생기면 상태/요약/근거를 즉시 갱신한다.
 - 완료된 항목은 체크박스를 체크하고 상태를 `Done`으로 변경한다.
 
 ### TODO Items
-- (아직 등록된 TODO 없음)
+- [ ] 연출 : Flip | IP-TODO-001 | 상태: Planned | 영향영역: Runtime, Asset | 요약: `EPortraitActionType`에 `Flip` 추가, `EPortraitFlipDirection(Left/Right)` enum 추가 | 근거: Flip 액션과 방향 정보를 노드 데이터에 명시적으로 저장/분기하기 위해 필요 | 검증: 에디터에서 Flip/방향 선택 가능, 저장 후 재오픈 시 값 유지
+- [ ] 연출 : Flip | IP-TODO-002 | 상태: Planned | 영향영역: Runtime, Asset | 요약: `FPortraitActionData`에 Flip 파라미터(`FlipDirection`, `FlipPerspectiveStrength`, `FlipTiltStrength`) 추가 | 근거: 센터축 고정 상태에서 좌/우 진행감과 시각 강도를 데이터로 제어하기 위해 필요 | 검증: 노드별 파라미터 변경 시 런타임 연출 강도 차이 확인
+- [ ] 연출 : Flip | IP-TODO-003 | 상태: Planned | 영향영역: Runtime | 요약: `UActionSequencer`에 Flip 실행 경로(`PlayCurrentFlipAction`, `TickCurrentFlipAction`) 추가 | 근거: 기존 Move와 동일한 Delay/Duration/순차 실행 정책을 Flip에도 일관 적용하기 위해 필요 | 검증: Flip 액션이 Delay 후 시작되고 Duration 종료 시 다음 액션으로 정상 전이
+- [ ] 연출 : Flip | IP-TODO-004 | 상태: Planned | 영향영역: Runtime, UI(BP) | 요약: `UPortraitItemWidget`에 Flip 시각 적용 API(`ApplyFlipVisual`, `ResetFlipVisual`) 추가 | 근거: 시퀀스 제어(C++)와 렌더링 표현(UI) 책임 분리로 유지보수성을 확보하기 위해 필요 | 검증: 시퀀서는 시간값만 전달하고 위젯이 시각 결과를 반영하는지 확인
+- [ ] 연출 : Flip | IP-TODO-005 | 상태: Planned | 영향영역: Runtime | 요약: `SkipSequence`를 액션 타입별 종단 처리(`ApplyEndStateByType`)로 통합 | 근거: BP에서 Skip이 트리거되어도 Flip 포함 모든 액션이 최종 상태로 즉시 수렴해야 하기 때문 | 검증: Skip 입력 시 Flip이 중간 프레임 없이 최종 상태로 즉시 전환
+- [ ] 연출 : Flip | IP-TODO-006 | 상태: Planned | 영향영역: Runtime, UI(BP) | 요약: Left/Right 방향 규칙 검증 케이스 추가(센터축 고정, 방향 반전만 변화) | 근거: 방향 정의 오해(힌지 회전 등) 재발 방지 및 회귀 방지 필요 | 검증: Left/Right 전환 시 동일 축 유지, 깊이/기울기 체감만 반대로 출력
+- [ ] 연출 : Flip | IP-TODO-007 | 상태: Planned | 영향영역: Runtime, Asset | 요약: 기존 `Move/Emote` 자산 역호환 점검 및 기본값 안전성 확보 | 근거: Flip 도입 후 기존 DialogueGraph 동작이 깨지지 않도록 보장해야 함 | 검증: 기존 그래프 재생/스킵/대화 진행 회귀 없음
