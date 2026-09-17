@@ -85,6 +85,21 @@
 - Risk: <위험>
 - Mitigation: <완화 방법>
 
+## Design Handoff (제품 설계 인계 대상인 경우)
+- Workflow: <Docs/AI/GameDirector.md의 단일 흐름에 따른 실행용 기록. 이 양식이 별도 승인/지시 절차를 정의하지 않음>
+- Applicability: <새 제품 기능/저작 흐름 변경. 일반 버그·내부 리팩터링·운영 문서 작업은 해당 없음과 사유>
+- Blueprint: <관련 BP ID·기준 갱신일. Blueprint 확정 설계를 기준으로 아래에 실행용 요약도 포함>
+- Goal / Observable Flow: <제작자·통합 개발자 목표와 Editor/Runtime의 관찰 가능한 결과>
+- Scope / Non Goals: <이번 범위·제외 범위>
+- Confirmed Rules / Relationships: <확정 규칙·플러그인/게임 책임·데이터 흐름>
+- Persistence / Compatibility / Edge Cases: <유지·저장·기존 에셋/공개 API 호환성·예외·오류 피드백>
+- Acceptance Criteria: <관찰 가능한 완료 기준>
+- Technical Freedom / Return Conditions: <총괄 재량·설계 변경 반환 조건>
+- Approval Evidence: <설계 확정 및 구현 승인 범위·사용자 근거·날짜>
+- Handoff: <준비 전/준비됨·기준 충족 근거·기록일. 결정/구현 상태와 별도>
+- Open Questions: <제품 질문과 기술 질문 구분>
+- Product Review: <완료 기준별 증거·미검증 범위·Director 제품 일치 검토 결과를 종료시 기록>
+
 ## Approval Points
 - <구조 변경/데이터 포맷 변경 전 사용자 확인 항목>
 
