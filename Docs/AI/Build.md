@@ -45,8 +45,8 @@ NullRHI 실행은 렌더링/UMG 시각 검증에 사용할 수 없다. 화면·�
 
 Windows Git: C:\Program Files\Git\cmd\git.exe. 저장소의 .git을 그대로 사용하므로 Fork에서 동일한 브랜치/변경을 검토한다.
 NewBranch는 현재 HEAD에서 로컬 브랜치만 만들며 더러운 작업 트리, detached HEAD, 기존 브랜치 이름이면 중단한다.
-준비 파일과 기존 변경을 먼저 Fork에서 구분해 검토한다. 래퍼가 자동 stash/commit/push/merge를 하지 않는다.
-실제 기능 작업에서 커밋 요청을 받으면 git add -- <자신의 명시적 파일> 후 staged diff를 확인한다. git add . 금지.
+준비 파일과 기존 변경을 먼저 Fork에서 구분해 검토한다. Git 실행 확인은 `AGENTS.md`의 「Git 실행 확인 정책」을 따른다. 데이터 소실 우려가 없는 Git 명령은 사용자 요청 범위 안에서 별도 확인 없이 실행한다. 래퍼에 자동 stash/commit/push/merge 기능이 없다는 사실은 메인의 해당 명령 실행에 별도 확인이 필요하다는 뜻이 아니다.
+사용자 요청을 수행하는 데 커밋이 필요하면 git add -- <자신의 명시적 파일> 후 staged diff를 확인하고 일반 commit을 별도 재확인 없이 실행한다. git add . 금지. amend 등 이력 재작성은 Git 실행 확인 정책의 데이터 소실 우려 작업으로 취급한다.
 기존 미커밋 변경이 포함된 파일은 사용자 변경을 통째로 커밋하지 말고 필요한 변경 단위로 검토한다.
 Git 전역 설정은 수정하지 않는다. Windows Git에서 보인 safe.directory 잘못된 경로 경고는 별도 설정 정리 대상으로 기록했다.
 Prototype2는 Git LFS를 사용한다. 에셋이 포인터로 남았으면 Windows Git의 lfs checkout으로 로컬 원본을 복원한다. 로컬에 없는 원본은 대상 remote와 변경 상태를 확인한 뒤 필요한 lfs pull로 가져온다. 에셋 포인터를 직접 수정하지 않는다.
