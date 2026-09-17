@@ -54,3 +54,17 @@ Astra가 근거 확인 및 결과 통합 → 실제 수정 결정
 프로젝트 신뢰 여부나 관리 정책으로 설정이 무시될 수 있으므로 /status 및 실제 하위 스레드에서 확인한다.
 현재 세션은 파일 변경으로 모델/추론이 자동 변경되지 않는다.
 공식 문서: https://learn.chatgpt.com/docs/agent-configuration/subagents
+
+
+## GameDirector — 설계 논의와 청사진
+
+- 표시 이름: GameDirector. 호출 이름: `game_director`.
+- 설정: `.codex/agents/game_director.toml`; gpt-6-astra / medium / read-only / 재위임 금지.
+- 사용자와 논의할 목표·대안·우선순위·완료 기준 및 Blueprint 변경안을 제안한다. 일반 C++ 검토자와 달리 제품 설계 자문에 집중한다.
+- 실제 대화 경로: 사용자 → 총괄 → GameDirector 검토 → 총괄이 질문/대안 전달 → 사용자 결정 → 총괄이 `Blueprint.md` 저장.
+- 총괄은 명시된 사용자 결정만 확정으로 기록하며, 제안은 논의중으로 남긴다. 현재 소스 존재는 설계 승인이나 실행 검증 증거가 아니다.
+- 기능 코드 작업 전 총괄은 Blueprint와 관련 BP ID를 확인한다. 실제 착수·검증·완료에 맞춰 상태를 갱신한다.
+- GameDirector를 매 코드 작업의 필수 승인자로 만들지 않는다. 이미 확정된 범위는 총괄이 기존 승인에 따라 진행한다.
+- 기존 하위 동시 한도 3개에 포함되며 기존 역할·모델·권한을 바꾸지 않는다. 설정 자동 로드는 해당 프로젝트 컨텍스트의 새 세션에서 확인한다.
+- 호출 예: “GameDirector와 대화 미리보기 기능을 논의하고, 합의한 내용을 Blueprint에 반영해줘.”
+- 공식 설정 근거: https://learn.chatgpt.com/docs/agent-configuration/subagents
