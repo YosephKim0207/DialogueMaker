@@ -20,6 +20,8 @@
 | D-003 | 확정 | 대사 Block은 레벨·능력치·진행도·보유 태그·아이템·NPC 호감도 조건에 따라 노출된다. 조건을 통과한 후보의 우선순위를 비교하고 최고 우선순위 동률이면 무작위로 하나 선택한다. | 사용자의 Block 노출 및 동률 랜덤 요구 |
 | D-004 | 확정 | GameDirector와 논의한 내용은 Blueprint.md에 기록하고 총괄이 구현시 참고한다. 예정·진행·완료를 구분한다. | 이 문서와 에이전트 생성 요청 |
 | D-005 | 보류 | Sheet를 대사 원본으로 전환하는 이전 안은 구현 기준으로 채택하지 않는다. 보조 가져오기·내보내기·현지화 범위는 후속 논의한다. | D-001에 따른 이전 Sheet 중심 제안 재검토 |
+| D-006 | 확정 | 조건에 맞지 않는 선택지는 숨긴다. 비활성 상태로 표시하는 기능은 요구하지 않는다. | 사용자의 진단 후 정책 명시 |
+| D-007 | 확정 | 대화의 Node/Line 중간 복원은 지원하지 않는다. 이번에 진행할 Graph를 식별해 저장하고 게임 재개시 해당 Graph의 처음부터 실행한다. | 사용자의 Graph 단위 재개 정책 명시 |
 
 Graph 중심은 저작 인터페이스와 작업 방식의 결정이다. 특정 UEdGraph 객체를 영속 원본으로 강제하거나 articy의 모든 기능을 복제한다는 뜻은 아니다.
 Block은 현재 논의에서 조건에 따라 선택되는 독립 대화 묶음을 뜻한다. 기존 UDialogueGraph와의 1:1 관계, 내부 여러 Line 묶음의 명칭은 아직 확정하지 않았다.
@@ -66,7 +68,7 @@ Blueprint/PIE 내부와 패키징은 검증하지 않았다. 아래 항목은 �
 | BP-001 | Graph 에셋 생성, Node·Pin 편집, Details, 저장/복원 | 현황 | 구현됨-미검증 | Editor/Private/DialogueGraphEditor.cpp, DialogueEdGraphSchema.cpp. 실제 편집 왕복 검증 필요 |
 | BP-002 | Graph 후보 태그 검사·종류/우선순위 정렬 | 현황 | 부분구현 | Runtime/Private/DialogueSubsystem.cpp GetDialogueGraph/IsCandidateDialogueGraphAsset. Chapter 필터 주석·Development 테스트 태그·첫 후보 선택 |
 | BP-003 | 대사 진행·Choice 숨김·Branch | 현황 | 부분구현 | DialogueSubsystem.cpp ProgressNextDialogue/SetCurrentDialogueInfo, DialogueBranchNodeInfoBase.cpp. Branch 진입 null 접근 위험·빈 Query 처리 차이 |
-| BP-004 | 태그·레벨·Chapter 및 본 대사/Quest 이력 저장 | 현황 | 구현됨-미검증 | PlayerProgressSaveData.h, ShownDialogueSaveData.h, QuestProgressSaveData.h. 대화 중간 위치 복원은 포함하지 않음 |
+| BP-004 | 태그·레벨·Chapter 및 본 대사/Quest 이력 저장 | 현황 | 구현됨-미검증 | PlayerProgressSaveData.h, ShownDialogueSaveData.h, QuestProgressSaveData.h. Node/Line 중간 복원은 D-007상 요구하지 않음. 선택된 Graph 저장은 BP-109 |
 | BP-005 | Quest 시작·진행·완료의 대화 연결과 보상 | 현황 | 부분구현 | DialogueSubsystem.cpp EndDialogue의 빈 Quest 분기, QuestSubsystem.cpp AdvanceQuestStep 보상 TODO |
 | BP-006 | 초상화 이동·표정·스킵 | 현황 | 부분구현 | ActionSequencer.cpp Emote 빈 처리, DialogueSubsystem.cpp GetPortrait의 화자 단독 캐시/Emote 미사용 |
 | BP-007 | 편집 취소·선택지 연결 안정성 | 현황 | 부분구현 | Editor/Private/DialogueEdGraphNode.cpp SyncPinWithResponses 배열순서 의존. Undo 전용 처리 연결 미확인 |
@@ -85,10 +87,11 @@ BGM·효과음·음성은 C++에서 미발견이며 Blueprint 내부는 미확�
 | BP-102 | Graph 검색·그룹·접기·주석·복제 편의 | 논의중 | 미착수 | 어떤 저작 시나리오부터 지원할지, 검색 범위와 완료 기준 협의 |
 | BP-103 | Graph 무결성 검사와 오류 위치 표시 | 논의중 | 미착수 | 검사 항목, 오류/경고 기준과 저장 차단 여부 협의 |
 | BP-104 | 대화 미리보기·조건 디버거 | 논의중 | 미착수 | 상태를 바꿔 후보 선정 이유·분기 경로를 확인; Editor/PIE 범위 협의 |
-| BP-105 | 대화 중간 저장·복원 | 논의중 | 미착수 | 진행 위치·선정된 Asset·버전 호환·효과 중복 방지 기준 협의 |
+| BP-105 | 대화 Node/Line 중간 저장·복원 | 폐기 | 미착수 | D-007에 따라 지원하지 않음. Graph 단위 재개는 BP-109로 대체 |
 | BP-106 | 게임 효과 공통 실행 방식 | 논의중 | 미착수 | Quest/아이템/호감도/이벤트의 책임·실행 시점 협의 |
 | BP-107 | Sheet 보조 작업과 목록 동기화 | 보류 | 미착수 | Graph 주저작 원칙 아래 필요한 대량 편집/현지화 범위 재논의 |
 | BP-108 | Chapter/Scene 및 여러 Line을 묶는 저작 단위 | 논의중 | 미착수 | Asset 경계·명칭·Graph 내부 표현을 먼저 합의; 이전 하이브리드안을 자동 채택하지 않음 |
+| BP-109 | 선택된 Graph 저장 및 시작점부터 재개 | 확정 | 예정 | Graph 식별자 저장·로드 후 해당 Graph의 Start에서 실행. Node/Line 커서는 제외. 저장 시점·완료시 해제·효과 재실행 정책은 별도 논의 |
 
 BP-101에서 동률 균등 확률은 이전 총괄 제안이며 아직 별도 확정하지 않았다. 가중 랜덤이나 반복 방지도 자동 도입하지 않는다.
 현재 대사 한 줄 노드, 선택지/핀 인덱스, NodeGuid 기반 이력, 기존 에셋과의 호환성은 설계시 검토한다.
@@ -132,7 +135,7 @@ BP-101에서 동률 균등 확률은 이전 총괄 제안이며 아직 별도 �
 | 2026-09-17 | Blueprint 최초 작성, GameDirector 역할 연결 | 사용자의 에이전트/청사진 생성 요청. 게임 코드 구현 없음 |
 | 2026-09-17 | Graph 중심 방향과 Block 조건/동률 랜덤 요구 기록 | 기존 사용자 명시 요구를 보존. 이전 Sheet 중심 안은 보류 |
 | 2026-09-17 | 기존 코드 상태를 정적 조사 기준으로 등록 | 완료로 과장하지 않고 부분구현·미검증과 구분 |
-
 | 2026-09-17 | GameDirector 모델을 gpt-6-astra / medium으로 변경 | 사용자 명시 요청. 실제 커스텀 역할 호출 제한은 별도 미해결 |
 | 2026-09-17 | 플러그인 관점·경량 설계 인계·설계 변경 반환·구현 후 제품 일치 검토 연결 | Prototype2 비교 피드백 반영 요청. 읽기 전용 Director와 총괄 문서 작성 유지. 기존 제품 결정·BP 구현 상태 변경 및 기능 구현 착수 없음 |
 | 2026-09-17 | GameDirector 운영 문서와 총괄 지시 흐름 일원화 | 사용자 통합 요청. 과거 작업계획은 단일 운영 문서의 이력으로 통합. 제품 결정·BP 상태 유지 |
+| 2026-09-17 | 조건미달 선택지 숨김 및 Graph 시작점 재개 확정 | D-006/D-007. BP-105 폐기, BP-109 추가. 게임 코드 변경 없음 |
