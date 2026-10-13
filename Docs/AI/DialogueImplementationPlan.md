@@ -1,0 +1,239 @@
+# DialogueMaker 구현 실행계획과 자동 진행 지침
+
+작성: 2026-10-13. 상태: 계획 작성 완료 / 구현 미착수 / 실행 검증 미실행.
+이 계획은 PLANS.md의 실행계획이며 제품 기준은 Blueprint.md이다. 단계의 작업·검증·Git 운영 기준을 한곳에서 관리한다. 최신 사용자 지시가 우선하며 계획이 제품 결정을 임의 변경하지 않는다.
+
+## Goal
+
+- UE 5.4.4 DialogueKit을 확정된 Graph 저작·실행·게임 연동·저장 복원 계약에 맞춰 구현한다.
+- 각 기능에서 재현 가능한 검증 증거를 확보하고 기능별 Branch와 작은 커밋을 남긴다. `Codex_Branch`에 검증된 기능을 merge하여 누적 통합한다. S0~S7은 의존성과 검증 마일스톤이며 Branch 단위가 아니다.
+- 승인된 구현 실행 중에는 필요한 조사→구현→검토→검증→명시적 Stage→작은 Commit→기능 Branch Push→검증된 기능 merge→Codex_Branch Push→다음 기능 진행을 반복 확인 없이 수행한다.
+- 이번 요청은 실행계획과 운영 지침 작성이다. 계획 작성만으로 구현·빌드·기능 Branch 생성이 실행됐다고 기록하지 않는다. 이후 이 계획의 실행을 요청하면 아래 범위의 구현과 기능별 Git 동작을 함께 수행하며 매 단계 재승인을 요구하지 않는다.
+
+## Background / Self-Contained Context
+
+- 기준 저장소: C:/Users/kjs94/Documents/Unreal Projects/DialogueMaker. 작성 시 Branch DiagnoseGraphSystem, HEAD d1b1937c60bfc6534536e8757751fc626418945a. 실행 착수 때 최신 상태를 다시 기록한다.
+- Windows Git: C:/Program Files/Git/cmd/git.exe. 승인된 origin: git@github.com:YosephKim0207/DialogueMaker.git. 다른 목적지로 자동 변경하지 않는다.
+- 엔진 UE 5.4.4, Editor 타깃 DialogueMakerEditor Win64 Development. 빌드는 Scripts/AI/Invoke-UE.ps1을 사용한다.
+- Runtime 루트 R = Plugins/DialogueKit/Source/DialogueKit. Editor 루트 E = Plugins/DialogueKit/Source/DialogueKitEditor. 이하 R/E는 이 경로의 축약이다.
+- UDialogueGraph 한 에셋이 Block이다. 현재 DialogueNode에 선택지가 내장되어 있고 Editor Graph와 RuntimeGraph가 서로 변환된다. 신규 Choice·StateChange 및 버전/ID를 양쪽에 함께 반영해야 한다.
+- 현재 Graph ID는 이름 기반 PrimaryAssetId이고, 열람 저장은 Graph별 NodeGuid 목록이다. 신규 안정 Block ID·Line 열람 버전·활성 체크포인트와 다르다.
+- 현재 후보 전체를 비동기 로드한 뒤 첫 객체를 사용한다. 신규 방식은 Registry 메타데이터 조건 평가→후보 선정→선정 Block만 로드한다.
+- 현재 저장은 여러 SaveGame 자료의 동기 저장 경로다. 신규 정책은 게임이 단일 FIFO 조율자를 소유하고 게임 상태와 대화 상태를 동일 스냅샷으로 저장하는 것이다.
+- 기존 샘플 UMG 내부는 정적 검토로 확인하지 못했다. 자체 C++ 자동화 테스트는 현재 확인되지 않았으며 엔진 내장 테스트는 기능 검증이 아니다.
+- Prototype2는 별도 저장소다. 현재 chore/dialogue-integration-handoff에 Blueprint.md 미커밋 인계가 있다. 본 계획에서 이를 커밋하거나 코드·플러그인을 복사하지 않는다.
+
+## Scope / Constraints
+
+- In: Blueprint BP-101~106, BP-108~118의 확정 범위와 기존 BP-001~008에서 이에 영향을 받는 연결부, 개발자용 한국어 주석·샘플·검증 코드·실행 스크립트.
+- Out: BP-107 보류 기능, 그룹 접기·중첩 조건·다중 Block 검색, Prototype2의 게임 시스템 구현/배치, 새 외부 플러그인, 실제 서비스 로그 전송, 실제 사용자 세이브 변경.
+- Runtime에 Editor 모듈 의존성을 넣지 않는다. 게임별 아이템·능력치 enum/상태를 플러그인에 하드코딩하지 않는다.
+- 기존 프로토타입 에셋은 사용자가 수동 재작성하기로 했다. 자동 이전·일괄 삭제·이름 변경을 하지 않는다. 새 검증 에셋은 독립 테스트 경로에 UE 직렬화 API로 생성하고 기존 바이너리를 텍스트로 수정하지 않는다.
+- 공통 기본 인사 Block은 사용자가 생성한다. 플러그인은 에셋 선택기·검증·안내만 제공하고 사용자용 인사 에셋을 대신 생성하지 않는다. 별도 테스트 fixture는 사용자 콘텐츠와 구분한다.
+- 신규 확정 스키마/체크포인트 구현과 지원 저장의 무단 파괴는 구분한다. 실제 배포된 저장/에셋이 발견되면 지원 범위와 이전 경로를 확인하고 훼손하지 않는다.
+
+## Design Handoff / Approval Evidence
+
+- Workflow: Docs/AI/GameDirector.md의 단일 흐름 적용. 제품 정책의 근거는 Blueprint.md 5~6절, 이번 범위는 위 BP 항목이다.
+- 관찰 가능한 목표: 제작자는 Graph와 스토리보드로 조건부 대화를 작성·검사·PIE 테스트하고, 게임은 공통 제공자와 저장 조율자로 실제 상태를 연동한다.
+- 확정 관계: 한 Line은 한 화자/발화, Choice 항목별 조건, Branch True/False, StateChange 게임 효과 요청, End 완료. 입력 다중/출력별 단일 연결. 사전 확인은 직접 다음 노드만이며 효과·진행·저장을 변경하지 않는다.
+- 확정 저장: 결과 있는 선택/StateChange 성공 시 효과·선택·다음 위치 스냅샷, FIFO 비동기 저장 중 진행 허용. End 저장 기본 꺼짐. 성공 저장만 복원하고 효과 재실행 금지. 읽음 기록과 게임 사건 조건은 별개다.
+- 확정 후보: 대상 태그 정확 일치, 요청 시점 조건 인정, 최우선→일반 우선순위 동률 균등→기본 순회→공통 인사. 일반 세션 완료는 임시 제외, 세션을 넘는 제외는 게임 조건. 소속 없음은 신규 후보 제외, 제한 없음과 구분한다.
+- 확정 호환: 구버전은 신규 노출 중단으로 보존하고 활성 복원에 사용. 명시적 ID/버전범위 교체만 허용하며 대체 처음부터 시작, 필요한 보정은 게임 성공 후 실행. 스토리 초기화는 이전 활성 위치를 해제하고 신규 사용 콘텐츠를 선정한다.
+- 오류 정책: 일반 빈 조건은 무조건, 빈 Branch는 로그 후 True, 평가 오류 항목은 로그 후 True를 다른 조건과 종합. 기본 Choice는 일반 적격 항목이 없을 때만 표시. 빈 Choice 런타임은 진단 후 정상 End, 저장 검사에서는 완전 빈 Choice 저장 금지. 잘못된 연결/자동 Branch 순환은 중단하고 마지막 저장 유지.
+- 2026-10-13 사용자 요청: 자동 구현·검증·단계별 Branch/Add/Commit/Push가 가능한 Plan과 지침 작성. 계획 실행 요청 후 승인된 범위의 반복 확인은 하지 않는다. 실행 승인 원문/일시는 착수 시 Progress Log에 기록한다.
+- GameDirector는 현재 세션에서 호출 가능한 역할이 아니다. 상태는 Unavailable / Not reviewed이며 다른 검토자가 Director 검토를 완료했다고 대체하지 않는다. 승인된 독립 기술 작업은 계속할 수 있으나 제품 검토 미완료를 숨기지 않는다.
+- Technical Freedom: 합의 범위 안의 클래스 분리·자료형·테스트 구현·내부 API는 메인이 근거를 남겨 결정한다. 제품 동작 변경이나 미확정 게임 정책은 반환한다.
+
+## Dependencies / Assumptions / Open Questions
+
+- 단계 순서는 S0→S1→S2→S3→S4→S5→S6→S7. UI 편의 기능은 뒤로 미루되 데이터 왕복과 기본 UI 검증은 S2부터 수행한다.
+- 일반 제품 결정의 미결정 항목은 현재 없다. 상세 내부 API와 테스트 구성은 아래 PoC 결과를 반영한다.
+- 남은 기술 불확실성: 새 ID와 지역화 키 연결, 새로운 Graph 저장 왕복, 실제 UI 바인딩, 공통 저장 스냅샷 연동, cook 메타데이터/구버전 에셋 보존, GUI/음향 확인 수단.
+- 현재 Invoke-UE.ps1은 Check/Build/Test만 지원한다. Cook/Package/PIE라는 미구현 Action을 호출하지 않는다. S0에서 로컬 엔진과 기존 스크립트 기준으로 필요한 실행 경로를 만들거나 수동 검증 절차를 고정한다.
+- GUI 제어가 없으면 코드 기반 Editor/기능 테스트를 먼저 자동화하고 실제 표시·입력·음향의 수동 검증이 남는 범위를 명시한다. 새 외부 도구 설치를 자동 전제로 삼지 않는다.
+
+## 자동 실행 및 Git 운영 지침
+
+2026-10-14 사용자 지시가 이전의 단계별 연쇄 Branch 정책을 대체한다. 통합 Branch의 정확한 이름은 `Codex_Branch`이며 일반적인 기능 하나마다 여기서 분기하고 검증 후 여기로 merge한다. Develop/main/DiagnoseGraphSystem으로 자동 통합하지 않는다.
+
+```text
+Codex_Branch ──●────────────────M1────────────────M2──→
+               └─ feature/A ─c1─c2─┘               │
+                                  └─ feature/B ─c3─c4─┘
+```
+
+1. 착수/재개 시 AGENTS.md, 관련 Blueprint, 본 계획의 Progress Log/Evidence와 Windows Git 상태·HEAD·upstream·원격을 확인한다. 메인만 Git·수정·빌드·테스트를 수행하고 필요한 실제 읽기 전용 하위 검토를 취합한다.
+2. 최초에는 승인된 현재 기준 HEAD를 기록하고 `Codex_Branch`를 생성한다. 계획 변경만 미커밋이면 안전한 Windows Git `switch -c Codex_Branch`로 그대로 보존한 뒤 계획 파일만 검증·Stage·준비 커밋·일반 push한다. 사용자 변경은 포함하거나 정리하지 않는다. 이미 Codex_Branch가 있으면 로컬/원격과 기록을 확인해 재개하며 같은 이름으로 재생성·reset하지 않는다. 원격에만 있으면 해당 Branch를 추적하고, 관계가 불명확하면 먼저 확인한다. dirty tree를 거부하는 NewBranch 래퍼를 강제로 통과시키지 않는다.
+3. 기능마다 작업 목적·범위·의존 기능·테스트·복구 단위를 먼저 기록한다. `feature/dialogue-<기능>`, 버그는 `fix/dialogue-<문제>`, 준비 작업은 `chore/dialogue-<작업>`을 쓴다. S1이나 S5 전체를 하나의 기능으로 묶지 않는다. 서로 떨어뜨리면 컴파일/동작이 깨지는 동일 기능의 Runtime/Editor 변경은 같은 Branch에서 처리한다.
+4. 기능 Branch는 최신 검증된 `Codex_Branch` HEAD에서 만든다. 선행 기능이 필요하면 선행 기능의 검증과 통합을 먼저 끝낸다. 미통합 기능 Branch를 다음 기능의 기준으로 사용하는 연쇄 분기는 하지 않는다. 병렬 진행이 꼭 필요하면 공통 검증 기준에서 독립 분기하고 merge 전 최신 통합 상태에서 다시 검증한다.
+5. 커밋은 기능 완성 시 한 번에 몰아서 하지 않고 하나의 설명 가능한 변경 목적별로 작게 나눈다. 예: 조건 자료형과 직렬화 → 조건 평가와 해당 테스트 → 게임 제공자 연결과 예제. 무관한 정리/포맷팅/다른 기능은 섞지 않는다. 반대로 헤더와 구현, 스키마와 필수 소비처, 구현과 필요한 회귀 테스트를 억지로 나눠 깨진 중간 커밋을 만들지 않는다. 가능한 각 커밋을 빌드·검증 가능한 상태로 유지한다.
+6. 각 작은 작업 후 diff·관련 검증을 확인하고 `git add -- <명시적 경로>` 또는 필요한 hunk만 Stage한다. add . / add -A 금지. `git diff --cached --check`와 staged diff를 확인한 뒤 Subject/Description으로 커밋한다. 본문에 목적·검증·미검증·단계/BP와 필요한 선행 커밋을 남긴다. 여러 줄 본문은 UTF-8 임시 파일과 --file을 사용한다. 실제 세이브·비밀값·빌드 산출물을 포함하지 않는다.
+7. 기능 Branch의 커밋을 origin에 일반 push하여 복구 기준을 원격에도 보존한다. 기능을 끝낼 때까지 커밋/push를 무조건 미루지 않는다. 매 커밋과 push는 재확인하지 않으며 인증/네트워크 실패와 로컬 성공을 구분한다. 강제 push하지 않는다.
+8. 기능 상태는 Planned→In Progress→Implemented→Verification Pending/Failed 또는 Verified로 기록한다. Commit/Push 및 Director 제품 검토 상태는 별개다. WIP 커밋·push는 가능하지만 미검증 기능을 Codex_Branch에 merge하지 않는다. 실행 불가인 필수 검증을 삭제해서 통과로 만들지 않는다.
+9. 기능 완료 시 독립 검토와 기능 필수 검증을 마친다. 통합 직전에 fetch하여 원격 Codex_Branch와 기록을 확인하고 검증에 사용한 `IntegrationBaseSHA`를 기록한다. 통합 Branch가 전진했다면 기능 Branch에 최신 Codex_Branch를 `git merge --no-commit Codex_Branch`로 반영하고, 새 merge 커밋이 필요한 경우 필수 메시지를 작성한다. 충돌을 확정 설계에 맞게 해결한 뒤 영향 검증을 재실행한다. rebase/force로 이력을 재작성하지 않는다. 원격이 예기치 않게 바뀌면 무조건 push하지 않고 차이를 먼저 검토한다.
+10. 실제 merge 직전에 Codex_Branch HEAD가 검증한 IntegrationBaseSHA와 같은지 다시 확인한다. 바뀌었으면 기능 Branch에 최신 통합을 반영하고 영향 검증부터 반복한다. 깨끗한 Codex_Branch로 전환해 검증한 기능 tip을 `git merge --no-ff --no-commit <기능 Branch>`로 통합 내용을 준비하고 아래 필수 Subject/Description을 작성해 merge 커밋을 만든다. squash/fast-forward로 기능 경계를 지우지 않는다. Codex_Branch가 첫 부모인지 확인하고 BaseSHA·FeatureTipSHA·MergeSHA·Parents를 기록한다. 일반 merge는 이 사용자 지시로 승인된 범위이므로 재확인하지 않는다.
+11. merge 결과가 기능 Branch에서 검증한 트리와 같은지 확인한다. 같으면 기존 전체 검증 증거를 재사용하되 실제 통합 Branch에서 정해 둔 핵심 회귀 검사를 수행한다. 다르거나 통합 충돌을 해결했다면 관련 빌드/회귀 검증을 다시 수행한다. 트리 비교나 merge 무충돌만으로 통합 검증을 대신하지 않는다. 실패한 통합 결과는 안정 상태로 push하거나 다음 기능의 기준으로 쓰지 않는다. 기능 전체 revert 등 아래 복구 절차로 통합 상태를 복구한다.
+12. 통합 검증 후 상태를 Integrated로 기록하고 `git push origin Codex_Branch`하고 원격 SHA를 확인한다. 다음 기능은 이 통합 커밋에서 시작한다. 마일스톤의 모든 기능이 통합되면 단계 전체 검증도 수행한 후 의존 마일스톤으로 넘어간다. 단계 전체 실패 시 실패 기능을 추적·복구하고 완료로 표시하지 않는다.
+13. 같은 이름의 기능 Branch는 BaseSHA·진척이 일치할 때만 재개한다. 다른 작업이면 보존하고 고유한 새 이름을 쓴다. 기능 Branch는 merge 후에도 로컬/원격에 보존한다. 자동 삭제·정리·prune/gc하지 않는다. 사용자 미커밋 변경을 stash/reset/clean으로 없애지 않는다.
+14. 반복 승인 없이 구현·오류 수정·검증·작은 커밋·push·통합을 계속하되 실패 원인 없이 검증을 반복하지 않는다. 컨텍스트 전환 전 기능/커밋별 재개 정보를 기록한다. GUI/환경 때문에 검증이 막히면 독립 기능만 마지막 검증 통합점에서 진행한다.
+15. 정상 복구는 이력을 보존하는 revert를 우선한다. 커밋을 이력에서 제거하는 reset/rebase/amend, force push, 기존 에셋/사용자 데이터 삭제는 별도 대상·영향 확인 없이 하지 않는다. 개발자에게 개별 커밋/기능 단위 제거가 가능한 경계를 제공한다는 요구를 공유 이력 무단 삭제 허가로 해석하지 않는다. 샌드박스 승인 거부도 우회하지 않는다.
+
+### 모든 커밋의 Subject / Description 작성 의무
+
+- 일반 구현·테스트·문서·WIP·merge·revert·재도입을 포함한 모든 커밋에 작업을 요약한 Subject와 비어 있지 않은 Description을 작성한다. 기본 merge/revert 메시지만 사용하거나 제목만 적고 커밋하지 않는다.
+- Subject: `유형: 이번 커밋에서 변경한 기능과 동작`으로 짧고 구체적으로 쓴다. 예: `feat: Choice 항목별 조건 필터링 추가`. `수정`, `작업 완료`처럼 내용을 알 수 없는 제목은 사용하지 않는다.
+- Description: 변경 내용 요약, 변경 이유/문제, 실제 검증 결과와 미실행 검증, 관련 단계/BP를 기록한다. 의존 커밋·데이터/호환성 영향이 있으면 함께 적는다. 미완료 WIP는 상태와 남은 문제를 명시한다.
+- merge Description에는 통합 기능 요약·기능 Branch/검증 tip·통합 기준 SHA·실행한 검증을 적는다. merge 커밋 시점 이후의 검증을 미리 성공으로 쓰지 않고 후속 Evidence에 결과를 기록한다. revert Description에는 제거하는 동작·대상 SHA·이유·의존성/호환성 영향·복구 검증을 적는다.
+- 자동 생성 merge/revert도 먼저 `--no-commit`으로 변경을 준비하고, 내용 검토 후 UTF-8 메시지 파일을 `git commit --file <파일>`에 전달한다. merge 충돌 또는 실패 시 바로 commit하지 않고 해결·검증 후 진행한다. 메시지 파일은 Stage하지 않는 임시 경로에 둔다.
+- 커밋 후 `git log -1 --format=%B`와 변경 파일을 확인하여 Subject/Description과 실제 diff가 일치하는지 확인한다. 확인 없이 push하지 않는다. 오류를 바로잡기 위해 무단 amend/이력 재작성하지 않는다.
+
+### 실행 명령 기준
+
+Windows PowerShell에서 해당 프로젝트 루트에 진입한 후 실행한다. 각 명령 종료 코드를 확인하며 실패한 명령 뒤의 변경 명령을 무조건 이어 실행하지 않는다.
+
+```powershell
+.\Scripts\AI\Invoke-Git.ps1 -Action Status
+.\Scripts\AI\Invoke-Git.ps1 -Action NewBranch -Name feature/dialogue-stable-identifiers
+.\Scripts\AI\Invoke-UE.ps1 -Action Check
+.\Scripts\AI\Invoke-UE.ps1 -Action Build
+# 아래 접두사는 해당 단계에서 테스트를 실제 등록한 후 사용한다.
+.\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Contracts -TimeoutMinutes 10
+```
+
+Git Stage/Commit/Push는 Windows Git 실행 파일로 명시적 인자를 전달한다. NewBranch 예시는 S1의 안정 식별자 기능이며, 통합 Branch Codex_Branch는 기존 래퍼의 feature/fix/chore 이름 검사 대상이 아니므로 Windows Git으로 직접 생성한다. 기능 Branch는 아래 후보를 기능 범위에 맞게 사용한다. 문서 변경만 있으면 UE 빌드를 돌리지 않고 diff·링크·상태 일치 검사를 한다.
+
+## Plan
+
+S0~S7은 마일스톤이다. 각 항목의 기능 Branch 후보를 같은 마일스톤 Branch 하나로 합치지 않는다. 착수 시 일반 기능 하나의 관찰 가능한 목적과 복구 경계를 기준으로 실제 작업 목록을 확정한다. 작은 공통 기반은 별도 기능으로 선행 통합하고 후속 기능은 최신 Codex_Branch를 기준으로 한다. 아래 후보 목록은 제품 범위 추가가 아니라 기존 범위를 Git 단위로 나눈 것이다.
+
+### S0 — 기준선과 검증 기반 준비
+
+- 기능 Branch 후보: chore/dialogue-test-harness, chore/dialogue-package-validation. Files: Scripts/AI/Invoke-UE.ps1, Docs/AI/Build.md, R/Private/Tests 및 E/Private/Tests의 신규 테스트 기반, 필요 시 모듈 Build.cs, 본 계획.
+- Change: 현재 Editor 빌드와 시작 오류를 기록하고 기존 기능/새 기능 실패를 분리한다. 로컬 테스트 슬롯/디렉터리, 게임 상태 샘플, fixture 생성 경로를 마련한다. GUI·cook/package 실행 수단을 확인한다. 필요한 스크립트 확장은 기존 mutex/실행 종료 코드/보고서/실제 사용자 데이터 격리를 유지한다.
+- Validation: Check, Build, 실제 등록된 테스트 1개 이상과 실패/0개 보고의 구분. 이 단계의 엔진 내장 테스트는 연결 확인일 뿐이다. GUI 검증 미지원과 필요한 수동 절차를 명시한다.
+- Exit: 후속 단계마다 사용 가능한 명령/절차·실패 판정·증거 위치가 준비되고 기존 빌드 실패가 해결되거나 영향이 분리돼 있어야 한다. 엔진/외부 플러그인 변경 없이는 불가능하면 관련 경로만 차단한다.
+
+### S1 — 공통 데이터·ID·게임 계약
+
+- 기능 Branch 후보: feature/dialogue-stable-identifiers, feature/dialogue-condition-contract, feature/dialogue-effect-contract, feature/dialogue-checkpoint-contract, feature/dialogue-story-scope, feature/dialogue-diagnostics. Files: R/Public/DialogueGraph.h, R/Private/DialogueGraph.cpp, R/Public/DialogueRuntimeGraph.h, R/Public/DialogueNodeType.h, R/Public/DialogueNodeInfo*.h, R/Public/Struct/DialogueStructure.h, R/Public/Struct/DialogueConditionEvalCriteria.h, 신규 조건/효과/저장/진단 계약·샘플·테스트.
+- Change: 안정 Block/Node/선택 식별자와 핀 대응, Chapter/Scene 정의·소속/제한 없음 자료형(관리 UI는 S5), 콘텐츠/저장/열람 버전 분리, Tag/Value/Count 정의와 조회, 조건 AND/OR, 게임 효과 묶음·오류값·저장 스냅샷 DTO·진단 이벤트 규약을 만든다. 구현을 다 끝내기 전 기존 공개 소비처가 컴파일되게 필요한 연결부를 함께 조정한다.
+- Validation: DialogueKit.Contracts 접두사(신규 등록). ID 생성/복제/중복 검출, DTO 직렬화 왕복, 알려진 아이템 수량 0과 조회 실패 구분, 빈 조건과 True 대체 후 AND/OR 평가, 런타임의 Editor 의존성 없음, 샘플 어댑터 컴파일.
+- Exit: 저장/실행/편집에서 동일한 ID와 조건 의미를 사용하고 게임별 코드를 수정하지 않고 샘플 제공자를 교체할 수 있다.
+
+### S2 — 최소 Graph 편집·왕복·실행
+
+- 기능 Branch 후보: feature/dialogue-line-node, feature/dialogue-choice-node, feature/dialogue-branch-flow, feature/dialogue-statechange-node, feature/dialogue-end-flow. Files: E/Private/DialogueGraphEditor.cpp, E의 DialogueEdGraphNode/DialogueEdGraphNodeBase/DialogueEdGraphSchema 및 시작/종료/분기 노드, 신규 Choice/StateChange 노드, R/Private/DialogueSubsystem.cpp와 헤더, 최소 테스트용 UI/fixture.
+- Change: 새 노드 생성·Details·입력 다중/출력 단일 연결, 저장/재열기 왕복, Line·Choice·Branch·StateChange·End 해석, 직접 다음 타입 확인, 자동 Branch 순환/잘못된 연결 방어를 연결한다. StateChange는 게임 요청 경계까지 시험하고 저장 안전성은 S3에서 검증한다. 기본 Choice 표시/빈 조건/End 처리는 확정 규칙을 따른다.
+- Validation: DialogueKit.Graph 및 DialogueKit.Runtime. Line→Choice 분기→Line→End, Branch 양쪽, 정상 사용자 루프, 자동 순환, 빈 Choice 정상 종료, Branch/조회 오류 로그, ID/Pin/Details의 저장·재열기 보존. S2 필수 기준은 화면 없는 실행·Editor 저장 왕복·UI 데이터 전달/이벤트 바인딩의 자동 검증까지다. 실제 시각·입력 관찰은 S6의 필수 기준으로 이관하며 S2에서 확인 완료로 표시하지 않는다.
+- Exit: 최소 실행 Graph를 직접 작성/저장/다시 열고 진행할 수 있다. 검색·스토리보드 등 고급 도구를 이 단계에 전부 포함하지 않는다.
+
+### S3 — 효과·체크포인트·누적 이력
+
+- 기능 Branch 후보: feature/dialogue-effect-execution, feature/dialogue-save-coordination, feature/dialogue-read-history, feature/dialogue-checkpoint-resume. Files: R의 DialogueSubsystem, ShownDialogueSaveData, 신규 실행 상태/체크포인트/누적 이력 클래스, 샘플 게임 저장 조율자·제공자, 테스트. 기존 PlayerProgress/Quest 저장 연결은 게임 소유 계약으로 분리하되 무관한 게임 시스템을 재설계하지 않는다.
+- Change: 효과 일괄 성공/실패 무변경, 실행 식별자 기반 중복 전달 방어와 정상 반복 허용, 같은 시점 스냅샷·FIFO·재시도·세대별 정리, End 캐시/저장 구분, 읽은 Line 버전, 확보된 동일 Block/버전에서 복원을 구현한다. 저장 중 진행과 표시 알림을 제공한다.
+- Validation: DialogueKit.Checkpoints. 고정 A스냅샷 이후 B상태 변경, 선행 저장 실패와 후속 대기, 저장 성공 이후 버퍼 정리 범위, 중복 재전달/새 정상 실행, 저장된 효과 재실행 없음, 미저장 상태 미혼합, 사망 후 읽음 유지, 미열람 갱신. 실패 주입 메모리 조율자와 별도 테스트 슬롯의 실제 파일 재실행을 모두 사용한다.
+- Exit: 실행/게임 상태/재개 위치가 같은 성공 저장에서 복원된다. 비동기 완료 전 강제 종료로 마지막 성공 저장으로 돌아가는 한계를 그대로 유지한다.
+
+### S4 — 후보·비동기 로드·콘텐츠 버전 복원
+
+- 기능 Branch 후보: feature/dialogue-metadata-filter, feature/dialogue-candidate-selection, feature/dialogue-session-state, feature/dialogue-latest-load, feature/dialogue-version-restore, feature/dialogue-block-replacement, feature/dialogue-story-reset. Files: R의 DialogueGraph/DialogueSubsystem/DialogueSettings, 신규 metadata/selection/version mapping 코드, Config/DefaultGame.ini, Plugins/DialogueKit/Config/DefaultDialogueKit.ini, 테스트.
+- Change: target 정확 일치·소속/제한 없음·조건 metadata, 우선순위/균등 후보·기본 순회, 세션 수명, 요청 최신 교체, 구버전 정확 복원/명시적 교체와 게임 보정, 스토리 초기화, 공통 인사 soft asset 설정. 후보 선정과 활성 복원 API를 분리한다.
+- Validation: DialogueKit.Selection, DialogueKit.Restore. 로드 전 조건 검사·선정 하나만 로드, 결정 가능한 테스트 난수로 후보집합/동률 확인, A→B→C 콜백 역전·즉시 완료·공유리소스·해제, 소속 없음 제외, 구버전과 매핑범위/충돌/누락, 보정 실패, 초기화 후 신규 선정. 실제 cook 결과의 Registry 정보와 복원용 에셋 포함 확인.
+- Exit: 새 대화와 저장 복원이 섞이지 않고 패키지용 데이터에서 후보와 복원 대상을 찾는다. 현재 조건 재검사로 활성 저장을 다른 후보로 바꾸지 않는다.
+
+### S5 — 제작 도구 완성
+
+- 기능 Branch 후보: feature/dialogue-line-inheritance, feature/dialogue-reroute, feature/dialogue-duplicate, feature/dialogue-search, feature/dialogue-validation-panel, feature/dialogue-storyboard, feature/dialogue-storyboard-move-delete, feature/dialogue-read-renewal. Files: E의 GraphEditor/Schema/Commands/노드 위젯, 신규 검색·진단·스토리보드·Details, S1/S4의 Chapter/Scene 정의·범위 metadata를 사용하는 편집 연결부, Editor 테스트.
+- Change: 드래그 생성/연속 화자 원본선택·상속, 경유점, Ctrl+D 복제(내부 연결만), Ctrl+F와 메뉴 검색(화자/대사 AND, Choice 별도), 저장/수동 Graph 검사, 노드 이동 결과목록, 스토리보드 Chapter/Scene 등록·Block 조회·이중 삭제 확인·소속 이동·미출시 Block 선택 삭제, Line 미열람 갱신·시간 일괄 편집.
+- Validation: DialogueKit.Editor. Undo/Redo·취소 무변경·새 ID·출력 교체, 상속 필드만 복사, 검색 혼합 입력/결과 없음 안내, 진단 클릭이동, 빈 Choice 저장 불가, 두 단계 삭제 취소/선택 범위/실패표시, 소속 없음 신규 제외. 삭제 시험은 격리 fixture만 사용한다. 실제 Editor UI 확인과 저장 왕복 증거를 남긴다.
+- Exit: 저작 변경이 runtime/metadata에 일치하며 사용자용 검사·탐색·재배치가 동작한다.
+
+### S6 — 연출·Block PIE 도구
+
+- 기능 Branch 후보: feature/dialogue-text-timing, feature/dialogue-portrait-presentation, feature/dialogue-audio, feature/dialogue-block-preview. Files: R의 DialogueSubsystem/DialogueSettings/ActionSequencer/PortraitSubsystem/DialoguePortraitData/PortraitItemWidget, 필요한 UI 연결·음향 코드, E의 테스트 메뉴·프리셋·PIE 연결, 격리 테스트 월드/위젯.
+- Change: 글자당/전체 출력 시간 상호배타 편집과 0 즉시 출력, 입력 시 음성 중지·전체 표시·선택 동시 노출 및 중복 입력 방어, 이미지/표정/위치/방향·BGM/SFX/음성, 툴바 DialogueMaker 테스트 목록, 실패 조건 안내, 테스트 중 편집 잠금·실제 저장/게임효과 격리.
+- Validation: DialogueKit.Presentation/Preview의 비시각 로직 테스트와 실제 PIE의 출력 시간/입력/초상화/음향 확인을 구분한다. 테스트 종료는 PIE 생명주기를 사용한다. 실제 게임 세이브/에셋 자동 저장이 없는지 전후 상태를 대조한다.
+- Exit: 사용자용 Block 단독 테스트에서 확정된 연출/조건/흐름이 보이고 게임 상태와 저장에 영향이 없다. 수동 관찰이 필요하면 증거 수신 전 Verified로 올리지 않는다.
+
+### S7 — 플러그인 전체 통합·배포 검증
+
+- 기능 Branch 후보: feature/dialogue-localization-compat, chore/dialogue-release-regression. Files: 기존 소비처/지역화 CSV·DataAsset·Subsystem, 샘플 호스트/가이드, 테스트 및 필요한 Build/설정, Blueprint와 본 계획.
+- Change: 기존 UDialogueGraph 사용처·UI 공개 함수·CSV/지역화 ID 연결을 점검하고, 샘플 게임 어댑터를 통해 전체 저장/선정/실행 계약을 검증한다. 실제 Prototype2 통합과 별개임을 명시한다.
+- Validation: 관련 DialogueKit 전체 등록 테스트, 실제 에디터→저장→재열기→PIE→테스트 슬롯 재개, 복수 이전 버전 fixture·매핑·보정·초기화·읽음·강제 종료, Win64 cook/package 후 실행·조건 metadata/구버전 의존 리소스 포함. Editor/Shipping 차이와 개발용 태그 주입 유출도 점검한다.
+- Exit: 모든 단계 필수 증거·미검증·제품 검토 상태를 취합한다. 실제 Prototype2·Sentry 외부 수신 검증은 수행 여부를 따로 표시하며 샘플 성공으로 완료 처리하지 않는다.
+
+## Prototype2 인계 경계
+
+- Prototype2/Blueprint.md의 기존 필수 논의와 저장·조건·효과 계약을 인계 기준으로 유지한다. 현재 작업에서는 Prototype2 파일을 수정하지 않는다.
+- 플러그인의 버전/계약이 고정되면 별도 계획/ImplementationBrief에 게임 상태 제공자, DataTable 정의 연결, 통합 FIFO 저장, Chapter/Scene·스토리 초기화, 게임 Sentry 어댑터와 설치 방식을 기록한다.
+- 시스템 배치·세부 사망 초기화 등 미결정 게임 기능은 여기서 추정하지 않는다. Prototype2 구현/플러그인 설치는 해당 프로젝트의 인계와 승인 범위가 갖춰졌을 때 별도 Branch에서 수행한다.
+- 새 프로젝트·개별 플러그인 분리가 결정되면 해당 Blueprint와 기존 역할 구성을 참고한 에이전트 지침을 먼저 작성한다. 현재 계획은 새 프로젝트 생성을 승인하거나 요구하지 않는다.
+
+## Uncertainty & PoC Track
+
+| 불확실성 | 최소 실험과 성공 기준 | 실패 신호·전환 규칙 |
+|---|---|---|
+| Graph/ID 왕복 | 새 fixture 저장·재열기 후 ID/핀/값 동일 | 유실/중복이면 S2 안에서 변환 경로 수정, 제품 규칙 변경 필요 시 반환 |
+| 저장 원자적 스냅샷 | 효과 성공 시 상태/위치 캡처, 실패/지연 후 같은 자료 재시도 | 서로 다른 시점 혼합이면 S3 통과 금지, 실파일 검증도 통과 후 본 흐름 사용 |
+| cook 메타데이터/보존 | 작은 신규/복원전용 fixture로 cooked registry와 에셋 조회 | 에디터에서만 성공하면 S4 미검증, 검색/포함 설정 수정 후 재실험 |
+| 실제 UI/PIE | 최소 Line+Choice 위젯 실제 입력/노출 확인 | 내부 바인딩 미확인/화면수단 부재는 Pending, 무화면 성공으로 대체 금지 |
+
+PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구조만 정식 코드로 정리하고 임시 하드코딩은 제거한다. 실패 실험을 제품 완료로 남기지 않으며 기존 사용자 에셋을 폐기 대상으로 삼지 않는다.
+
+## Risks & Mitigations / Approval Points
+
+- 합의된 신규 스키마·API 구현은 계획 실행 범위에 포함한다. 매 단계 같은 구조 변경 허락을 다시 받지 않는다. 다만 지원 저장을 이전 경로 없이 깨거나 합의와 다른 데이터 의미로 바꿔야 하면 영향 범위와 대안을 제시한다.
+- 기존 에셋의 실제 삭제·이름 변경·덮어쓰기, 엔진 변경·새 외부 플러그인, 원격 목적지 변경, 데이터 소실 Git 동작, Prototype2의 미확정 게임 정책/승인 밖 통합은 자동 진행에서 제외한다. 삭제 기능 구현과 실제 사용자 에셋 삭제 실행은 다르다.
+- 기존 미커밋 변경, 실행 중 에디터/빌드, 인증/환경 제한은 강제 해소하지 않는다. 가능한 독립 작업을 계속하고 필요한 경우 구체적인 장애만 보고한다.
+- 샘플 게임은 게임 계약 검증용이며 실제 게임 시스템이 아니다. 저장 조율 책임을 플러그인으로 이동시키거나 샘플 제공자로 조용히 대체하지 않는다.
+- 미검증 결과의 무조건 진행을 금지하지만, 사소한 불확실성을 새 제품 질문이나 반복 승인으로 확대하지 않는다.
+
+## Backward-compat Matrix
+
+| 표면 | 기존/신규 차이 | 전략 | 검증 |
+|---|---|---|---|
+| 프로토타입 Graph | 내장 Choice→독립 Choice/StateChange, 새 안정 ID | 사용자 수동 재작성, 자동 대량 수정 없음, 에디터 실패 시 명확한 진단 | 새 fixture 왕복 및 기존 소비처의 안전한 실패/연동 |
+| 공개 UDialogueGraph/Blueprint API | 기존 클래스 소비 유지, 계약 확장 | 호출처 조사·연결부 보완·필요한 호환 래퍼, 조용한 의미변경 금지 | 호스트 컴파일·실제 UI·CSV |
+| 프로토타입 열람 저장 | 이름+GUID→BlockID/LineID/열람버전 | 기존 테스트 이력 자동이전 요구 없음, 테스트 슬롯 분리 | 누적 이력/새게임/사망 차이 |
+| 새 지원 저장 | 저장 버전/활성 Block/선택/효과 상태 | 버전별 reader·유효성 검사, 마지막 성공 저장 보존 | 손상·중간종료·이전 버전 fixture |
+| 출시 콘텐츠 버전 | 신규 노출 중단 및 대체 | 구버전·의존 리소스 보존, 명시적 매핑·게임 보정 | 정확 복원·매핑범위·초기화 후 신규 |
+| 지역화 | 이름/Node·Pin 의존 키 | ID 대응을 명시하고 버전/키 유실 방지 | CSV→DataAsset→실행 왕복 |
+
+## Rollback Plan
+
+- 기능 시작 전 Codex_Branch의 BaseSHA를 기록하고 작은 커밋을 순서대로 보존한다. 기능 tip과 통합 merge commit은 원격 기능 Branch/Codex_Branch에 남긴다. merge 전 검증 결과, merge의 첫 부모/두 번째 부모, 적용된 저장 스키마 버전을 추적한다.
+- 기능 일부 취소: 작은 커밋의 변경·선행/후속 의존을 확인해 `git revert --no-commit <CommitSHA>`로 역변경을 만든다. 여러 커밋이 의존하면 후속부터 역순으로 처리한다. 단일 커밋이 항상 독립 취소 가능하다고 가정하지 않는다. 공통 API를 되돌릴 때 소비처도 같은 복구 작업에 포함한다.
+- 기능 전체 취소: Codex_Branch 첫 부모를 기준으로 한 merge임을 확인한 뒤 `git revert --no-commit -m 1 <MergeSHA>`로 해당 기능의 통합 변경을 제거한다. merge 이후 의존 기능이 있다면 영향받는 기능부터 역순으로 복구하거나 호환 수정으로 해결한다. -m 1을 부모 확인 없이 기계적으로 적용하지 않는다.
+- 이미 통합한 오류의 복구는 `fix/dialogue-revert-<기능>`을 Codex_Branch에서 만들어 revert·빌드·회귀 검증 후 --no-ff merge·일반 push한다. 통합 직후 로컬 검증 실패로 Codex_Branch가 잠시 실패 상태라면 해당 merge를 이력 보존 revert하고 마지막 정상 동작 복구를 검증한 후에만 push한다. 미검증 통합 tip에서 새 기능을 시작하지 않는다.
+- 기능 수정 후 재도입: 원래 Branch를 다시 merge하는 것만으로 revert한 변경이 돌아온다고 가정하지 않는다. 새 fix/feature Branch에서 필요한 역-revert와 수정 또는 새 구현을 검토하고 회귀 검증한 뒤 통합한다.
+- 개발자가 이력에서 커밋 자체를 제거해야 하는 경우 BaseSHA·작은 커밋·merge 경계 기록을 제공한다. 에이전트는 범위가 명확히 승인되지 않은 reset/rebase/force를 수행하지 않는다. 원격 공유 이력의 기본 복구는 삭제가 아닌 revert다.
+- Git은 코드/추적 에셋을 되돌릴 뿐 이미 변경된 게임 세이브나 외부 상태를 되돌리지 않는다. 테스트는 별도 슬롯·디렉터리·이전 버전 fixture로 격리하고 지원 데이터에 대한 reader/호환 검증을 유지한다. 코드 rollback 후 이전/신규 fixture 양쪽의 저장을 읽을 수 있는지도 확인해야 복구 완료다. 지원 저장에 필요한 reader/이전 코드를 제거하는 단순 revert는 하지 않고 호환 복구안을 먼저 만든다.
+- 각 기능은 완료 전 복구 단위(커밋/merge)와 의존 목록을 검토한다. 스키마·공통 API 등 영향이 큰 기능은 격리된 검증 공간에서 revert 후 빌드/이전 fixture 복원까지 점검한다. 복구 검증이 없으면 무조건 복구 가능하다고 보고하지 않는다.
+- push 실패는 로컬 커밋을 보존하고 동일 SHA의 일반 push를 재시도한다. 실제 사용자 변경과 세이브를 복구 실험에 사용하지 않는다.
+
+## Progress Log / Resume Record
+
+| 단계/기능 | 상태 | 기능 Branch / 통합 Branch | BaseSHA / FeatureTip / MergeSHA | 검증·Commit·Push 근거 |
+|---|---|---|---|---|
+| 계획 | 작성 완료, 실행 미착수 | DiagnoseGraphSystem | d1b1937 / 해당 없음 | 문서 검증만 수행 |
+| S0~S7의 각 기능 | Planned | 기능별 Branch / Codex_Branch | 미정 | 미실행 |
+
+실행 시 기능별 행으로 분리하고 작은 커밋 목록·의존 커밋·복구 단위·Codex_Branch의 merge/검증 SHA를 함께 기록한다. 다음 정보를 갱신한다: 실행 승인 원문/일시, 현재 Branch·HEAD·BaseSHA, 변경 파일, 완료/미완료 체크, 테스트 명령·보고서·실패, 기술 검토/제품 검토 상태, Commit/Push SHA, 다음 한 가지 작업. 커밋 SHA는 커밋 후 보고 또는 다음 기록에서 반영하며 자기 SHA를 넣으려고 amend하지 않는다.
+
+## Decision Log / Discoveries
+
+- 2026-10-13: 제품 동작 논의 완료. 데이터·최소 편집/실행을 앞당기고 저장·효과 검증과 버전 해석을 분리하는 7단계 경계를 정리했다.
+- 2026-10-13: 당시 Sol Medium 독립 검토에서 Branch 기준점 고정, Commit/Push와 Verified 분리, 승인 범위/반환 조건 명시를 권고했다. Luna High 조사에서 현재 스크립트가 Check/Build/Test만 지원하며 GUI/패키징 경로와 자체 기능 테스트 준비가 필요함을 확인했다.
+- 단계별 검증이 끝나야 의존 후속으로 넘어간다. 실제 실행 가능성을 정적 검토만으로 보장하지 않는다. 최종 검토에서 계획 미커밋 시 초기 Branch/보존 절차, S1의 Chapter/Scene 자료형 선행, S2의 비시각 UI 계약 검증과 S6의 실제 관찰 분리를 보완했다.
+
+- 2026-10-14: 사용자 지시로 단계별 연쇄 Branch를 폐기하고 Codex_Branch 중심 기능별 분기/--no-ff merge로 변경했다. 작은 목적별 커밋, 기능 Branch 보존, 부분/전체 revert와 의존성·저장 호환 검증을 필수 복구 지침으로 추가했다. 현재는 지침 변경이며 실제 Branch/Commit/Merge/Push를 실행한 기록이 아니다.
+
+- 2026-10-14: 최종 문서 검증 및 Stage/Commit/Push 요청을 받았다. 모든 구현·merge·revert 커밋의 Subject/Description 작업 요약을 필수로 명시했다. 이 문서 커밋 요청은 기능 구현 실행 요청과 구분한다.
+
+## Verification / Evidence / Result
+
+- 계획 작성 및 최종 검증: Sol Medium 독립 검토에서 제품 합의·단계 의존·기능 통합/복구·Prototype2 경계의 중대한 구조 모순을 발견하지 못했다. 추가 지시인 모든 커밋 메시지 요약 의무를 반영했다. 관련 문서·코드 경로/스크립트 정적 검토와 Windows Git diff 검사. UE 빌드·PIE·자동화·패키징은 실행하지 않았다.
+- 구현 시: Saved/AI/<실행ID>/Build.log, result.json, Report/index.json 등 실제 산출물 경로와 테스트 수/결과를 단계 행에 기록한다. 테스트 0개·보고서 없음·미실행은 통과가 아니다.
+- 종료 보고: 단계·변경 목적·Branch/커밋/원격 push·통과 검증·미검증·제품 검토·다음 단계. 로그 원문은 필요 최소한만 공유한다.
+- 현재 결과: 실행계획과 자동 진행 지침 작성. 기능 구현은 시작하지 않았으며 실제 검증 성공을 선언하지 않는다.

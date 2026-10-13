@@ -117,6 +117,13 @@
 - 근거 없는 대규모 리팩터링을 하지 않는다.
 - 기존 워크플로(`DialogueGraph` 편집 -> 실행/변환)를 깨는 변경을 하지 않는다.
 
+## DialogueMaker 구현 계획 실행
+
+- 확정된 대화 기능의 단계별 구현·검증·Branch/Stage/Commit/Push 운영은 `Docs/AI/DialogueImplementationPlan.md`를 읽고 따른다. 사용자 실행 요청 이후 승인 범위의 단계 전환과 일반 Git 동작을 반복 확인하지 않는다. 계획 작성 자체와 구현 착수는 구분한다.
+- 2026-10-14 Git 운영: `Codex_Branch`를 통합 기준으로 일반 기능 하나마다 개별 Branch를 만들고, 목적별 작은 커밋으로 구현·검증한 뒤 `--no-ff` merge한다. 단계 전체를 한 Branch/거대 커밋으로 묶지 않는다. 기능 Branch와 복구 기준 SHA를 보존하고, 부분 커밋/기능 전체 revert 절차는 실행계획을 따른다. 승인된 일반 merge·Commit·Push를 반복 확인하지 않는다.
+- 일반 구현·문서·WIP·merge·revert를 포함한 모든 커밋은 작업 요약을 담은 Subject와 Description을 모두 작성한다. Description에는 변경 이유·검증 결과·미검증·필요한 의존/복구 정보를 기록하며 기본 자동 메시지만으로 커밋하지 않는다.
+- 기존 사용자 변경과 실패한 검증을 숨기지 않고, 의존 후속 기능은 검증·통합된 `Codex_Branch`에서 시작한다. 미확정 게임 정책과 데이터 소실 작업은 계획의 반환 조건을 따른다.
+
 ## GameDirector와 Blueprint 운영
 
 - 총괄–GameDirector의 단일 작업 흐름은 `Docs/AI/GameDirector.md`를 유일한 운영 기준으로 적용한다. 제품 설계 논의·인계·구현 중 반환·완료 검토 절차를 다른 파일에 중복 정의하지 않는다.
