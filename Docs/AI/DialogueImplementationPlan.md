@@ -6,8 +6,8 @@
 ## Goal
 
 - UE 5.4.4 DialogueKit을 확정된 Graph 저작·실행·게임 연동·저장 복원 계약에 맞춰 구현한다.
-- 각 기능에서 재현 가능한 검증 증거를 확보하고 기능별 Branch와 작은 커밋을 남긴다. `Codex_Branch`에 검증된 기능을 merge하여 누적 통합한다. S0~S7은 의존성과 검증 마일스톤이며 Branch 단위가 아니다.
-- 승인된 구현 실행 중에는 필요한 조사→구현→검토→검증→명시적 Stage→작은 Commit→기능 Branch Push→검증된 기능 merge→Codex_Branch Push→다음 기능 진행을 반복 확인 없이 수행한다.
+- 각 기능에서 재현 가능한 검증 증거를 확보하고 기능별 Branch와 작은 커밋을 남긴다. `Codex_Develop`에 검증된 기능을 merge하여 누적 통합한다. S0~S7은 의존성과 검증 마일스톤이며 Branch 단위가 아니다.
+- 승인된 구현 실행 중에는 필요한 조사→구현→검토→검증→명시적 Stage→작은 Commit→기능 Branch Push→검증된 기능 merge→Codex_Develop Push→다음 기능 진행을 반복 확인 없이 수행한다.
 - 이번 요청은 실행계획과 운영 지침 작성이다. 계획 작성만으로 구현·빌드·기능 Branch 생성이 실행됐다고 기록하지 않는다. 이후 이 계획의 실행을 요청하면 아래 범위의 구현과 기능별 Git 동작을 함께 수행하며 매 단계 재승인을 요구하지 않는다.
 
 ## Background / Self-Contained Context
@@ -55,26 +55,26 @@
 
 ## 자동 실행 및 Git 운영 지침
 
-2026-10-14 사용자 지시가 이전의 단계별 연쇄 Branch 정책을 대체한다. 통합 Branch의 정확한 이름은 `Codex_Branch`이며 일반적인 기능 하나마다 여기서 분기하고 검증 후 여기로 merge한다. Develop/main/DiagnoseGraphSystem으로 자동 통합하지 않는다.
+2026-10-14 사용자 지시가 이전의 단계별 연쇄 Branch 정책을 대체한다. 통합 Branch의 정확한 이름은 `Codex_Develop`이며 일반적인 기능 하나마다 여기서 분기하고 검증 후 여기로 merge한다. Develop/main/DiagnoseGraphSystem으로 자동 통합하지 않는다.
 
 ```text
-Codex_Branch ──●────────────────M1────────────────M2──→
+Codex_Develop ──●────────────────M1────────────────M2──→
                └─ feature/A ─c1─c2─┘               │
                                   └─ feature/B ─c3─c4─┘
 ```
 
 1. 착수/재개 시 AGENTS.md, 관련 Blueprint, 본 계획의 Progress Log/Evidence와 Windows Git 상태·HEAD·upstream·원격을 확인한다. 메인만 Git·수정·빌드·테스트를 수행하고 필요한 실제 읽기 전용 하위 검토를 취합한다.
-2. 최초에는 승인된 현재 기준 HEAD를 기록하고 `Codex_Branch`를 생성한다. 계획 변경만 미커밋이면 안전한 Windows Git `switch -c Codex_Branch`로 그대로 보존한 뒤 계획 파일만 검증·Stage·준비 커밋·일반 push한다. 사용자 변경은 포함하거나 정리하지 않는다. 이미 Codex_Branch가 있으면 로컬/원격과 기록을 확인해 재개하며 같은 이름으로 재생성·reset하지 않는다. 원격에만 있으면 해당 Branch를 추적하고, 관계가 불명확하면 먼저 확인한다. dirty tree를 거부하는 NewBranch 래퍼를 강제로 통과시키지 않는다.
+2. 최초에는 승인된 현재 기준 HEAD를 기록하고 `Codex_Develop`를 생성한다. 계획 변경만 미커밋이면 안전한 Windows Git `switch -c Codex_Develop`로 그대로 보존한 뒤 계획 파일만 검증·Stage·준비 커밋·일반 push한다. 사용자 변경은 포함하거나 정리하지 않는다. 이미 Codex_Develop가 있으면 로컬/원격과 기록을 확인해 재개하며 같은 이름으로 재생성·reset하지 않는다. 원격에만 있으면 해당 Branch를 추적하고, 관계가 불명확하면 먼저 확인한다. dirty tree를 거부하는 NewBranch 래퍼를 강제로 통과시키지 않는다.
 3. 기능마다 작업 목적·범위·의존 기능·테스트·복구 단위를 먼저 기록한다. `feature/dialogue-<기능>`, 버그는 `fix/dialogue-<문제>`, 준비 작업은 `chore/dialogue-<작업>`을 쓴다. S1이나 S5 전체를 하나의 기능으로 묶지 않는다. 서로 떨어뜨리면 컴파일/동작이 깨지는 동일 기능의 Runtime/Editor 변경은 같은 Branch에서 처리한다.
-4. 기능 Branch는 최신 검증된 `Codex_Branch` HEAD에서 만든다. 선행 기능이 필요하면 선행 기능의 검증과 통합을 먼저 끝낸다. 미통합 기능 Branch를 다음 기능의 기준으로 사용하는 연쇄 분기는 하지 않는다. 병렬 진행이 꼭 필요하면 공통 검증 기준에서 독립 분기하고 merge 전 최신 통합 상태에서 다시 검증한다.
+4. 기능 Branch는 최신 검증된 `Codex_Develop` HEAD에서 만든다. 선행 기능이 필요하면 선행 기능의 검증과 통합을 먼저 끝낸다. 미통합 기능 Branch를 다음 기능의 기준으로 사용하는 연쇄 분기는 하지 않는다. 병렬 진행이 꼭 필요하면 공통 검증 기준에서 독립 분기하고 merge 전 최신 통합 상태에서 다시 검증한다.
 5. 커밋은 기능 완성 시 한 번에 몰아서 하지 않고 하나의 설명 가능한 변경 목적별로 작게 나눈다. 예: 조건 자료형과 직렬화 → 조건 평가와 해당 테스트 → 게임 제공자 연결과 예제. 무관한 정리/포맷팅/다른 기능은 섞지 않는다. 반대로 헤더와 구현, 스키마와 필수 소비처, 구현과 필요한 회귀 테스트를 억지로 나눠 깨진 중간 커밋을 만들지 않는다. 가능한 각 커밋을 빌드·검증 가능한 상태로 유지한다.
 6. 각 작은 작업 후 diff·관련 검증을 확인하고 `git add -- <명시적 경로>` 또는 필요한 hunk만 Stage한다. add . / add -A 금지. `git diff --cached --check`와 staged diff를 확인한 뒤 Subject/Description으로 커밋한다. 본문에 목적·검증·미검증·단계/BP와 필요한 선행 커밋을 남긴다. 여러 줄 본문은 UTF-8 임시 파일과 --file을 사용한다. 실제 세이브·비밀값·빌드 산출물을 포함하지 않는다.
 7. 기능 Branch의 커밋을 origin에 일반 push하여 복구 기준을 원격에도 보존한다. 기능을 끝낼 때까지 커밋/push를 무조건 미루지 않는다. 매 커밋과 push는 재확인하지 않으며 인증/네트워크 실패와 로컬 성공을 구분한다. 강제 push하지 않는다.
-8. 기능 상태는 Planned→In Progress→Implemented→Verification Pending/Failed 또는 Verified로 기록한다. Commit/Push 및 Director 제품 검토 상태는 별개다. WIP 커밋·push는 가능하지만 미검증 기능을 Codex_Branch에 merge하지 않는다. 실행 불가인 필수 검증을 삭제해서 통과로 만들지 않는다.
-9. 기능 완료 시 독립 검토와 기능 필수 검증을 마친다. 통합 직전에 fetch하여 원격 Codex_Branch와 기록을 확인하고 검증에 사용한 `IntegrationBaseSHA`를 기록한다. 통합 Branch가 전진했다면 기능 Branch에 최신 Codex_Branch를 `git merge --no-commit Codex_Branch`로 반영하고, 새 merge 커밋이 필요한 경우 필수 메시지를 작성한다. 충돌을 확정 설계에 맞게 해결한 뒤 영향 검증을 재실행한다. rebase/force로 이력을 재작성하지 않는다. 원격이 예기치 않게 바뀌면 무조건 push하지 않고 차이를 먼저 검토한다.
-10. 실제 merge 직전에 Codex_Branch HEAD가 검증한 IntegrationBaseSHA와 같은지 다시 확인한다. 바뀌었으면 기능 Branch에 최신 통합을 반영하고 영향 검증부터 반복한다. 깨끗한 Codex_Branch로 전환해 검증한 기능 tip을 `git merge --no-ff --no-commit <기능 Branch>`로 통합 내용을 준비하고 아래 필수 Subject/Description을 작성해 merge 커밋을 만든다. squash/fast-forward로 기능 경계를 지우지 않는다. Codex_Branch가 첫 부모인지 확인하고 BaseSHA·FeatureTipSHA·MergeSHA·Parents를 기록한다. 일반 merge는 이 사용자 지시로 승인된 범위이므로 재확인하지 않는다.
+8. 기능 상태는 Planned→In Progress→Implemented→Verification Pending/Failed 또는 Verified로 기록한다. Commit/Push 및 Director 제품 검토 상태는 별개다. WIP 커밋·push는 가능하지만 미검증 기능을 Codex_Develop에 merge하지 않는다. 실행 불가인 필수 검증을 삭제해서 통과로 만들지 않는다.
+9. 기능 완료 시 독립 검토와 기능 필수 검증을 마친다. 통합 직전에 fetch하여 원격 Codex_Develop와 기록을 확인하고 검증에 사용한 `IntegrationBaseSHA`를 기록한다. 통합 Branch가 전진했다면 기능 Branch에 최신 Codex_Develop를 `git merge --no-commit Codex_Develop`로 반영하고, 새 merge 커밋이 필요한 경우 필수 메시지를 작성한다. 충돌을 확정 설계에 맞게 해결한 뒤 영향 검증을 재실행한다. rebase/force로 이력을 재작성하지 않는다. 원격이 예기치 않게 바뀌면 무조건 push하지 않고 차이를 먼저 검토한다.
+10. 실제 merge 직전에 Codex_Develop HEAD가 검증한 IntegrationBaseSHA와 같은지 다시 확인한다. 바뀌었으면 기능 Branch에 최신 통합을 반영하고 영향 검증부터 반복한다. 깨끗한 Codex_Develop로 전환해 검증한 기능 tip을 `git merge --no-ff --no-commit <기능 Branch>`로 통합 내용을 준비하고 아래 필수 Subject/Description을 작성해 merge 커밋을 만든다. squash/fast-forward로 기능 경계를 지우지 않는다. Codex_Develop가 첫 부모인지 확인하고 BaseSHA·FeatureTipSHA·MergeSHA·Parents를 기록한다. 일반 merge는 이 사용자 지시로 승인된 범위이므로 재확인하지 않는다.
 11. merge 결과가 기능 Branch에서 검증한 트리와 같은지 확인한다. 같으면 기존 전체 검증 증거를 재사용하되 실제 통합 Branch에서 정해 둔 핵심 회귀 검사를 수행한다. 다르거나 통합 충돌을 해결했다면 관련 빌드/회귀 검증을 다시 수행한다. 트리 비교나 merge 무충돌만으로 통합 검증을 대신하지 않는다. 실패한 통합 결과는 안정 상태로 push하거나 다음 기능의 기준으로 쓰지 않는다. 기능 전체 revert 등 아래 복구 절차로 통합 상태를 복구한다.
-12. 통합 검증 후 상태를 Integrated로 기록하고 `git push origin Codex_Branch`하고 원격 SHA를 확인한다. 다음 기능은 이 통합 커밋에서 시작한다. 마일스톤의 모든 기능이 통합되면 단계 전체 검증도 수행한 후 의존 마일스톤으로 넘어간다. 단계 전체 실패 시 실패 기능을 추적·복구하고 완료로 표시하지 않는다.
+12. 통합 검증 후 상태를 Integrated로 기록하고 `git push origin Codex_Develop`하고 원격 SHA를 확인한다. 다음 기능은 이 통합 커밋에서 시작한다. 마일스톤의 모든 기능이 통합되면 단계 전체 검증도 수행한 후 의존 마일스톤으로 넘어간다. 단계 전체 실패 시 실패 기능을 추적·복구하고 완료로 표시하지 않는다.
 13. 같은 이름의 기능 Branch는 BaseSHA·진척이 일치할 때만 재개한다. 다른 작업이면 보존하고 고유한 새 이름을 쓴다. 기능 Branch는 merge 후에도 로컬/원격에 보존한다. 자동 삭제·정리·prune/gc하지 않는다. 사용자 미커밋 변경을 stash/reset/clean으로 없애지 않는다.
 14. 반복 승인 없이 구현·오류 수정·검증·작은 커밋·push·통합을 계속하되 실패 원인 없이 검증을 반복하지 않는다. 컨텍스트 전환 전 기능/커밋별 재개 정보를 기록한다. GUI/환경 때문에 검증이 막히면 독립 기능만 마지막 검증 통합점에서 진행한다.
 15. 정상 복구는 이력을 보존하는 revert를 우선한다. 커밋을 이력에서 제거하는 reset/rebase/amend, force push, 기존 에셋/사용자 데이터 삭제는 별도 대상·영향 확인 없이 하지 않는다. 개발자에게 개별 커밋/기능 단위 제거가 가능한 경계를 제공한다는 요구를 공유 이력 무단 삭제 허가로 해석하지 않는다. 샌드박스 승인 거부도 우회하지 않는다.
@@ -101,11 +101,11 @@ Windows PowerShell에서 해당 프로젝트 루트에 진입한 후 실행한�
 .\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Contracts -TimeoutMinutes 10
 ```
 
-Git Stage/Commit/Push는 Windows Git 실행 파일로 명시적 인자를 전달한다. NewBranch 예시는 S1의 안정 식별자 기능이며, 통합 Branch Codex_Branch는 기존 래퍼의 feature/fix/chore 이름 검사 대상이 아니므로 Windows Git으로 직접 생성한다. 기능 Branch는 아래 후보를 기능 범위에 맞게 사용한다. 문서 변경만 있으면 UE 빌드를 돌리지 않고 diff·링크·상태 일치 검사를 한다.
+Git Stage/Commit/Push는 Windows Git 실행 파일로 명시적 인자를 전달한다. NewBranch 예시는 S1의 안정 식별자 기능이며, 통합 Branch Codex_Develop는 기존 래퍼의 feature/fix/chore 이름 검사 대상이 아니므로 Windows Git으로 직접 생성한다. 기능 Branch는 아래 후보를 기능 범위에 맞게 사용한다. 문서 변경만 있으면 UE 빌드를 돌리지 않고 diff·링크·상태 일치 검사를 한다.
 
 ## Plan
 
-S0~S7은 마일스톤이다. 각 항목의 기능 Branch 후보를 같은 마일스톤 Branch 하나로 합치지 않는다. 착수 시 일반 기능 하나의 관찰 가능한 목적과 복구 경계를 기준으로 실제 작업 목록을 확정한다. 작은 공통 기반은 별도 기능으로 선행 통합하고 후속 기능은 최신 Codex_Branch를 기준으로 한다. 아래 후보 목록은 제품 범위 추가가 아니라 기존 범위를 Git 단위로 나눈 것이다.
+S0~S7은 마일스톤이다. 각 항목의 기능 Branch 후보를 같은 마일스톤 Branch 하나로 합치지 않는다. 착수 시 일반 기능 하나의 관찰 가능한 목적과 복구 경계를 기준으로 실제 작업 목록을 확정한다. 작은 공통 기반은 별도 기능으로 선행 통합하고 후속 기능은 최신 Codex_Develop를 기준으로 한다. 아래 후보 목록은 제품 범위 추가가 아니라 기존 범위를 Git 단위로 나눈 것이다.
 
 ### S0 — 기준선과 검증 기반 준비
 
@@ -202,10 +202,10 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 
 ## Rollback Plan
 
-- 기능 시작 전 Codex_Branch의 BaseSHA를 기록하고 작은 커밋을 순서대로 보존한다. 기능 tip과 통합 merge commit은 원격 기능 Branch/Codex_Branch에 남긴다. merge 전 검증 결과, merge의 첫 부모/두 번째 부모, 적용된 저장 스키마 버전을 추적한다.
+- 기능 시작 전 Codex_Develop의 BaseSHA를 기록하고 작은 커밋을 순서대로 보존한다. 기능 tip과 통합 merge commit은 원격 기능 Branch/Codex_Develop에 남긴다. merge 전 검증 결과, merge의 첫 부모/두 번째 부모, 적용된 저장 스키마 버전을 추적한다.
 - 기능 일부 취소: 작은 커밋의 변경·선행/후속 의존을 확인해 `git revert --no-commit <CommitSHA>`로 역변경을 만든다. 여러 커밋이 의존하면 후속부터 역순으로 처리한다. 단일 커밋이 항상 독립 취소 가능하다고 가정하지 않는다. 공통 API를 되돌릴 때 소비처도 같은 복구 작업에 포함한다.
-- 기능 전체 취소: Codex_Branch 첫 부모를 기준으로 한 merge임을 확인한 뒤 `git revert --no-commit -m 1 <MergeSHA>`로 해당 기능의 통합 변경을 제거한다. merge 이후 의존 기능이 있다면 영향받는 기능부터 역순으로 복구하거나 호환 수정으로 해결한다. -m 1을 부모 확인 없이 기계적으로 적용하지 않는다.
-- 이미 통합한 오류의 복구는 `fix/dialogue-revert-<기능>`을 Codex_Branch에서 만들어 revert·빌드·회귀 검증 후 --no-ff merge·일반 push한다. 통합 직후 로컬 검증 실패로 Codex_Branch가 잠시 실패 상태라면 해당 merge를 이력 보존 revert하고 마지막 정상 동작 복구를 검증한 후에만 push한다. 미검증 통합 tip에서 새 기능을 시작하지 않는다.
+- 기능 전체 취소: Codex_Develop 첫 부모를 기준으로 한 merge임을 확인한 뒤 `git revert --no-commit -m 1 <MergeSHA>`로 해당 기능의 통합 변경을 제거한다. merge 이후 의존 기능이 있다면 영향받는 기능부터 역순으로 복구하거나 호환 수정으로 해결한다. -m 1을 부모 확인 없이 기계적으로 적용하지 않는다.
+- 이미 통합한 오류의 복구는 `fix/dialogue-revert-<기능>`을 Codex_Develop에서 만들어 revert·빌드·회귀 검증 후 --no-ff merge·일반 push한다. 통합 직후 로컬 검증 실패로 Codex_Develop가 잠시 실패 상태라면 해당 merge를 이력 보존 revert하고 마지막 정상 동작 복구를 검증한 후에만 push한다. 미검증 통합 tip에서 새 기능을 시작하지 않는다.
 - 기능 수정 후 재도입: 원래 Branch를 다시 merge하는 것만으로 revert한 변경이 돌아온다고 가정하지 않는다. 새 fix/feature Branch에서 필요한 역-revert와 수정 또는 새 구현을 검토하고 회귀 검증한 뒤 통합한다.
 - 개발자가 이력에서 커밋 자체를 제거해야 하는 경우 BaseSHA·작은 커밋·merge 경계 기록을 제공한다. 에이전트는 범위가 명확히 승인되지 않은 reset/rebase/force를 수행하지 않는다. 원격 공유 이력의 기본 복구는 삭제가 아닌 revert다.
 - Git은 코드/추적 에셋을 되돌릴 뿐 이미 변경된 게임 세이브나 외부 상태를 되돌리지 않는다. 테스트는 별도 슬롯·디렉터리·이전 버전 fixture로 격리하고 지원 데이터에 대한 reader/호환 검증을 유지한다. 코드 rollback 후 이전/신규 fixture 양쪽의 저장을 읽을 수 있는지도 확인해야 복구 완료다. 지원 저장에 필요한 reader/이전 코드를 제거하는 단순 revert는 하지 않고 호환 복구안을 먼저 만든다.
@@ -217,9 +217,9 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 | 단계/기능 | 상태 | 기능 Branch / 통합 Branch | BaseSHA / FeatureTip / MergeSHA | 검증·Commit·Push 근거 |
 |---|---|---|---|---|
 | 계획 | 작성 완료, 실행 미착수 | DiagnoseGraphSystem | d1b1937 / 해당 없음 | 문서 검증만 수행 |
-| S0~S7의 각 기능 | Planned | 기능별 Branch / Codex_Branch | 미정 | 미실행 |
+| S0~S7의 각 기능 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
 
-실행 시 기능별 행으로 분리하고 작은 커밋 목록·의존 커밋·복구 단위·Codex_Branch의 merge/검증 SHA를 함께 기록한다. 다음 정보를 갱신한다: 실행 승인 원문/일시, 현재 Branch·HEAD·BaseSHA, 변경 파일, 완료/미완료 체크, 테스트 명령·보고서·실패, 기술 검토/제품 검토 상태, Commit/Push SHA, 다음 한 가지 작업. 커밋 SHA는 커밋 후 보고 또는 다음 기록에서 반영하며 자기 SHA를 넣으려고 amend하지 않는다.
+실행 시 기능별 행으로 분리하고 작은 커밋 목록·의존 커밋·복구 단위·Codex_Develop의 merge/검증 SHA를 함께 기록한다. 다음 정보를 갱신한다: 실행 승인 원문/일시, 현재 Branch·HEAD·BaseSHA, 변경 파일, 완료/미완료 체크, 테스트 명령·보고서·실패, 기술 검토/제품 검토 상태, Commit/Push SHA, 다음 한 가지 작업. 커밋 SHA는 커밋 후 보고 또는 다음 기록에서 반영하며 자기 SHA를 넣으려고 amend하지 않는다.
 
 ## Decision Log / Discoveries
 
@@ -227,9 +227,11 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - 2026-10-13: 당시 Sol Medium 독립 검토에서 Branch 기준점 고정, Commit/Push와 Verified 분리, 승인 범위/반환 조건 명시를 권고했다. Luna High 조사에서 현재 스크립트가 Check/Build/Test만 지원하며 GUI/패키징 경로와 자체 기능 테스트 준비가 필요함을 확인했다.
 - 단계별 검증이 끝나야 의존 후속으로 넘어간다. 실제 실행 가능성을 정적 검토만으로 보장하지 않는다. 최종 검토에서 계획 미커밋 시 초기 Branch/보존 절차, S1의 Chapter/Scene 자료형 선행, S2의 비시각 UI 계약 검증과 S6의 실제 관찰 분리를 보완했다.
 
-- 2026-10-14: 사용자 지시로 단계별 연쇄 Branch를 폐기하고 Codex_Branch 중심 기능별 분기/--no-ff merge로 변경했다. 작은 목적별 커밋, 기능 Branch 보존, 부분/전체 revert와 의존성·저장 호환 검증을 필수 복구 지침으로 추가했다. 현재는 지침 변경이며 실제 Branch/Commit/Merge/Push를 실행한 기록이 아니다.
+- 2026-10-14: 사용자 지시로 단계별 연쇄 Branch를 폐기하고 Codex_Develop 중심 기능별 분기/--no-ff merge로 변경했다. 작은 목적별 커밋, 기능 Branch 보존, 부분/전체 revert와 의존성·저장 호환 검증을 필수 복구 지침으로 추가했다. 현재는 지침 변경이며 실제 Branch/Commit/Merge/Push를 실행한 기록이 아니다.
 
 - 2026-10-14: 최종 문서 검증 및 Stage/Commit/Push 요청을 받았다. 모든 구현·merge·revert 커밋의 Subject/Description 작업 요약을 필수로 명시했다. 이 문서 커밋 요청은 기능 구현 실행 요청과 구분한다.
+
+- 2026-10-14: 사용자 최종 명칭 지시로 개발 통합 Branch를 `Codex_Develop`로 통일한다. 기능 Branch는 여기서 분기하고 검증 후 여기로 merge한다. 기존 중심 Branch 제거는 이번 요청에 한해 명시적으로 승인되었으며, 일반 기능 Branch 보존 규칙은 유지한다.
 
 ## Verification / Evidence / Result
 

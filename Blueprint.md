@@ -359,7 +359,7 @@ Block Details에 GameplayTag와 별개의 `신규 대화 사용 상태`를 제�
 
 남은 작업은 구조 검토 마무리, 검증 경로 구체화, 프로젝트별 상세 구현 계획 작성이다. 아래는 정적 조사와 독립 검토로 정리한 단계 구분 기준이며 파일별 상세 실행계획이나 구현 완료 선언이 아니다. 실제 빌드·PIE·저장 복원·패키징은 이번 검토에서 실행하지 않았다. 단계별 의존성과 검증 수단을 확인한 후 DialogueMaker와 Prototype2 각각에 작업 범위·완료 기준을 작성한다.
 
-- 실행계획 및 자동 진행 지침: [DialogueImplementationPlan](Docs/AI/DialogueImplementationPlan.md). 단계별 작업 경로·완료 기준과 `Codex_Branch` 중심의 기능별 Branch·작은 Commit·검증 후 merge/Push·부분/기능 전체 복구 기준을 기록했다. 구현 단계와 Git 기능 단위는 구분한다. 계획 문서 작성 완료와 실제 구현/검증 완료는 구분한다.
+- 실행계획 및 자동 진행 지침: [DialogueImplementationPlan](Docs/AI/DialogueImplementationPlan.md). 단계별 작업 경로·완료 기준과 `Codex_Develop` 중심의 기능별 Branch·작은 Commit·검증 후 merge/Push·부분/기능 전체 복구 기준을 기록했다. 구현 단계와 Git 기능 단위는 구분한다. 계획 문서 작성 완료와 실제 구현/검증 완료는 구분한다.
 
 ### 단계 구분과 검증 원칙
 
