@@ -9,6 +9,8 @@
 #include "DialogueLineNodeInfo.h"
 #include "DialogueBlockRunner.h"
 #include "DialogueChoiceEdGraphNode.h"
+#include "DialogueBranchEdGraphNode.h"
+#include "DialogueBranchNodeInfoBase.h"
 #include "DialogueChoiceNodeInfo.h"
 #include "DialogueSampleStateProvider.h"
 #include "EdGraph/EdGraph.h"
@@ -231,9 +233,81 @@ bool FDialogueChoiceFlowTest::RunTest(const FString& Parameters)
 	Runner->StartBlock(Asset, Provider, nullptr, nullptr);
 	Runner->AdvanceLine();
 	TestTrue(TEXT("Waiting for explicit choice"), Runner->GetPresentation().State == EDialogueRunState::WaitingChoice);
+	TestTrue(TEXT("Choice does not predict first option path"), Runner->GetDirectNextType() == EDialogueType::Unknown);
 	CastChecked<UDialogueChoiceNodeInfo>(Asset->Graph->Nodes[2]->NodeInfo)->Options[0].Conditions.Conditions.Add(Condition);
 	TestFalse(TEXT("Stale choice returns false"), Runner->SelectChoice(OrdinaryId));
 	TestTrue(TEXT("No permanent wait after all choices disappear"), Runner->GetPresentation().State == EDialogueRunState::Completed);
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDialogueBranchFlowTest,
+	"DialogueKit.Runtime.BranchFlowAndCycle",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 사전 조회는 Branch를 평가하지 않고 실제 진입은 양쪽 분기와 자동 순환을 구분한다.
+bool FDialogueBranchFlowTest::RunTest(const FString& Parameters)
+{
+	UDialogueGraph* Asset = NewObject<UDialogueGraph>();
+	Asset->InitializeBlockIdentity();
+	UEdGraph* Graph = NewObject<UEdGraph>(Asset);
+	Graph->Schema = UDialogueEdGraphSchema::StaticClass();
+	Graph->GetSchema()->CreateDefaultNodesForGraph(*Graph);
+	UDialogueEdGraphNodeBase* Line = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Graph->Nodes[0]->Pins[0]);
+	UDialogueEdGraphNodeBase* Branch = AddFlowTestNode(Graph, UDialogueBranchEdGraphNode::StaticClass(), Line->Pins[1]);
+	UDialogueEdGraphNodeBase* TrueLine = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Branch->Pins[1]);
+	UDialogueEdGraphNodeBase* FalseLine = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Branch->Pins[2]);
+	UDialogueBranchNodeInfoBase* Info = CastChecked<UDialogueBranchNodeInfoBase>(Branch->GetNodeInfo());
+	UDialogueSampleStateProvider* Provider = NewObject<UDialogueSampleStateProvider>();
+	FDialogueStateDefinition Definition;
+	Definition.Key.Kind = EDialogueStateKind::Value;
+	Definition.Key.ItemId = TEXT("Level");
+	Provider->AddDefinition(Definition);
+	FDialogueCondition Condition;
+	Condition.Key = Definition.Key;
+	Condition.Comparison = EDialogueComparison::Greater;
+	Condition.ValueOperand = 0;
+	Info->Conditions.Conditions.Add(Condition);
+	FString Error;
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	UDialogueDiagnosticRouter* Router = NewObject<UDialogueDiagnosticRouter>();
+	int32 Diagnostics = 0;
+	Router->OnDiagnosticNative.AddLambda([&](const FDialogueDiagnostic&) { ++Diagnostics; });
+	UDialogueBlockRunner* Runner = NewObject<UDialogueBlockRunner>();
+	Runner->StartBlock(Asset, Provider, nullptr, Router);
+	TestTrue(TEXT("Direct Branch only"), Runner->GetDirectNextType() == EDialogueType::BranchNode && Runner->GetPresentation().Choices.IsEmpty());
+	TestEqual(TEXT("No evaluation on preview"), Diagnostics, 0);
+	TestTrue(TEXT("Evaluate false"), Runner->AdvanceLine());
+	TestTrue(TEXT("False destination"), Runner->GetPresentation().NodeGuid == FalseLine->NodeGuid);
+	Graph->GetSchema()->TryCreateConnection(FalseLine->Pins[1], Branch->Pins[0]);
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Runner = NewObject<UDialogueBlockRunner>();
+	Runner->StartBlock(Asset, Provider, nullptr, Router);
+	Runner->AdvanceLine();
+	TestTrue(TEXT("Same Branch allowed after player input"), Runner->AdvanceLine());
+	TestTrue(TEXT("Normal Branch loop remains waiting"), Runner->GetPresentation().NodeGuid == FalseLine->NodeGuid && Runner->GetPresentation().State == EDialogueRunState::WaitingLine);
+	Info->Conditions.Conditions.Reset();
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Runner = NewObject<UDialogueBlockRunner>();
+	Runner->StartBlock(Asset, Provider, nullptr, Router);
+	TestEqual(TEXT("Empty branch not evaluated during Line"), Diagnostics, 0);
+	Runner->AdvanceLine();
+	TestTrue(TEXT("Empty branch True"), Runner->GetPresentation().NodeGuid == TrueLine->NodeGuid);
+	TestEqual(TEXT("Empty branch diagnostic"), Diagnostics, 1);
+	Info->Conditions.Conditions.Add(Condition);
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Runner = NewObject<UDialogueBlockRunner>();
+	Runner->StartBlock(Asset, nullptr, nullptr, Router);
+	Runner->AdvanceLine();
+	TestTrue(TEXT("Missing provider substitutes True"), Runner->GetPresentation().NodeGuid == TrueLine->NodeGuid);
+	Info->Conditions.Conditions.Reset();
+	UDialogueEdGraphNodeBase* BranchB = AddFlowTestNode(Graph, UDialogueBranchEdGraphNode::StaticClass(), Branch->Pins[1]);
+	Graph->GetSchema()->TryCreateConnection(BranchB->Pins[1], Branch->Pins[0]);
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Runner = NewObject<UDialogueBlockRunner>();
+	Runner->StartBlock(Asset, Provider, nullptr, Router);
+	Diagnostics = 0;
+	TestFalse(TEXT("Automatic cycle stops"), Runner->AdvanceLine());
+	TestEqual(TEXT("Two evaluations plus cycle diagnostic only"), Diagnostics, 3);
+	TestEqual(TEXT("Cycle code"), Runner->GetPresentation().ErrorCode, FName(TEXT("AutomaticBranchCycle")));
 	return true;
 }
 #endif

@@ -69,6 +69,12 @@ bool UDialogueRuntimeGraph::ValidateIdentifiers(TArray<FString>& OutIssues) cons
 				}
 			}
 		}
+		if (Node->DialogueNodeType == EDialogueType::BranchNode &&
+			(Node->OutputPins.Num() != 2 || IsValid(Node->OutputPins[0]) == false || IsValid(Node->OutputPins[1]) == false ||
+			Node->OutputPins[0]->PinName != TEXT("True") || Node->OutputPins[1]->PinName != TEXT("False")))
+		{
+			OutIssues.Add(TEXT("InvalidBranchPins"));
+		}
 		if (Node->DialogueNodeType == EDialogueType::ChoiceNode)
 		{
 			const UDialogueChoiceNodeInfo* Info = Cast<UDialogueChoiceNodeInfo>(Node->NodeInfo);
