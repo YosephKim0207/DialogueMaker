@@ -21,6 +21,10 @@ class DIALOGUEKIT_API UDialogueEndNodeInfo : public UDialogueNodeInfoBase
 	GENERATED_BODY()
 
 public:
+	// 정상 완료는 캐시 갱신이며 저장 요청은 명시 설정한 경우에만 보낸다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|End")
+	bool bSaveOnEnd = false;
+
     UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueEndNodeInfo|Action")
     EDialogueNodeAction Action = EDialogueNodeAction::None;
 

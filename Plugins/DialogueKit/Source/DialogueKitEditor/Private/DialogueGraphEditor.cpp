@@ -208,8 +208,13 @@ void FDialogueGraphEditor::OnConvertToCSVButtonClicked()
         return;
     }
 
-    // 내보내기 전에 편집 중 그래프 상태를 런타임 데이터(WorkingAsset->Graph)에 먼저 반영한다.
-    UpdateWorkingAssetFromGraph();
+    // 변환 실패 시 이전 에셋 내용을 새 편집 결과로 잘못 내보내지 않는다.
+    FString ConversionError;
+    if (bCanCommitWorkingGraph == false || FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, ConversionError) == false)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ConversionError));
+        return;
+    }
 
     const FString CSVFilePath = OpenCSVSaveWindow();
     if (CSVFilePath.IsEmpty())

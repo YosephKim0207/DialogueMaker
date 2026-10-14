@@ -10,7 +10,7 @@
 // 명시적으로 전달된 Block을 검사하여 Start에서 실행한다.
 bool UDialogueBlockRunner::StartBlock(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter)
 {
-	if (bProcessing || Presentation.State == EDialogueRunState::WaitingLine || Presentation.State == EDialogueRunState::WaitingChoice || Presentation.State == EDialogueRunState::Running)
+	if (CanStartBlock() == false)
 	{
 		return false;
 	}
@@ -36,6 +36,14 @@ bool UDialogueBlockRunner::StartBlock(UDialogueGraph* Block, UObject* NewStatePr
 		if (IsValid(Node) == false || Node->NodeGuid.IsValid() == false || Nodes.Contains(Node->NodeGuid))
 		{
 			return Fail(TEXT("InvalidNodeIdentity"));
+		}
+		// 수동 재작성 중 구형/알 수 없는 노드가 섞였으면 어떤 효과도 실행하기 전에 거부한다.
+		if (Node->DialogueNodeType != EDialogueType::StartNode && Node->DialogueNodeType != EDialogueType::LineNode &&
+			Node->DialogueNodeType != EDialogueType::ChoiceNode && Node->DialogueNodeType != EDialogueType::BranchNode &&
+			Node->DialogueNodeType != EDialogueType::StateChangeNode && Node->DialogueNodeType != EDialogueType::EndNode)
+		{
+			Presentation.NodeGuid = Node->NodeGuid;
+			return Fail(TEXT("UnsupportedNodeType"));
 		}
 		Nodes.Add(Node->NodeGuid, Node);
 		if (Node->DialogueNodeType == EDialogueType::StartNode)
@@ -98,6 +106,7 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 				return Fail(TEXT("InvalidLine"));
 			}
 			Presentation.Line = DuplicateObject<UDialogueLineNodeInfo>(Info, this);
+			Presentation.LineNodeGuid = Node->NodeGuid;
 			Presentation.State = EDialogueRunState::WaitingLine;
 			Presentation.DirectNextType = GetDirectNextType();
 			if (Presentation.DirectNextType == EDialogueType::ChoiceNode)
@@ -164,11 +173,7 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 			}
 			// 제작사는 이 방어 경로의 진단 Router에 오류 전송을 연결한다.
 			Report(TEXT("NoAvailableChoice"), TEXT("CompleteNormally"));
-			Presentation.State = EDialogueRunState::Completed;
-			Presentation.Line = nullptr;
-			Presentation.DirectNextType = EDialogueType::Unknown;
-			Publish();
-			return true;
+			return Complete(false);
 		}
 		if (Node->DialogueNodeType == EDialogueType::EndNode)
 		{
@@ -176,11 +181,7 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 			{
 				return Fail(TEXT("InvalidPinShape"));
 			}
-			Presentation.State = EDialogueRunState::Completed;
-			Presentation.Line = nullptr;
-			Presentation.DirectNextType = EDialogueType::Unknown;
-			Publish();
-			return true;
+			return Complete(CastChecked<UDialogueEndNodeInfo>(Node->NodeInfo)->bSaveOnEnd);
 		}
 		return Fail(TEXT("UnsupportedNodeType"));
 	}
@@ -215,6 +216,8 @@ bool UDialogueBlockRunner::Fail(FName Code)
 {
 	Presentation.State = EDialogueRunState::Failed;
 	Presentation.ErrorCode = Code;
+	Presentation.Choices.Reset();
+	Presentation.ChoiceNodeGuid.Invalidate();
 	Presentation.DirectNextType = EDialogueType::Unknown;
 	Report(Code, TEXT("StopAndKeepLastSuccessfulSave"));
 	Publish();
@@ -303,9 +306,8 @@ bool UDialogueBlockRunner::SelectChoice(FGuid ChoiceId)
 		if (Presentation.State == EDialogueRunState::WaitingChoice && Presentation.Choices.IsEmpty())
 		{
 			Report(TEXT("NoAvailableChoice"), TEXT("CompleteNormally"));
-			Presentation.State = EDialogueRunState::Completed;
-			Presentation.Line = nullptr;
-			Presentation.ChoiceNodeGuid.Invalidate();
+			Complete(false);
+			return false;
 		}
 		Publish();
 		return false;
@@ -323,6 +325,11 @@ bool UDialogueBlockRunner::SelectChoice(FGuid ChoiceId)
 // 실제 진입만 효과를 적용한다. 다음 연결이 끊겼으면 지급 전에 실패한다.
 bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueRuntimeNode* Next, const TArray<FDialogueEffect>& Effects, FGuid ChoiceId, bool bSaveRequested)
 {
+	Presentation.State = EDialogueRunState::Running;
+	Presentation.NodeGuid = Origin->NodeGuid;
+	Presentation.DirectNextType = EDialogueType::Unknown;
+	Presentation.Choices.Reset();
+	Presentation.ChoiceNodeGuid.Invalidate();
 	if (Next == nullptr)
 	{
 		return Fail(TEXT("InvalidConnection"));
@@ -351,4 +358,30 @@ bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueR
 	OnExecutionBoundaryNative.Broadcast(Boundary);
 	OnExecutionBoundary.Broadcast(Boundary);
 	return true;
+}
+
+// 완료는 저장 성공과 다르다. 게임은 완료 이력/종료 상태를 캐시에 반영한 뒤 선택적으로 저장한다.
+bool UDialogueBlockRunner::Complete(bool bSaveRequested)
+{
+	Presentation.State = EDialogueRunState::Completed;
+	Presentation.Line = nullptr;
+	Presentation.LineNodeGuid.Invalidate();
+	Presentation.DirectNextType = EDialogueType::Unknown;
+	Presentation.Choices.Reset();
+	Presentation.ChoiceNodeGuid.Invalidate();
+	FDialogueExecutionBoundary Boundary;
+	Boundary.Context.Block = ActiveBlock->GetBlockReference();
+	Boundary.Context.NodeGuid = Presentation.NodeGuid;
+	Boundary.bBlockCompleted = true;
+	Boundary.bSaveRequested = bSaveRequested;
+	OnExecutionBoundaryNative.Broadcast(Boundary);
+	OnExecutionBoundary.Broadcast(Boundary);
+	Publish();
+	return true;
+}
+
+// 실행 중 콜백에서 새 시작이 현재 실행 문맥을 덮어쓰지 않게 한다.
+bool UDialogueBlockRunner::CanStartBlock() const
+{
+	return bProcessing == false && (Presentation.State == EDialogueRunState::Idle || Presentation.State == EDialogueRunState::Completed || Presentation.State == EDialogueRunState::Failed);
 }

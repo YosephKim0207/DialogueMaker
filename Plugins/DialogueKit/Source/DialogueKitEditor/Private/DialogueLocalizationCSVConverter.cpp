@@ -5,6 +5,7 @@
 #include "DialogueLocalizationDataAsset.h"
 #include "DialogueLocalizationUtility.h"
 #include "DialogueNodeInfo.h"
+#include "DialogueChoiceNodeInfo.h"
 #include "DialogueRuntimeGraph.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Culture.h"
@@ -359,6 +360,22 @@ FString FDialogueLocalizationCSVConverter::BuildDialogueGraphCSVFromAsset(const 
 			continue;
 		}
 
+		if (const UDialogueChoiceNodeInfo* ChoiceInfo = Cast<UDialogueChoiceNodeInfo>(RuntimeNode->NodeInfo))
+		{
+			for (const FDialogueOption& Option : ChoiceInfo->Options)
+			{
+				for (const UDialogueRuntimePin* Pin : RuntimeNode->OutputPins)
+				{
+					if (Pin && Pin->ChoiceId == Option.ChoiceId)
+					{
+						AddRecord(GuidToString(RuntimeNode->NodeGuid), GuidToString(Pin->PinId), TEXT("ResponseText"), Option.Text.ToString());
+						break;
+					}
+				}
+			}
+			continue;
+		}
+		// StateChange/Branch/End는 번역할 발화/선택 문구가 없는 제어 노드다.
 		const UDialogueNodeInfo* DialogueNodeInfo = Cast<UDialogueNodeInfo>(RuntimeNode->NodeInfo);
 		if (DialogueNodeInfo == nullptr)
 		{

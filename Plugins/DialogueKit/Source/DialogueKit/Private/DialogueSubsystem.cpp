@@ -208,6 +208,28 @@ void UDialogueSubsystem::GetDialogueGraph(ESpeakerID SpeakerID)
 // 해당 NPC Actor와 대화 시작
 void UDialogueSubsystem::StartDialogue(UDialogueGraph* DialogueGraph)
 {
+	if (DialogueGraph == nullptr || DialogueGraph->Graph == nullptr)
+	{
+		return;
+	}
+	const bool bLegacy = DialogueGraph->Graph->Nodes.ContainsByPredicate([](const UDialogueRuntimeNode* Node)
+	{
+		return Node && Node->DialogueNodeType == EDialogueType::DialogueNode;
+	});
+	const bool bNew = DialogueGraph->Graph->Nodes.ContainsByPredicate([](const UDialogueRuntimeNode* Node)
+	{
+		return Node && (Node->DialogueNodeType == EDialogueType::LineNode || Node->DialogueNodeType == EDialogueType::ChoiceNode || Node->DialogueNodeType == EDialogueType::StateChangeNode);
+	});
+	if (bNew || bLegacy == false)
+	{
+		StartDialogueBlock(DialogueGraph);
+		return;
+	}
+	if (BlockRunner && BlockRunner->CanStartBlock() == false)
+	{
+		return;
+	}
+	bUsingBlockRunner = false;
 	CurrentDialogueGraph = DialogueGraph;
 	
 	InitializeDialogueData();
@@ -348,6 +370,10 @@ UDialogueRuntimeNode* UDialogueSubsystem::GetFirstNode()
 // 현재 진행 중인 대화문에서 Choices가 있는지 여부 반환
 bool UDialogueSubsystem::HasChoicesInCurrentDialogue(UDialogueNodeInfo* DialogueNodeInfo) const
 {
+	if (bUsingBlockRunner)
+	{
+		return BlockPresentation.Choices.IsEmpty() == false;
+	}
 	if (DialogueNodeInfo == nullptr)
 	{
 		UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::HasChoicesInCurrentDialogue : DialogueNodeInfo is nullptr"));
@@ -364,6 +390,17 @@ bool UDialogueSubsystem::HasChoicesInCurrentDialogue(UDialogueNodeInfo* Dialogue
 
 UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 SelectedChoiceIndex, const bool bIsFirstDialogue)
 {
+	if (bUsingBlockRunner && BlockRunner)
+	{
+		if (bIsFirstDialogue)
+		{
+			return BlockPresentation.Line;
+		}
+		const FDialoguePresentation View = BlockRunner->GetPresentation();
+		const bool bProgressed = View.Choices.IsEmpty() ? BlockRunner->AdvanceLine() :
+			(View.Choices.IsValidIndex(SelectedChoiceIndex) && BlockRunner->SelectChoice(View.Choices[SelectedChoiceIndex].ChoiceId));
+		return bProgressed ? BlockPresentation.Line.Get() : nullptr;
+	}
 	UDialogueRuntimeNode* NextRuntimeNode = bIsFirstDialogue ? GetFirstNode() : GetNextNode(SelectedChoiceIndex);
 	if (NextRuntimeNode == nullptr)
 	{
@@ -395,6 +432,17 @@ UDialogueNodeInfo* UDialogueSubsystem::ProgressNextDialogue(const int32 Selected
 // 현재 진행 중인 대화문에서 Choices들이 있다면 반환
 void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNodeInfo, TArray<FText>& OutSelectableChoiceTexts, TArray<int32>& OutSelectableChoiceOriginalIndex) const
 {
+	if (bUsingBlockRunner)
+	{
+		OutSelectableChoiceTexts.Reset();
+		OutSelectableChoiceOriginalIndex.Reset();
+		for (int32 Index = 0; Index < BlockPresentation.Choices.Num(); ++Index)
+		{
+			OutSelectableChoiceTexts.Add(BlockPresentation.Choices[Index].Text);
+			OutSelectableChoiceOriginalIndex.Add(Index);
+		}
+		return;
+	}
 	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetSelectableChoiceTexts : Localization Test - Enter"));
 
 	if (DialogueNodeInfo == nullptr)
@@ -436,7 +484,7 @@ void UDialogueSubsystem::GetSelectableChoiceTexts(UDialogueNodeInfo* DialogueNod
 
 bool UDialogueSubsystem::IsAlreadyShownDialogue(UDialogueNodeInfo* DialogueNodeInfo) const
 {
-	return DialogueNodeInfo->IsDialogueAlreadyShown();
+	return bUsingBlockRunner == false && DialogueNodeInfo && DialogueNodeInfo->IsDialogueAlreadyShown();
 }
 
 FTimerHandle& UDialogueSubsystem::GetSkipHandler()
@@ -690,6 +738,11 @@ void UDialogueSubsystem::UpdateCurrentDialogueNode(FGuid NewDialogueNodeGuid)
 // 노드가 노출된 적이 있음을 기록
 void UDialogueSubsystem::MakeCurrentDialogueNodeToShown()
 {
+	if (bUsingBlockRunner)
+	{
+		// 신규 누적 열람 캐시는 S3에서 체크포인트/완료 경계에 연결한다.
+		return;
+	}
 	UDialogueNodeInfo* CurrentNodeInfo = CurrentOngoingDialogueNodeInfo;
 	if (CurrentNodeInfo == nullptr)
 	{
@@ -1113,4 +1166,87 @@ void UDialogueSubsystem::SaveDialogueSaveData() const
 	}
 
 	UGameplayStatics::SaveGameToSlot(DialogueHistorySaveData, ShownDialogueSaveSlot, DialogueHistorySaveIndex);
+}
+
+// 게임 제공자 등록은 다음 Block 시작에 반영한다.
+void UDialogueSubsystem::ConfigureBlockProviders(UObject* StateProvider, UObject* EffectProvider, UDialogueDiagnosticRouter* Router)
+{
+	BlockStateProvider = StateProvider;
+	BlockEffectProvider = EffectProvider;
+	BlockRouter = Router;
+}
+
+// 공개 실행기를 한 번 만들고 표시 브리지를 연결한다.
+UDialogueBlockRunner* UDialogueSubsystem::GetBlockRunner()
+{
+	if (BlockRunner == nullptr)
+	{
+		BlockRunner = NewObject<UDialogueBlockRunner>(this);
+		BlockRunner->OnPresentationChangedNative.AddUObject(this, &UDialogueSubsystem::HandleBlockPresentation);
+	}
+	return BlockRunner;
+}
+
+// 새 실행 경로는 legacy 초기화/Quest 처리/저장을 호출하지 않는다.
+bool UDialogueSubsystem::StartDialogueBlock(UDialogueGraph* Block)
+{
+	UDialogueBlockRunner* Runner = GetBlockRunner();
+	if (Runner->CanStartBlock() == false)
+	{
+		return false;
+	}
+	bUsingBlockRunner = true;
+	CurrentDialogueGraph = Block;
+	return Runner->StartBlock(Block, BlockStateProvider, BlockEffectProvider, BlockRouter);
+}
+
+// 새 UI는 표시 인덱스 대신 ChoiceId를 보존해 입력한다.
+bool UDialogueSubsystem::SelectBlockChoice(FGuid ChoiceId)
+{
+	return bUsingBlockRunner && BlockRunner && BlockRunner->SelectChoice(ChoiceId);
+}
+
+// 로컬라이즈된 복사본을 기존/신규 UI 이벤트에 전달한다.
+void UDialogueSubsystem::HandleBlockPresentation(const FDialoguePresentation& NewPresentation)
+{
+	BlockPresentation = NewPresentation;
+	CurrentOngoingNodeGuid = NewPresentation.NodeGuid;
+	CurrentOngoingDialogueNodeInfo = NewPresentation.Line;
+	LocalizedCurrentOngoingDialogueNodeInfo = nullptr;
+	UDialogueLocalizationSubsystem* Localization = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDialogueLocalizationSubsystem>() : nullptr;
+	if (Localization && CurrentDialogueGraph)
+	{
+		const FPrimaryAssetId AssetId = CurrentDialogueGraph->GetPrimaryAssetId();
+		if (NewPresentation.Line)
+		{
+			LocalizedCurrentOngoingDialogueNodeInfo = DuplicateObject<UDialogueNodeInfo>(NewPresentation.Line, this);
+			SetDialogueTextByReflection(LocalizedCurrentOngoingDialogueNodeInfo, Localization->ResolveDialogueText(AssetId, NewPresentation.LineNodeGuid, NewPresentation.Line->GetDialogueText()));
+			BlockPresentation.Line = LocalizedCurrentOngoingDialogueNodeInfo;
+		}
+		if (CurrentDialogueGraph->Graph)
+		{
+			for (UDialogueRuntimeNode* Node : CurrentDialogueGraph->Graph->Nodes)
+			{
+				if (Node == nullptr || Node->NodeGuid != NewPresentation.ChoiceNodeGuid) continue;
+				for (FDialogueChoiceView& View : BlockPresentation.Choices)
+				{
+					for (UDialogueRuntimePin* Pin : Node->OutputPins)
+					{
+						if (Pin && Pin->ChoiceId == View.ChoiceId)
+						{
+							View.Text = Localization->ResolveResponseText(AssetId, Node->NodeGuid, Pin->PinId, View.Text);
+							break;
+						}
+					}
+				}
+				break;
+			}
+		}
+	}
+	OnBlockPresentationChanged.Broadcast(BlockPresentation);
+	OnDialogueNodeInfoChanged.Broadcast();
+	if (NewPresentation.State == EDialogueRunState::Completed)
+	{
+		OnDialogueEnded.Broadcast();
+	}
 }

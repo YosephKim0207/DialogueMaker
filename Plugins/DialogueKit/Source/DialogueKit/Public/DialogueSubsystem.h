@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueGraph.h"
+#include "DialogueBlockRunner.h"
 #include "DialogueNodeInfo.h"
 #include "ShownDialogueSaveData.h"
 #include "AssetRegistry/ARFilter.h"
@@ -44,6 +45,28 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	void BeginDialogue(ESpeakerID SpeakerID);
+
+	// 신규 Graph의 게임 제공자를 등록한다. 자동 후보 시작도 이 설정을 사용한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
+	void ConfigureBlockProviders(UObject* StateProvider, UObject* EffectProvider, UDialogueDiagnosticRouter* Router);
+
+	// 이미 로드한 신규 Block을 실행한다. 실패 안내/후속 흐름은 반환값과 표시 상태로 게임이 처리한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
+	bool StartDialogueBlock(UDialogueGraph* Block);
+
+	// 시작 전에 효과/완료 경계 구독에 사용한다. 반환 객체의 수명은 Subsystem이 유지한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
+	UDialogueBlockRunner* GetBlockRunner();
+
+	// 신규 UI는 고정 ChoiceId로 선택한다. legacy 인덱스 기반 호출도 아래에서 변환한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
+	bool SelectBlockChoice(FGuid ChoiceId);
+
+	UFUNCTION(BlueprintPure, Category = "DialogueKit|Block")
+	FDialoguePresentation GetBlockPresentation() const { return BlockPresentation; }
+
+	UPROPERTY(BlueprintAssignable, Category = "DialogueKit|Block")
+	FDialoguePresentationEvent OnBlockPresentationChanged;
 	
     UFUNCTION(BlueprintCallable, Category = "DialogueKit|DialogueSubsystem|Progression")
     class UDialogueNodeInfo* ProgressNextDialogue(const int32 SelectedChoiceIndex = 0, const bool bIsFirstDialogue = false);
@@ -91,6 +114,21 @@ public:
 	#endif
 	
 private:
+	// 새 실행기의 표시만 반영하며 legacy EndDialogue의 Quest/Save를 호출하지 않는다.
+	void HandleBlockPresentation(const FDialoguePresentation& NewPresentation);
+
+	UPROPERTY()
+	TObjectPtr<UDialogueBlockRunner> BlockRunner;
+	UPROPERTY()
+	TObjectPtr<UObject> BlockStateProvider;
+	UPROPERTY()
+	TObjectPtr<UObject> BlockEffectProvider;
+	UPROPERTY()
+	TObjectPtr<UDialogueDiagnosticRouter> BlockRouter;
+	UPROPERTY()
+	FDialoguePresentation BlockPresentation;
+	bool bUsingBlockRunner = false;
+
 	void CheckDelegates();
 	
 	void GetDialogueGraph(ESpeakerID NPCID);

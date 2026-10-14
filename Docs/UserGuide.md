@@ -18,12 +18,13 @@
 - [14. 독립 Choice와 조건별 선택지](#14-독립-choice와-조건별-선택지)
 - [15. Branch 조건 분기와 자동 순환 방어](#15-branch-조건-분기와-자동-순환-방어)
 - [16. 상태 변경 노드와 게임 효과 경계](#16-상태-변경-노드와-게임-효과-경계)
+- [17. End 완료·Subsystem 및 UI 연동](#17-end-완료subsystem-및-ui-연동)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
 
-게임/플러그인 개발자가 기존 선택지 조건과 열람 이력 저장의 회귀를 확인하는 기능입니다. 신규 독립 Choice, 체크포인트, 장소별 대화 기능은 아직 구현 완료되지 않았습니다.
+게임/플러그인 개발자가 기존 선택지 조건과 열람 이력 저장의 회귀를 확인하는 기능입니다. 독립 Choice와 최소 실행기는 S2에서 추가했으며 13~17절을 참고합니다. 체크포인트 저장과 장소별 후보 선정은 후속 단계입니다.
 
 Windows PowerShell에서 DialogueMaker 프로젝트 루트로 이동합니다. UE 5.4.4와 프로젝트에 맞는 C++ 도구가 필요합니다. 실행 중인 에디터·Live Coding·다른 빌드는 먼저 정상 종료해야 합니다. 스크립트가 사용자 프로세스를 강제 종료하지 않습니다.
 
@@ -408,7 +409,7 @@ DialogueGraph 편집기 빈 공간 우클릭 → `Line`을 선택합니다. 노�
 
 ### 개발자: 공개 실행 API
 
-`UDialogueBlockRunner`를 UObject 소유자의 UPROPERTY에 보관하고 `OnPresentationChanged`(Blueprint) 또는 `OnPresentationChangedNative`(C++)에 UI를 연결한 뒤 `StartBlock(Block, StateProvider, EffectProvider, Router)`를 호출합니다. 현재는 Start·Line·End가 실행됩니다. `AdvanceLine()`이 다음 노드로 진행하고 `GetPresentation()`은 현재 표시 데이터를 반환합니다. `GetDirectNextType()`은 직접 연결 타입만 조회합니다. UI에 전달하는 Line은 에셋 원본이 아닌 복사본입니다.
+`UDialogueBlockRunner`를 UObject 소유자의 UPROPERTY에 보관하고 `OnPresentationChanged`(Blueprint) 또는 `OnPresentationChangedNative`(C++)에 UI를 연결한 뒤 `StartBlock(Block, StateProvider, EffectProvider, Router)`를 호출합니다. S2 완료 기준으로 Start·Line·Choice·Branch·StateChange·End가 실행됩니다. `AdvanceLine()`이 다음 노드로 진행하고 `GetPresentation()`은 현재 표시 데이터를 반환합니다. `GetDirectNextType()`은 직접 연결 타입만 조회합니다. UI에 전달하는 Line은 에셋 원본이 아닌 복사본입니다.
 
 실행 중 StartBlock 재호출은 false로 거부합니다. 잘못된 연결은 Failed와 ErrorCode를 반환하며 정상 완료나 저장으로 바꾸지 않습니다. 개발자는 Router로 외부 로그를 전송하고 반환값과 State로 복구 UI를 구현합니다. 이 실행기는 실제 게임 저장을 호출하지 않습니다.
 
@@ -428,7 +429,7 @@ Line 출력에서 빈 공간으로 드래그하여 `Choice`를 생성하면 자�
 
 `FDialoguePresentation.Choices`의 Text와 ChoiceId로 버튼을 만들고 클릭 시 `SelectChoice(ChoiceId)`를 호출합니다. Line 바로 다음이 Choice이면 Line 표시 이벤트에 목록을 함께 제공합니다. `AdvanceLine()`으로 Choice에 진입해 기다릴 수도 있습니다. `SelectChoice`는 현재 조건을 다시 검사하여 숨겨진 ID를 거부하고 변경된 목록을 다시 게시합니다. 반환 false이면 버튼 목록/상태를 재확인하십시오. 실제 조건 제공자는 S1의 `IDialogueStateProvider`입니다.
 
-반복 질문처럼 선택 이후 원래 Line으로 돌아오는 연결은 정상 동작입니다. 새 선택마다 선택 가능 목록을 재평가합니다. 아직 게임 효과/체크포인트 저장은 연결하지 않았습니다.
+반복 질문처럼 선택 이후 원래 Line으로 돌아오는 연결은 정상 동작입니다. 새 선택마다 선택 가능 목록을 재평가합니다. 게임 효과 경계는 16절, End/Subsystem 연동은 17절을 참고합니다. 실제 체크포인트 저장은 S3입니다.
 
 선택 승인에는 마지막 표시 목록과 현재 조건을 모두 사용합니다. 새로 통과한 숨은 ID는 목록을 먼저 갱신한 뒤 다음 입력에서 허용합니다. 실제 Choice 대기 중 모든 항목이 사라지면 정상 완료하며, 거부된 선택 함수는 false를 반환하므로 State도 함께 확인합니다.
 
@@ -461,3 +462,26 @@ Line의 `DirectNextType`이 Branch이면 그 타입까지만 알립니다. 미�
 정상 반복은 새 ExecutionId를 받습니다. 일회성 보상 제한은 게임이 판단합니다. 재진입 호출은 거부하며 사전 다음 타입 조회에는 효과 적용이나 저장 경계 이벤트가 없습니다. 제공자 오류의 상세 진단은 Router로 전달되므로 게임의 로그 전송과 안내를 연결하십시오.
 
 효과 없는 Choice에도 선택 기록용 경계 이벤트는 전달합니다. 이 경우 ExecutionId는 무효이며 bSaveRequested가 false이면 캐시 기록만 처리하고 디스크 저장을 요청하지 않습니다. true일 때만 불변 스냅샷을 제출합니다. 저장 접수 실패/재시도 처리는 S3의 게임 저장 조율 책임입니다.
+
+## 17. End 완료·Subsystem 및 UI 연동
+
+### 작가: 완료와 저장 요청
+
+End 노드 Details의 `bSaveOnEnd` 기본값은 false입니다. 활성화하면 정상 완료 경계에 저장 요청 표시가 포함됩니다. 비활성화해도 Block은 정상 완료되며 게임이 완료/열람 캐시를 갱신할 수 있습니다. 기본 선택지까지 없는 Choice의 방어 종료도 같은 완료 경로를 사용합니다. 실패 중단은 정상 완료 이벤트를 발생시키지 않습니다. End의 구형 Quest 필드는 legacy 실행용이며 새 실행기는 게임 효과 제공자를 사용합니다.
+
+### 개발자: GameInstance Subsystem 연결
+
+1. `UDialogueSubsystem`의 `ConfigureBlockProviders(StateProvider, EffectProvider, Router)`로 게임 제공자를 등록합니다.
+2. `GetBlockRunner()`의 `OnExecutionBoundary`에 게임의 기록/저장 조율을 연결합니다. `bBlockCompleted=true`이면 NextNodeGuid/ExecutionId는 무효이며 완료 캐시를 갱신합니다. `bSaveRequested`인 경우만 저장을 요청합니다.
+3. UI는 `OnBlockPresentationChanged`에 바인딩하고 `StartDialogueBlock(LoadedGraph)`를 호출합니다. 로컬라이즈된 Line·Choices·State를 받습니다. 시작 false면 `GetBlockPresentation`의 상태/오류를 확인하고 게임이 후속 흐름을 결정합니다.
+4. 발화 진행에는 `GetBlockRunner()->AdvanceLine()`, 선택에는 `SelectBlockChoice(ChoiceId)`를 사용합니다. `CanStartBlock()`은 실행/콜백 중 교체를 거부합니다. 이벤트 안에서 새 Block 시작을 바로 호출하지 말고 이벤트가 끝난 뒤 게임 흐름에서 시작합니다.
+
+기존 `ProgressNextDialogue`, `GetCurrentDialogueNodeInfo`, `HasChoicesInCurrentDialogue`, `GetSelectableChoiceTexts`도 새 실행기 표시 데이터로 연결합니다. 기존 인덱스는 현재 표시 배열 기준이며 새 UI는 ChoiceId 사용을 권장합니다. 자동 후보 경로가 새 타입을 포함한 Graph를 받으면 새 실행기로 전달합니다. 후보 필터/비동기 로드 개편은 S4입니다.
+
+### 기존 기능과 경계
+
+신규 실행 중에는 legacy EndDialogue의 Quest 처리·저장과 노드별 열람 bool 변경을 호출하지 않습니다. Subsystem 자체 초기화의 기존 저장 로드는 남아 있으므로, 저장 없는 단독 검증은 UDialogueBlockRunner와 메모리 샘플 제공자를 사용합니다. 누적 열람/복원은 S3입니다.
+
+기존 CSV 내보내기는 Line 문구와 독립 Choice의 문구를 NodeGuid·PinId 키로 내보냅니다. 변환 실패 시 이전 Graph를 새 결과로 내보내지 않습니다. StateChange·Branch·End는 번역할 문구가 없는 제어 노드이므로 CSV 대상이 아닙니다. Subsystem 표시 브리지는 기존 Localization 조회를 사용하며 Runner 단독 사용 시에는 원문을 반환합니다.
+
+S2는 표시 자료와 Blueprint 동적 이벤트 바인딩까지 검증한 단계입니다. 기존 바이너리 샘플 Widget의 화면 배치·초상화 연출·입력·음향·단독 PIE 도구는 S6에서 완성/관찰합니다. 새 API가 Widget을 자동 생성하거나 게임 입력 모드를 변경하지는 않습니다.
