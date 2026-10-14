@@ -361,6 +361,8 @@ Block Details에 GameplayTag와 별개의 `신규 대화 사용 상태`를 제�
 
 - 실행계획 및 자동 진행 지침: [DialogueImplementationPlan](Docs/AI/DialogueImplementationPlan.md). 단계별 작업 경로·완료 기준과 `Codex_Develop` 중심의 기능별 Branch·작은 Commit·검증 후 merge/Push·부분/기능 전체 복구 기준을 기록했다. 구현 단계와 Git 기능 단위는 구분한다. 계획 문서 작성 완료와 실제 구현/검증 완료는 구분한다.
 
+- 기능 완료 산출물에는 `Docs/UserGuide.md`의 항목별 사용 설명을 포함한다. 최상단 목차와 구현 순서별 설명, 공개 API 사용법·실제 에디터 UI 절차·게임 측 확장 지점을 기록하고 기능 코드와 함께 검증·Git 관리한다.
+
 ### 단계 구분과 검증 원칙
 
 단계는 폴더나 모듈별 분업이 아니라 작동·검증 가능한 결과의 경계다. Runtime과 Editor를 같은 단계에서 함께 수정할 수 있으며 검증을 마지막 단계까지 미루지 않는다.
