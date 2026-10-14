@@ -1,6 +1,6 @@
 # DialogueMaker 구현 실행계획과 자동 진행 지침
 
-작성: 2026-10-13. 상태: 구현 진행 중 / S0 검증 기반 검증 완료·통합 준비 / S1~S7 미완료.
+작성: 2026-10-13. 상태: 사용자 요청에 따라 현재 기능 마무리 후 중단 / S0 완료 / S1 일부 완료 / S2~S7 미착수.
 이 계획은 PLANS.md의 실행계획이며 제품 기준은 Blueprint.md이다. 단계의 작업·검증·Git 운영 기준을 한곳에서 관리한다. 최신 사용자 지시가 우선하며 계획이 제품 결정을 임의 변경하지 않는다.
 
 ## Goal
@@ -257,8 +257,9 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 |---|---|---|---|---|
 | 계획 | 작성 완료, 실행 미착수 | DiagnoseGraphSystem | d1b1937 / 해당 없음 | 문서 검증만 수행 |
 | S0 테스트 기반 | Integrated | chore/dialogue-test-harness / Codex_Develop | 7601263 / 5a24cbd / 84ac3db | 3 UE 테스트·9 보고서 검사 통과; 실제 missing filter 실패 판정 확인 |
-| S0 패키징 기반 | Verified / 통합 준비 | chore/dialogue-package-validation / Codex_Develop | 76e4fb5 / 현재 기능 tip / 미정 | Package_20261014_174122_a18bf895: UAT 0, 새 exe/pak 확인, Error 0 |
-| S1~S7 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
+| S0 패키징 기반 | Integrated | chore/dialogue-package-validation / Codex_Develop | 76e4fb5 / d150dfc / d7517d5 | Package_20261014_174122_a18bf895: UAT 0, 새 exe/pak 확인, Error 0 |
+| S1 안정 Block 식별자 | Integrated / 사용자 요청으로 중단 | feature/dialogue-block-identity / Codex_Develop | d7517d5 / 구현 9db7760 / 이 행을 포함한 통합 커밋 | Editor 빌드·7개 UE 테스트·Game cook/package 성공 |
+| S1 나머지~S7 | Planned / 사용자 요청으로 대기 | 기능별 Branch / Codex_Develop | 미정 | 미착수 |
 
 실행 시 기능별 행으로 분리하고 작은 커밋 목록·의존 커밋·복구 단위·Codex_Develop의 merge/검증 SHA를 함께 기록한다. 다음 정보를 갱신한다: 실행 승인 원문/일시, 현재 Branch·HEAD·BaseSHA, 변경 파일, 완료/미완료 체크, 테스트 명령·보고서·실패, 기술 검토/제품 검토 상태, Commit/Push SHA, 다음 한 가지 작업. 커밋 SHA는 커밋 후 보고 또는 다음 기록에서 반영하며 자기 SHA를 넣으려고 amend하지 않는다.
 
@@ -268,6 +269,31 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 
 - S0 컴파일 수정 통합: fix/dialogue-runtime-enum-metadata, Base 84ac3db / Feature 0cece7c / Merge 76e4fb5. Game 빌드 `GameBuild_0d6864bcb4684197a44475942223898d`, Editor `20261014_173826_7b801094`, UE 4개 `20261014_173845_2a23088a` 통과. 통합 후 핵심 1개 `20261014_174016_c64237d2` 통과. 기존 초기화 진단 12줄은 별도 미해결이며 신규 오류 0. 수정/통합 브랜치 push 완료.
 - S0 패키징 재개: WIP 3ef1d26에 통합 수정 반영 33f3306. `Package_20261014_174122_a18bf895`에서 UAT 0, 새 exe/pak, Error 0 확인. 사용자 안내서 4절과 실행 명령 작성. Sol Medium 독립 검토 차단 없음. timeout 소유 프로세스 종료는 정적 검토만 수행. GUI/PIE/실제 패키지 실행 미검증. 다음 작업은 S1 안정 식별자이며 패키징 기능 통합 후 시작한다.
+
+### 2026-10-14 사용자 중단 요청과 재개 위치
+
+사용자 요청: “우선은 현재 작업 중인 내용까지만 작업하고 멈추자.” 안정 Block 식별자 기능의 문서·검증·Git 통합까지만 마무리하고 후속 구현을 시작하지 않는다. 재개는 사용자의 다음 요청 후 진행한다.
+
+| 순서 | 구현 계획 | 중단 시 상태 |
+|---|---|---|
+| S0 | 기준 빌드, 회귀 테스트, 실패/0개 보고 판정, 패키징 실행 기반 | 완료·통합 |
+| S1-1 | 안정 Block ID/콘텐츠 버전 참조, Factory/복제, 카탈로그 검사 | 완료·통합 / 여기서 중단 |
+| S1-2 | Node/Choice 식별·핀 대응, 저장/열람 버전 구분의 나머지 | 미착수 |
+| S1-3 | Tag/Value/Count 정의·조회와 조건 AND/OR, 게임 샘플 제공자 | 미착수 |
+| S1-4 | 효과·오류값·저장 스냅샷 계약 | 미착수 |
+| S1-5 | Chapter/Scene 정의·소속·제한 없음 자료형 | 미착수 |
+| S1-6 | 범용 진단 이벤트·게임 로그 연결 계약 | 미착수 |
+| S2 | Line/Choice/Branch/StateChange/End 최소 편집·연결·실행·왕복 | 미착수 |
+| S3 | 효과 실행·중복 방어·FIFO 저장·체크포인트·열람/복원 | 미착수 |
+| S4 | 메타데이터 필터·후보·최신 요청 로드·버전 보존/교체·스토리 초기화 | 미착수 |
+| S5 | 드래그/상속·경유점·복제·검색·검사 UI·스토리보드·미열람 갱신 | 미착수 |
+| S6 | 텍스트 시간·초상화·음향·입력·Block 단독 PIE 도구 | 미착수 |
+| S7 | 기존 소비처·지역화·전체 통합·배포/실행 검증 | 미착수 |
+
+- S1-1 근거: Build `20261014_174737_40e22f64`, UE `20261014_174821_6f70a734` 7개 성공(기존 진단12/신규0), Package `Package_20261014_174841_e8bda23c` UAT0/새 exe·pak/Error0. Sol Medium 독립 구현 검토 차단 없음. 사용자 안내서 5절. 기존 에셋/저장 포맷/PrimaryAssetId 소비처는 유지한다.
+- 재개 시 우선 새 필드를 기존 NodeGuid/PinId 및 신규 Choice 항목에 연결하는 S1-2 범위를 조사·확정하고 독립 기능 브랜치에서 진행한다. 별도 의미가 없는 Node ID를 중복 도입하지 않는다. S1-1은 안정 ID 기반이며 저장·지역화·후보 선정 전환 완료가 아니다.
+- 후속 검증: S4에서 실제 legacy package fixture와 persistent Registry 카탈로그 연결을 검사한다. 일반 DuplicateObject는 새 Block이므로 같은 Block의 새 콘텐츠 버전 저작은 전용 경로가 필요하다. 기존 초기화 오류 6종/12줄, 실제 UI/PIE/패키지 실행, GameDirector 제품 검토(Unavailable)는 미완료로 유지한다.
+- Prototype2 구현/설치 및 게임 Sentry 수신 검증은 이번 작업에서 수행하지 않았다.
 
 ## Decision Log / Discoveries
 
@@ -288,4 +314,4 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - 계획 작성 및 최종 검증: Sol Medium 독립 검토에서 제품 합의·단계 의존·기능 통합/복구·Prototype2 경계의 중대한 구조 모순을 발견하지 못했다. 추가 지시인 모든 커밋 메시지 요약 의무를 반영했다. 관련 문서·코드 경로/스크립트 정적 검토와 Windows Git diff 검사. UE 빌드·PIE·자동화·패키징은 실행하지 않았다.
 - 구현 시: Saved/AI/<실행ID>/Build.log, result.json, Report/index.json 등 실제 산출물 경로와 테스트 수/결과를 단계 행에 기록한다. 테스트 0개·보고서 없음·미실행은 통과가 아니다.
 - 종료 보고: 단계·변경 목적·Branch/커밋/원격 push·통과 검증·미검증·제품 검토·다음 단계. 로그 원문은 필요 최소한만 공유한다.
-- 현재 결과: S0 테스트 기반과 Game 빌드 수정 통합. 패키징 생성 검증 통과 후 통합 준비. S1~S7 구현과 실제 PIE/패키지 연출 검증은 미완료.
+- 현재 결과: S0 테스트·실패 판정·패키징 기반과 기존 Game 컴파일 수정 완료. S1 안정 Block 식별자만 구현·검증하고 현재 기능을 통합하고 사용자 요청에 따라 중단했다. 나머지 S1~S7 및 실제 UI/PIE/패키지 연출은 미완료.
