@@ -9,6 +9,7 @@
 - [5. 안정 Block 식별자](#5-안정-block-식별자)
 - [6. Node와 Choice 식별 계약](#6-node와-choice-식별-계약)
 - [7. 범용 진단 연결](#7-범용-진단-연결)
+- [8. 게임 상태 제공과 조건 평가](#8-게임-상태-제공과-조건-평가)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -249,3 +250,35 @@ FDelegateHandle Handle = Router->OnDiagnosticNative.AddLambda(
 ```
 
 조건 평가 등 C++ 호출부는 `Dispatch(Diagnostic, Router)`를 사용할 수 있으며 Router가 없으면 로컬 로그만 유지합니다. 로그 전송 여부로 조건/효과/저장 반환값을 변경하지 않습니다. Sentry SDK는 코어 의존성이 아니며 위 예시는 전송 삽입 위치입니다. 실제 외부 수신 검증은 수행하지 않았습니다. 작가용 UI는 없으며 향후 Graph 검사 UI에서 이 구조를 이용합니다. native 이벤트 전달·해제와 일부 Context 직렬화는 자동화로 검증했습니다. Blueprint 이벤트의 실제 바인딩 실행과 모든 필드 왕복은 아직 별도 검증하지 않았습니다. Code에는 호출자가 비어 있지 않은 안정 오류 코드를 지정해야 하며 게임 스레드 호출 계약을 지켜야 합니다.
+
+## 8. 게임 상태 제공과 조건 평가
+
+`DialogueConditionTypes.h`의 FDialogueStateKey는 Kind(Tag/Value/Count), TargetId, ItemId 또는 GameplayTag로 항목을 구분합니다. TargetId는 호감도 대상 NPC 등 상태 소유자를 뜻하며 Block 진입 대상과 별개입니다. None은 게임의 전역 상태로 사용할 수 있습니다. 표시 이름은 식별자가 아닙니다.
+
+게임 개발자는 별도 UObject/Component에 `IDialogueDefinitionProvider`와 `IDialogueStateProvider`를 구현합니다. Blueprint에서도 두 인터페이스를 추가하고 구현할 수 있습니다. 정의 제공자의 `GetDialogueDefinitions(OutDefinitions)`는 이름/종류/키 목록, 상태 제공자의 `QueryDialogueTag(TargetId, Tag, OutValue)`, `QueryDialogueValue(TargetId, ItemId, OutValue)`, `QueryDialogueCount(TargetId, ItemId, OutValue)`는 현재 값만 반환합니다. C++에서는 같은 이름의 `_Implementation`을 override합니다. 반환 bool은 조회 성공이며 실제 bool/double/int64 값과 구분됩니다. 조회로 게임 상태·저장·커서를 바꾸면 안 됩니다.
+
+공통 FDialogueStateDefinition 행 DataTable은 `ReadDefinitionTable(Table, OutDefinitions)`로 읽습니다. 중복/잘못된 키나 다른 행 타입이면 false와 빈 배열입니다. 기존 게임의 아이템 DataTable이 다른 행 구조라면 게임 정의 제공자가 공통 목록으로 변환합니다. 최대 중첩 수를 현재 수량으로 전달하지 않습니다.
+
+```cpp
+UDialogueSampleStateProvider* Provider = NewObject<UDialogueSampleStateProvider>();
+FDialogueStateDefinition Definition;
+Definition.Key.Kind = EDialogueStateKind::Count;
+Definition.Key.ItemId = TEXT("Gift");
+Provider->AddDefinition(Definition);
+FDialogueCondition Condition;
+Condition.Key = Definition.Key;
+Condition.Comparison = EDialogueComparison::GreaterOrEqual;
+Condition.CountOperand = 1;
+FDialogueConditionSet Set;
+Set.Conditions.Add(Condition);
+FDialogueDiagnosticContext Context;
+const FDialogueConditionResult Result = UDialogueConditionLibrary::EvaluateConditions(
+    Set, Provider, false, Context, nullptr);
+// 정의된 Gift의 미설정 샘플 수량은 0: bPassed=false, bHadErrors=false.
+```
+
+샘플의 `SetSampleState(NewState)`로 메모리 값만 설정하며 미등록 키/음수 Count/비유한 Value는 false입니다. 샘플은 명시 생성해야 하고 실제 게임 제공자가 없다고 자동 선택되지 않습니다. 값의 원본과 상태 수명은 게임 책임입니다. 제공자 객체는 게임이 UPROPERTY로 보관합니다.
+
+EvaluateConditions의 bBranchCondition은 빈 Branch 진단 여부입니다. 빈 일반 조건은 True/무오류, 빈 Branch는 True/진단입니다. 오류 항목만 True로 바꾼 뒤 AND/OR로 종합하므로 AND의 다른 False는 유지되고 OR의 오류 항목은 최종 True를 만들 수 있습니다. bHadErrors와 Diagnostics에서 이를 구별합니다. 효과/저장 실패에는 이 정책을 적용하지 않습니다. Tag는 Equal/NotEqual만, 수치는 여섯 비교 연산을 지원합니다. double 동등 비교는 정확 비교이며 Count는 int64 그대로 비교합니다. Count의 현재 값은 0 이상이지만 비교 기준에는 음수도 허용하여 그대로 수치 비교합니다. 미구현 인터페이스 기본 구현은 false와 초기화된 출력값을 반환합니다. DataTable 반환 순서는 저작 정렬 기준이 아니므로 UI에서 표시 순서를 별도 정합니다.
+
+작가용 새 조건 선택 UI는 S2/S5에서 연결합니다. 현재는 독립 공통 계약과 샘플이며 기존 FPlayerCondition/Branch/내장 선택지 소비처를 바꾸지 않았습니다. 게임별 새 아이템/능력치는 목록과 제공자만 확장하면 되고 플러그인 enum에 게임 항목을 추가할 필요가 없습니다. 중첩 그룹은 지원하지 않습니다.

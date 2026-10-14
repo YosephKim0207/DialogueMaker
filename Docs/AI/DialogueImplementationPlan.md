@@ -325,3 +325,5 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - S1 Node/Choice 식별: 기존 NodeGuid 유지, ChoiceId↔PersistentGuid↔RuntimePin 대응과 재정렬 연결 보존, ReadVersion 경계 및 순수 검사 구현. 첫 실행에서 AddDialogueChoice에 같은 배열 요소를 입력할 때 assert가 재현되어 로컬 복사 후 추가하도록 수정했다(193301_e85ec019). 수정 후 전체9개 통과(193356_719a6d30), 경계 보완 Build 193437_3b5b650e. 실제 Graph 저장/재열기 UI는 S2 검증 대상. Sol Medium 검토 차단 없음.
 
 - S1 진단 계약: Blueprint/native 이벤트와 서비스 비의존 FDialogueDiagnostic/Context 구현. Build 193723_e0c3f871 및 native 전달·해제/일부 Context 테스트 193759_291fe40b 통과. Sol Medium 검토 후 문서의 BP 이벤트/전체 필드 검증 주장을 낮췄다. 실제 Sentry 전송은 미검증.
+
+- S1 조건 계약: Tag/Value/Count·정의/현재값 인터페이스·AND/OR·공통 DataTable·메모리 샘플 구현. 오류항목 True 대체·0과 조회실패 구분·int64 정밀도·NaN/대상격리·기본실패 검증. Build 194429_7a15d66c 통과. 기존 조건 소비처는 S2에서 전환한다. Sol Medium 검토 반영, UserGuide 8절.
