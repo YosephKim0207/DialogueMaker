@@ -2,6 +2,7 @@
 #include "DialogueLineNodeInfo.h"
 #include "DialogueChoiceNodeInfo.h"
 #include "DialogueConditionLibrary.h"
+#include "DialogueBranchNodeInfoBase.h"
 #include "DialogueEndNodeInfo.h"
 
 // 명시적으로 전달된 Block을 검사하여 Start에서 실행한다.
@@ -70,6 +71,7 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 	Presentation.State = EDialogueRunState::Running;
 	Presentation.Choices.Reset();
 	Presentation.ChoiceNodeGuid.Invalidate();
+	TSet<FGuid> VisitedBranches;
 	for (int32 Step = 0; Step < 4096; ++Step)
 	{
 		if (Node == nullptr)
@@ -107,6 +109,27 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 			}
 			Publish();
 			return true;
+		}
+		if (Node->DialogueNodeType == EDialogueType::BranchNode)
+		{
+			const UDialogueBranchNodeInfoBase* Info = Cast<UDialogueBranchNodeInfoBase>(Node->NodeInfo);
+			if (Info == nullptr || Node->OutputPins.Num() != 2 || Node->OutputPins[0]->PinName != TEXT("True") || Node->OutputPins[1]->PinName != TEXT("False"))
+			{
+				return Fail(TEXT("InvalidBranch"));
+			}
+			if (VisitedBranches.Contains(Node->NodeGuid))
+			{
+				// 제작사는 Router에 자동 순환 오류 전송을 연결한다. 재평가 전에 중단한다.
+				return Fail(TEXT("AutomaticBranchCycle"));
+			}
+			VisitedBranches.Add(Node->NodeGuid);
+			FDialogueDiagnosticContext Context;
+			Context.Block = ActiveBlock->GetBlockReference();
+			Context.NodeGuid = Node->NodeGuid;
+			// 빈 조건/조회 오류의 True 대체와 로그는 공통 평가기에서 처리한다.
+			const bool bPassed = UDialogueConditionLibrary::EvaluateConditions(Info->Conditions, StateProvider, true, Context, Router).bPassed;
+			Node = ResolveOutput(Node, bPassed ? 0 : 1);
+			continue;
 		}
 		if (Node->DialogueNodeType == EDialogueType::ChoiceNode)
 		{
@@ -162,6 +185,10 @@ bool UDialogueBlockRunner::AdvanceLine()
 // 미리보기는 다음 노드의 타입만 읽는다.
 EDialogueType UDialogueBlockRunner::GetDirectNextType() const
 {
+	if (Presentation.State != EDialogueRunState::WaitingLine)
+	{
+		return EDialogueType::Unknown;
+	}
 	const UDialogueRuntimeNode* Next = ResolveOutput(Nodes.FindRef(Presentation.NodeGuid), 0);
 	return Next ? Next->DialogueNodeType : EDialogueType::Unknown;
 }

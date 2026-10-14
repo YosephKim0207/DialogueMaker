@@ -175,6 +175,12 @@ bool FDialogueGraphCodec::ImportGraph(const UDialogueGraph* Asset, UEdGraph* Edi
 		{
 			return false;
 		}
+		if (RuntimeNode->DialogueNodeType == EDialogueType::BranchNode &&
+			(RuntimeNode->OutputPins[0] == nullptr || RuntimeNode->OutputPins[1] == nullptr ||
+			RuntimeNode->OutputPins[0]->PinName != TEXT("True") || RuntimeNode->OutputPins[1]->PinName != TEXT("False")))
+		{
+			return false;
+		}
 		NodeIds.Add(RuntimeNode->NodeGuid);
 		UDialogueEdGraphNodeBase* Node = NewObject<UDialogueEdGraphNodeBase>(EditorGraph, NodeClass, NAME_None, RF_Transactional);
 		Node->NodeGuid = RuntimeNode->NodeGuid;
