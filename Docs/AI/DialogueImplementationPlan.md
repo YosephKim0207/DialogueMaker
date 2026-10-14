@@ -384,3 +384,4 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - S2 Line 최종 보완: legacy/Line 본문 혼동 및 손상 Start/End 거부, 출력 교체/입력 합류 검증 추가. Build 220821_45ec5056, 전체22개 220835_ac3a7b68 통과. Sol Medium 지적 반영.
 - S2 Choice: 독립 선택 목록/고정ID핀/필터링/기본fallback/정상루프 구현. 초기 Codec 타입 누락 테스트 실패(221119_b227cf41)를 수정, 전체23개 221243_bb91b145 통과. 표시전 숨은 ID 실행 및 대기중 전체탈락 방어 보완 후 Build 221328_c1b84e96/Runtime2개 221426_6ab8f205 통과. Sol Medium 검토 반영. 외부 상태 변경 알림 기반 선택 UI 갱신은 S6 연동에서 확인한다.
 - S2 Branch: 공통 조건과 실제진입 분기, 입력 경계별 방문 집합, 자동순환 재평가 전 중단. Build 221754_c03d3f89, 전체24개 221608_865e758a 및 최종Runtime3개 221830_290dec71 통과. Sol Medium 지적에 따라 Choice 대기시 직접다음조회 Unknown, True/False 핀검사와 입력을 거친 Branch 재방문 검증 추가.
+- S2 StateChange: 상태변경 저작/실제진입 효과 및 Choice효과/저장플래그, 성공 직후 후속진입 전 경계 구현. Build 222328_8846ebb3, 전체25개 222038_f6464f55 및 최종Runtime4개 222358_b1c0b2e2 통과. Sol Medium 지적의 no-effect ExecutionId를 S1 계약과 일치시키고 true/false 저장플래그·잘못된효과 무변경 시험 추가. 디스크 저장안전성은 S3이며 이벤트 접수실패 보완도 S3 책임이다.

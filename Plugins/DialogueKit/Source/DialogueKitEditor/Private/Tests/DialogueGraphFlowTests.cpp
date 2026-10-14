@@ -13,6 +13,9 @@
 #include "DialogueBranchNodeInfoBase.h"
 #include "DialogueChoiceNodeInfo.h"
 #include "DialogueSampleStateProvider.h"
+#include "DialogueSampleEffectProvider.h"
+#include "DialogueStateChangeNodeInfo.h"
+#include "DialogueStateChangeEdGraphNode.h"
 #include "EdGraph/EdGraph.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -308,6 +311,107 @@ bool FDialogueBranchFlowTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Automatic cycle stops"), Runner->AdvanceLine());
 	TestEqual(TEXT("Two evaluations plus cycle diagnostic only"), Diagnostics, 3);
 	TestEqual(TEXT("Cycle code"), Runner->GetPresentation().ErrorCode, FName(TEXT("AutomaticBranchCycle")));
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDialogueStateChangeFlowTest,
+	"DialogueKit.Runtime.StateChangeBoundary",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 사전 조회 무변경, 실제 진입 효과, 후속 실행 전 경계 및 실패 무진행을 확인한다.
+bool FDialogueStateChangeFlowTest::RunTest(const FString& Parameters)
+{
+	UDialogueGraph* Asset = NewObject<UDialogueGraph>();
+	Asset->InitializeBlockIdentity();
+	UEdGraph* Graph = NewObject<UEdGraph>(Asset);
+	Graph->Schema = UDialogueEdGraphSchema::StaticClass();
+	Graph->GetSchema()->CreateDefaultNodesForGraph(*Graph);
+	UDialogueEdGraphNodeBase* Line = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Graph->Nodes[0]->Pins[0]);
+	UDialogueEdGraphNodeBase* Change = AddFlowTestNode(Graph, UDialogueStateChangeEdGraphNode::StaticClass(), Line->Pins[1]);
+	UDialogueEdGraphNodeBase* Choice = AddFlowTestNode(Graph, UDialogueChoiceEdGraphNode::StaticClass(), Change->Pins[1]);
+	Graph->GetSchema()->TryCreateConnection(Choice->Pins[1], Line->Pins[0]);
+	UDialogueSampleEffectProvider* Provider = NewObject<UDialogueSampleEffectProvider>();
+	FDialogueStateDefinition Definition;
+	Definition.Key.Kind = EDialogueStateKind::Count;
+	Definition.Key.ItemId = TEXT("Coin");
+	Provider->AddDefinition(Definition);
+	FDialogueEffect Effect;
+	Effect.Key = Definition.Key;
+	Effect.Count = 1;
+	CastChecked<UDialogueStateChangeNodeInfo>(Change->GetNodeInfo())->Effects.Add(Effect);
+	UDialogueChoiceNodeInfo* ChoiceInfo = CastChecked<UDialogueChoiceNodeInfo>(Choice->GetNodeInfo());
+	ChoiceInfo->Options[0].Effects.Add(Effect);
+	const FGuid ChoiceId = ChoiceInfo->Options[0].ChoiceId;
+	FString Error;
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	UDialogueBlockRunner* Runner = NewObject<UDialogueBlockRunner>();
+	int32 Boundaries = 0;
+	TSet<FGuid> Executions;
+	Runner->OnExecutionBoundaryNative.AddLambda([&](const FDialogueExecutionBoundary& Boundary)
+	{
+		++Boundaries;
+		TestTrue(TEXT("Execution ID unique for normal occurrence"), Boundary.Context.ExecutionId.IsValid() && Executions.Contains(Boundary.Context.ExecutionId) == false);
+		Executions.Add(Boundary.Context.ExecutionId);
+		TestTrue(TEXT("Save requested after successful effect"), Boundary.bSaveRequested && Boundary.bHasEffects && Boundary.NextNodeGuid.IsValid());
+		int64 Count = 0;
+		Provider->QueryDialogueCount_Implementation(NAME_None, TEXT("Coin"), Count);
+		TestEqual(TEXT("State is available at boundary"), Count, static_cast<int64>(Boundaries));
+		TestFalse(TEXT("Boundary cannot reenter progression"), Runner->AdvanceLine());
+	});
+	TestTrue(TEXT("Start"), Runner->StartBlock(Asset, Provider, Provider, nullptr));
+	TestTrue(TEXT("Preview StateChange type only"), Runner->GetDirectNextType() == EDialogueType::StateChangeNode);
+	int64 Count = -1;
+	Provider->QueryDialogueCount_Implementation(NAME_None, TEXT("Coin"), Count);
+	TestEqual(TEXT("No effect during preview"), Count, int64(0));
+	TestEqual(TEXT("No boundary during preview"), Boundaries, 0);
+	TestTrue(TEXT("StateChange enters next Choice"), Runner->AdvanceLine());
+	TestTrue(TEXT("Choice now waiting"), Runner->GetPresentation().State == EDialogueRunState::WaitingChoice);
+	TestEqual(TEXT("One state boundary"), Boundaries, 1);
+	TestTrue(TEXT("Choice effect and loop"), Runner->SelectChoice(ChoiceId));
+	TestEqual(TEXT("Choice boundary"), Boundaries, 2);
+	TestTrue(TEXT("Normal repeated StateChange allowed"), Runner->AdvanceLine());
+	TestEqual(TEXT("Repeated effect new execution"), Boundaries, 3);
+	UDialogueBlockRunner* Failed = NewObject<UDialogueBlockRunner>();
+	int32 FailedBoundaries = 0;
+	Failed->OnExecutionBoundaryNative.AddLambda([&](const FDialogueExecutionBoundary&) { ++FailedBoundaries; });
+	Failed->StartBlock(Asset, Provider, nullptr, nullptr);
+	TestFalse(TEXT("Provider failure stops"), Failed->AdvanceLine());
+	TestTrue(TEXT("Failed not completed"), Failed->GetPresentation().State == EDialogueRunState::Failed);
+	TestEqual(TEXT("No success checkpoint boundary"), FailedBoundaries, 0);
+	Change->Pins[1]->BreakAllPinLinks();
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Failed = NewObject<UDialogueBlockRunner>();
+	Failed->StartBlock(Asset, Provider, Provider, nullptr);
+	TestFalse(TEXT("Broken continuation fails before effect"), Failed->AdvanceLine());
+	Provider->QueryDialogueCount_Implementation(NAME_None, TEXT("Coin"), Count);
+	TestEqual(TEXT("No grant on broken continuation"), Count, int64(3));
+	Graph->GetSchema()->TryCreateConnection(Change->Pins[1], Choice->Pins[0]);
+	CastChecked<UDialogueStateChangeNodeInfo>(Change->GetNodeInfo())->Effects[0].Key.ItemId = NAME_None;
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Failed = NewObject<UDialogueBlockRunner>();
+	Failed->StartBlock(Asset, Provider, Provider, nullptr);
+	TestFalse(TEXT("Invalid effect fails"), Failed->AdvanceLine());
+	Provider->QueryDialogueCount_Implementation(NAME_None, TEXT("Coin"), Count);
+	TestEqual(TEXT("Invalid effect leaves state unchanged"), Count, int64(3));
+	// 효과 없는 선택은 기록 경계를 보내되 실행 ID는 발급하지 않는다.
+	Graph->GetSchema()->TryCreateConnection(Line->Pins[1], Choice->Pins[0]);
+	ChoiceInfo->Options[0].Effects.Reset();
+	for (const bool bSave : {false, true})
+	{
+		ChoiceInfo->bSaveOnSelection = bSave;
+		if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+		UDialogueBlockRunner* NoEffect = NewObject<UDialogueBlockRunner>();
+		int32 Records = 0;
+		NoEffect->OnExecutionBoundaryNative.AddLambda([&](const FDialogueExecutionBoundary& Boundary)
+		{
+			++Records;
+			TestTrue(TEXT("No effect has no execution ID"), Boundary.bHasEffects == false && Boundary.Context.ExecutionId.IsValid() == false);
+			TestTrue(TEXT("Selection record has origin and next"), Boundary.ChoiceId == ChoiceId && Boundary.NextNodeGuid == Line->NodeGuid);
+			TestEqual(TEXT("Explicit save flag"), Boundary.bSaveRequested, bSave);
+		});
+		NoEffect->StartBlock(Asset, Provider, Provider, nullptr);
+		TestTrue(TEXT("No-effect choice accepted"), NoEffect->SelectChoice(ChoiceId));
+		TestEqual(TEXT("One record boundary"), Records, 1);
+	}
 	return true;
 }
 #endif
