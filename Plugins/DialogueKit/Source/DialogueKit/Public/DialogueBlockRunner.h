@@ -54,6 +54,26 @@ struct DIALOGUEKIT_API FDialoguePresentation
 	TArray<FDialogueChoiceView> Choices;
 };
 
+// 효과 성공 직후의 원점/다음 위치다. 디스크 저장 완료를 뜻하지 않는다.
+USTRUCT(BlueprintType)
+struct DIALOGUEKIT_API FDialogueExecutionBoundary
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	FDialogueDiagnosticContext Context;
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	FGuid ChoiceId;
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	FGuid NextNodeGuid;
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	bool bHasEffects = false;
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	bool bSaveRequested = false;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDialogueExecutionBoundaryEvent, const FDialogueExecutionBoundary&, Boundary);
+DECLARE_MULTICAST_DELEGATE_OneParam(FDialogueExecutionBoundaryNative, const FDialogueExecutionBoundary&);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDialoguePresentationEvent, const FDialoguePresentation&, Presentation);
 DECLARE_MULTICAST_DELEGATE_OneParam(FDialoguePresentationNative, const FDialoguePresentation&);
 
@@ -88,6 +108,13 @@ public:
 
 	FDialoguePresentationNative OnPresentationChangedNative;
 
+	// 게임은 이 동기 경계에서 상태/선택기록/다음 위치를 캐시에 반영한다.
+	// bSaveRequested일 때만 불변 복사본을 FIFO에 제출한다.
+	// 디스크 완료를 기다리지 않는다. S2 자체는 실제 파일 저장을 실행하지 않는다.
+	UPROPERTY(BlueprintAssignable, Category = "DialogueKit|Run")
+	FDialogueExecutionBoundaryEvent OnExecutionBoundary;
+	FDialogueExecutionBoundaryNative OnExecutionBoundaryNative;
+
 private:
 	// 연결의 방향/소유/단일 목적지를 검사하고 실패 시 nullptr를 반환한다.
 	UDialogueRuntimeNode* ResolveOutput(const UDialogueRuntimeNode* Node, int32 Index) const;
@@ -119,6 +146,9 @@ private:
 
 	UPROPERTY()
 	TMap<FGuid, UDialogueRuntimeNode*> Nodes;
+
+	// 다음 위치 검사가 끝난 뒤에만 효과를 요청하고 성공 경계를 게시한다.
+	bool ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueRuntimeNode* Next, const TArray<struct FDialogueEffect>& Effects, FGuid ChoiceId, bool bSaveRequested);
 
 	bool bProcessing = false;
 };

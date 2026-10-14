@@ -3,6 +3,8 @@
 #include "DialogueChoiceNodeInfo.h"
 #include "DialogueConditionLibrary.h"
 #include "DialogueBranchNodeInfoBase.h"
+#include "DialogueStateChangeNodeInfo.h"
+#include "DialogueEffectContract.h"
 #include "DialogueEndNodeInfo.h"
 
 // 명시적으로 전달된 Block을 검사하여 Start에서 실행한다.
@@ -109,6 +111,21 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 			}
 			Publish();
 			return true;
+		}
+		if (Node->DialogueNodeType == EDialogueType::StateChangeNode)
+		{
+			const UDialogueStateChangeNodeInfo* Info = Cast<UDialogueStateChangeNodeInfo>(Node->NodeInfo);
+			if (Info == nullptr || Info->Effects.IsEmpty() || Node->OutputPins.Num() != 1)
+			{
+				return Fail(TEXT("InvalidStateChange"));
+			}
+			UDialogueRuntimeNode* Next = ResolveOutput(Node, 0);
+			if (ApplyEffects(Node, Next, Info->Effects, FGuid(), true) == false)
+			{
+				return false;
+			}
+			Node = Next;
+			continue;
 		}
 		if (Node->DialogueNodeType == EDialogueType::BranchNode)
 		{
@@ -295,5 +312,43 @@ bool UDialogueBlockRunner::SelectChoice(FGuid ChoiceId)
 	}
 	const UDialogueChoiceNodeInfo* Info = CastChecked<UDialogueChoiceNodeInfo>(Node->NodeInfo);
 	const int32 Index = Info->Options.IndexOfByPredicate([ChoiceId](const FDialogueOption& Option) { return Option.ChoiceId == ChoiceId; });
-	return Pump(ResolveOutput(Node, Index));
+	UDialogueRuntimeNode* Next = ResolveOutput(Node, Index);
+	if (ApplyEffects(Node, Next, Info->Options[Index].Effects, ChoiceId, Info->bSaveOnSelection) == false)
+	{
+		return false;
+	}
+	return Pump(Next);
+}
+
+// 실제 진입만 효과를 적용한다. 다음 연결이 끊겼으면 지급 전에 실패한다.
+bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueRuntimeNode* Next, const TArray<FDialogueEffect>& Effects, FGuid ChoiceId, bool bSaveRequested)
+{
+	if (Next == nullptr)
+	{
+		return Fail(TEXT("InvalidConnection"));
+	}
+	FDialogueExecutionBoundary Boundary;
+	Boundary.Context.Block = ActiveBlock->GetBlockReference();
+	Boundary.Context.NodeGuid = Origin->NodeGuid;
+	Boundary.ChoiceId = ChoiceId;
+	Boundary.NextNodeGuid = Next->NodeGuid;
+	Boundary.bHasEffects = Effects.IsEmpty() == false;
+	Boundary.bSaveRequested = bSaveRequested || Boundary.bHasEffects;
+	if (Boundary.bHasEffects)
+	{
+		Boundary.Context.ExecutionId = FGuid::NewGuid();
+		FDialogueEffectBatch Batch;
+		Batch.Context = Boundary.Context;
+		Batch.Effects = Effects;
+		const FDialogueEffectResult Result = UDialogueEffectLibrary::ApplyEffectBatch(Batch, EffectProvider, Router);
+		if (Result.IsSuccess() == false)
+		{
+			// 제작사는 제공자 오류와 실행 ID가 담긴 Router 진단을 외부 로그로 전송한다.
+			return Fail(Result.ErrorCode);
+		}
+	}
+	// 후속 노드가 상태를 변경하기 전에 게임이 불변 스냅샷을 확보해야 한다.
+	OnExecutionBoundaryNative.Broadcast(Boundary);
+	OnExecutionBoundary.Broadcast(Boundary);
+	return true;
 }
