@@ -7,6 +7,7 @@
 - [3. 지원 언어 목록의 게임 빌드 호환](#3-지원-언어-목록의-게임-빌드-호환)
 - [4. 샘플 맵 패키징 검증](#4-샘플-맵-패키징-검증)
 - [5. 안정 Block 식별자](#5-안정-block-식별자)
+- [6. Node와 Choice 식별 계약](#6-node와-choice-식별-계약)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -216,3 +217,15 @@ const bool bValid = FDialogueBlockIdentity::ValidateCatalog(
 ```powershell
 .\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Contracts.BlockIdentity -TimeoutMinutes 5
 ```
+
+## 6. Node와 Choice 식별 계약
+
+기존 `NodeGuid`를 노드 식별자로 재사용하고 `FDialogueChoice::ChoiceId`로 선택 문구/순서와 분리합니다. 기존 저장 형식과 지역화 PinId는 유지합니다.
+
+개발자는 `UDialogueNodeInfo::AddDialogueChoice(const FDialogueChoice&)`로 선택을 추가합니다. 누락 ID와 같은 목록의 중복 ID는 새로 부여합니다. `EnsureChoiceIds()`는 명시 편집 전용이며 로드·조회에는 호출하지 않습니다. `GetReadVersion()`은 현재 열람 버전(기본 1), `AdvanceReadVersion()`은 명시 갱신용이며 잘못된 값/최대값이면 false로 무변경입니다. Undo와 저장은 호출하는 편집 도구 책임입니다. NodeInfo의 일반 DuplicateObject는 편집/실행 왕복 때문에 ID와 열람 버전을 유지합니다.
+
+작가는 기존 Line Details의 선택 배열을 편집합니다. ID가 있는 선택의 순서를 바꿔도 연결 핀과 목적지가 함께 유지됩니다. ID 없는 기존 프로토타입은 최초 명시 편집에서 기존 순서대로 핀을 승계하며, 그 전에 이미 바뀐 순서를 역추정하지 않습니다. 미열람 갱신 버튼과 독립 Choice 노드는 아직 후속 S5/S2 작업입니다.
+
+`UDialogueRuntimeGraph::ValidateIdentifiers`는 현재 식별 오류의 문자열 코드 목록을 반환하는 검사 기반입니다. false여도 자료를 자동 고치지 않으며, Graph 검사 UI는 아직 추가하지 않았습니다. S5 노드 복제 도구는 NodeGuid·ChoiceId·PinId를 새로 부여해야 합니다. 노드 정보 복제 함수에 재발급을 넣으면 저장 왕복마다 ID가 바뀌므로 금지합니다.
+
+Editor 핀의 PersistentGuid와 RuntimePin.ChoiceId를 직렬화 변환에서 함께 보존합니다. 자동화는 재정렬 시 핀/연결 보존, 자기 배열의 선택 복제, NodeInfo 메모리 왕복, 누락/중복, 열람 버전 경계를 검사합니다. 실제 전체 Graph 에셋 저장·재열기 및 Undo UI는 S2/S5에서 검증합니다. 기존 에셋의 자동 일괄 재작성은 하지 않습니다.

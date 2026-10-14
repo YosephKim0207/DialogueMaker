@@ -11,6 +11,10 @@ struct FDialogueChoice
 {
 	GENERATED_BODY()
 
+	// 선택 문구/배열 위치와 독립적인 저작 식별자다. 기존 에셋 로드시 자동 발급하지 않는다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Identity")
+	FGuid ChoiceId;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Text")
     FText ResponseText;
 

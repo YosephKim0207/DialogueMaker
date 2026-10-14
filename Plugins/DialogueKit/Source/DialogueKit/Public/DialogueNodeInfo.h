@@ -44,6 +44,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "DialogueKit|DialogueNodeInfo|Choices")
     void RemoveDialogueChoiceAt(int32 Index);
 	
+	// 명시적인 편집에서 누락/중복 선택 ID만 생성한다. 조회·로드에는 호출하지 않는다.
+	void EnsureChoiceIds();
+
+	// 현재 Line의 열람 버전을 조회한다. 저장 형식/콘텐츠 버전과 구분한다.
+	UFUNCTION(BlueprintPure, Category = "DialogueKit|DialogueNodeInfo|Identity")
+	int32 GetReadVersion() const { return ReadVersion; }
+
+	// 명시적인 미열람 갱신에서만 호출한다. 최대값에서는 false로 실패하고 상태를 유지한다.
+	bool AdvanceReadVersion();
+
 	bool IsDialogueAlreadyShown() const;
 	void SetShownCondition(const bool NewCondition);
 
@@ -57,6 +67,9 @@ public:
     const TArray<FPortraitActionData>& GetPortraitActionDatas() const;
 	
 private:
+	UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueNodeInfo|Identity")
+	int32 ReadVersion = 1;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true"))
     FText Title;
 

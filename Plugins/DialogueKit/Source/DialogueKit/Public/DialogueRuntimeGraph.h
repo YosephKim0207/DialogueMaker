@@ -17,6 +17,10 @@ public:
 	UPROPERTY()
 	FGuid PinId;
 
+	// Choice 항목과 출력 핀의 대응이다. 일반 진행 핀은 invalid를 유지한다.
+	UPROPERTY()
+	FGuid ChoiceId;
+
 	UPROPERTY()
 	FGuid OwnerNodeGuid;
 
@@ -60,4 +64,7 @@ class DIALOGUEKIT_API UDialogueRuntimeGraph : public UObject
 public:
 	UPROPERTY()
 	TArray<UDialogueRuntimeNode*> Nodes;
+
+	// ID/소유/선택 핀 대응을 검사하며 누락 ID를 자동 수정하지 않는다.
+	bool ValidateIdentifiers(TArray<FString>& OutIssues) const;
 };
