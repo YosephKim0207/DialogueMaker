@@ -20,7 +20,7 @@ WSL에서 Windows 실행이 socket failed로 차단되면 승인된 Windows 실�
 외부 IDE에서 새 빌드를 동시에 시작하지 않는다. 빌드 자체의 중복 실행은 UBT -WaitMutex로도 조정한다.
 
 ## 자동화 테스트
-현재 프로젝트 자체 C++ 자동화 테스트 등록은 발견하지 못했다. 기능을 추가할 때 해당 요구사항을 검증할 테스트를 선정/작성한다.
+2026-10-14부터 프로젝트 자체 `DialogueKit.Baseline` 테스트 3개(선택지 조건·열람 메모리 왕복·고유 슬롯 파일 왕복)를 등록했다. 기능을 추가할 때 해당 요구사항을 검증할 테스트를 선정/작성한다.
 다음은 연결 검증용 엔진 내장 테스트이며 게임/대화 기능의 검증이 아니다.
 
 ```powershell
@@ -34,6 +34,17 @@ Quit은 같은 Automation 명령 큐에 들어간다. 시작하자마자 종료�
 NullRHI 실행은 렌더링/UMG 시각 검증에 사용할 수 없다. 화면·입력 변경은 별도 PIE 시나리오가 필요하다.
 실행 한정 -ini:Engine:[/Script/Sentry.SentrySettings]:InitAutomatically=False 옵션으로 Sentry 자동 초기화를 끈다. 기존 진단 데이터 정리/송신을 피하기 위한 테스트 옵션이며 프로젝트 설정을 저장하지 않는다. Sentry 통합 자체는 이 실행으로 검증하지 않는다.
 성공한 테스트와 별도로 전체 실행 로그의 Error 줄 수를 result.json에 기록한다. 시작 오류가 있으면 경고를 표시하고 원인을 보고한다.
+
+## DialogueKit 테스트와 결과 판정
+
+```powershell
+.\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Baseline -TimeoutMinutes 5
+.\Scripts\AI\Test-AutomationReport.ps1
+```
+
+Test 프로세스 실행 이후 실패에도 result.json을 남긴다. Outcome, FailureCategory, ReportFailureCategory, 종료 코드와 테스트 수를 구분한다. 기존 구조체 초기화 오류 6종/최대12줄은 KnownBaselineDiagnostics로 분리하며 그 외 Error는 실패다. 알려진 오류를 수정할 때 판정 기준에서도 제거한다. 환경 검사나 기존 실행 프로세스로 인한 시작 전 거부는 콘솔 오류로 보고한다.
+
+개발자용 공개 실행 인자·결과 해석·확장 방법은 [사용자 안내서](../UserGuide.md)를 따른다. 샘플 슬롯은 테스트 실행별 GUID로 격리되며 실제 사용자 슬롯은 사용하지 않는다. 자동화 성공은 GUI/PIE/패키징 성공을 뜻하지 않는다.
 
 ## Git과 Fork
 

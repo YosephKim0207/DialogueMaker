@@ -256,9 +256,14 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 | 단계/기능 | 상태 | 기능 Branch / 통합 Branch | BaseSHA / FeatureTip / MergeSHA | 검증·Commit·Push 근거 |
 |---|---|---|---|---|
 | 계획 | 작성 완료, 실행 미착수 | DiagnoseGraphSystem | d1b1937 / 해당 없음 | 문서 검증만 수행 |
-| S0~S7의 각 기능 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
+| S0 테스트 기반 | Verified / 통합 준비 | chore/dialogue-test-harness / Codex_Develop | 7601263 / 현재 기능 tip / 미정 | 3 UE 테스트·9 보고서 검사 통과; 실제 missing filter 실패 판정 확인 |
+| S0 패키징 기반 및 S1~S7 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
 
 실행 시 기능별 행으로 분리하고 작은 커밋 목록·의존 커밋·복구 단위·Codex_Develop의 merge/검증 SHA를 함께 기록한다. 다음 정보를 갱신한다: 실행 승인 원문/일시, 현재 Branch·HEAD·BaseSHA, 변경 파일, 완료/미완료 체크, 테스트 명령·보고서·실패, 기술 검토/제품 검토 상태, Commit/Push SHA, 다음 한 가지 작업. 커밋 SHA는 커밋 후 보고 또는 다음 기록에서 반영하며 자기 SHA를 넣으려고 amend하지 않는다.
+
+- 실행 승인: 2026-10-14 사용자 “이제 앞서 논의한 내용을 순서대로 스스로 작업해봐.”에 따라 구현·검증·문서·기능별 Git 통합을 시작했다. 기준 빌드: Saved/AI/20261014_172137_a97d4dc2/Build.log, ExitCode 0. 기존 EnhancedInput 선언 경고는 분리 추적한다.
+
+- S0 테스트 기반 검증: Build `Saved/AI/20261014_172742_d4a3b189`, UE 3개 Success `Saved/AI/20261014_172756_47af708b`, 합성 보고서 9개 `Saved/AI/ReportValidation_cdacc1f12b6c4d209c18cd64a5429655`, 의도한 실패 `Saved/AI/20261014_172830_9f259835`(EditorExit 255 / NoReport / wrapper 비정상 종료). 기존 6종 초기화 오류 12줄만 확인, 신규 오류 0. Sol Medium 검토 통과. 사용자 안내서 1~2절 작성. 다음 작업은 별도 package-validation 기능이며 UI·cook 검증은 아직 미실행이다.
 
 ## Decision Log / Discoveries
 

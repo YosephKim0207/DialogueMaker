@@ -53,6 +53,8 @@ try {
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $RunRoot 'result.json') -Encoding UTF8
         if ($Code -ne 0) { throw "Build failed ($Code). Log: $Log" }
     } else {
+        $TestResult = [ordered]@{ Action = $Action; Outcome = 'Failed'; FailureCategory = $null; ReportFailureCategory = $null; KnownBaselineDiagnostics = 0; UnexpectedLogErrors = @(); ExitCode = $null; TestFilter = $TestFilter; TestCount = 0; PassedCount = 0; FailedCount = 0; Report = $null; Log = $Log; LogErrorLines = 0; StartupClean = $false; Tests = @(); Error = $null }
+        try {
         $Report = Join-Path $RunRoot 'Report'
         $Arguments = @(
             ('"' + $ProjectFile + '"'),
@@ -70,25 +72,73 @@ try {
         $StartInfo.CreateNoWindow = $true
         $Process = [System.Diagnostics.Process]::Start($StartInfo)
         if (-not $Process.WaitForExit($TimeoutMinutes * 60000)) {
+            $TestResult.FailureCategory = 'Timeout'
             $Process.Kill()
             $Process.WaitForExit()
+            $TestResult.FailureCategory = 'Timeout'
             throw "Automation timed out; stopped only the process launched by this script. Log: $Log"
         }
         $Process.Refresh()
-        if ($Process.ExitCode -ne 0) { throw "Editor exited with $($Process.ExitCode). Log: $Log" }
+        $TestResult.ExitCode = $Process.ExitCode
         $ReportFile = Join-Path $Report 'index.json'
-        if (-not (Test-Path -LiteralPath $ReportFile)) { throw "No fresh test report: $ReportFile" }
-        $Results = Get-Content -LiteralPath $ReportFile -Raw | ConvertFrom-Json
-        $Tests = @($Results.tests)
-        if ($Tests.Count -eq 0) { throw 'Zero selected tests is not a pass.' }
-        $Bad = @($Tests | Where-Object { $_.state -ne 'Success' })
-        $Tests | Select-Object fullTestPath,state | Format-Table -AutoSize
-        if ($Bad.Count -gt 0) { throw "$($Bad.Count) tests did not succeed. Report: $ReportFile" }
-        $LogErrors = @(Select-String -LiteralPath $Log -Pattern '\bError:' )
-        @{ Action = $Action; ExitCode = $Process.ExitCode; TestCount = $Tests.Count; Report = $ReportFile; Log = $Log; LogErrorLines = $LogErrors.Count } |
-            ConvertTo-Json | Set-Content -LiteralPath (Join-Path $RunRoot 'result.json') -Encoding UTF8
-        if ($LogErrors.Count -gt 0) { Write-Warning "$($LogErrors.Count) error lines in the engine log. Selected test success does not imply clean project startup. Inspect: $Log" }
-        Write-Host "Passed $($Tests.Count) tests. Report: $ReportFile"
+        $TestResult.Report = $ReportFile
+        $Summary = & (Join-Path $PSScriptRoot 'Read-AutomationReport.ps1') -ReportFile $ReportFile -TestFilter $TestFilter
+        foreach ($Field in @('TestCount', 'PassedCount', 'FailedCount', 'Tests')) { $TestResult[$Field] = $Summary.$Field }
+        $TestResult.ReportFailureCategory = $Summary.FailureCategory
+        if ($Process.ExitCode -ne 0) {
+            $TestResult.FailureCategory = 'EditorExit'
+            throw "Editor exited with $($Process.ExitCode); report status: $($Summary.FailureCategory). Log: $Log"
+        }
+        if ($Summary.FailureCategory) {
+            $TestResult.FailureCategory = $Summary.FailureCategory
+            throw "Automation report rejected ($($Summary.FailureCategory)). Report: $ReportFile"
+        }
+        $Summary.Tests | Format-Table -AutoSize
+        $TestResult.Outcome = 'Passed'
+        Write-Host "Passed $($Summary.TestCount) tests. Report: $ReportFile"
+        } catch {
+            if (-not $TestResult.FailureCategory) { $TestResult.FailureCategory = 'ExecutionError' }
+            $TestResult.Error = $_.Exception.Message
+            throw
+        } finally {
+            if (Test-Path -LiteralPath $Log -PathType Leaf) {
+                $LogErrors = @(Select-String -LiteralPath $Log -Pattern '\bError:')
+                $TestResult.LogErrorLines = $LogErrors.Count
+                $TestResult.StartupClean = ($LogErrors.Count -eq 0)
+                # 기존 6종만 최대 2줄씩 분리 집계한다. 수정된 진단은 이 목록에서도 제거해야 한다.
+                $Known = @(
+                    'EnumProperty FPortraitInitData::Speaker is not initialized properly. Module:DialogueKit File:Public/DialogueGraph.h',
+                    'EnumProperty FPortraitInitData::EmoteType is not initialized properly. Module:DialogueKit File:Public/DialogueGraph.h',
+                    'EnumProperty FPortraitInitData::PortraitSide is not initialized properly. Module:DialogueKit File:Public/DialogueGraph.h',
+                    'EnumProperty FPortraitActionData::ActionTargetSpeakerID is not initialized properly. Module:DialogueKit File:Public/DialoguePortraitData.h',
+                    'EnumProperty FItemRow::ItemType is not initialized properly. Module:DialogueKit File:Public/ItemRow.h',
+                    'IntProperty FItemRow::Value is not initialized properly. Module:DialogueKit File:Public/ItemRow.h'
+                )
+                $Counts = @{}
+                $Unexpected = @()
+                foreach ($Entry in $LogErrors) {
+                    $Line = $Entry.Line
+                    $Signature = $Line -replace '^.*?(?:LogClass: Error: |LogAutomationTest: Error: LogClass: )', '' -replace ' \[log\]$', ''
+                    if ($Known -ccontains $Signature) {
+                        if (-not $Counts.ContainsKey($Signature)) { $Counts[$Signature] = 0 }
+                        $Counts[$Signature]++
+                        if ($Counts[$Signature] -le 2) { $TestResult.KnownBaselineDiagnostics++; continue }
+                    }
+                    $Unexpected += $Line
+                }
+                $TestResult.UnexpectedLogErrors = @($Unexpected)
+                if ($LogErrors.Count -gt 0) {
+                    if ($TestResult.Outcome -eq 'Passed') { $TestResult.Outcome = 'PassedWithDiagnostics' }
+                    Write-Warning "$($LogErrors.Count) engine errors; known baseline $($TestResult.KnownBaselineDiagnostics), unexpected $($Unexpected.Count). Log: $Log"
+                }
+                if ($Unexpected.Count -gt 0 -and $TestResult.Outcome -eq 'PassedWithDiagnostics') {
+                    $TestResult.Outcome = 'Failed'
+                    $TestResult.FailureCategory = 'UnexpectedLogErrors'
+                }
+            }
+            $TestResult | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $RunRoot 'result.json') -Encoding UTF8
+        }
+        if ($TestResult.Outcome -eq 'Failed') { throw "Automation failed ($($TestResult.FailureCategory)). Log: $Log" }
     }
     Write-Host "Completed $Action. Log: $Log"
 } finally {
