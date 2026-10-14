@@ -1,6 +1,7 @@
 #include "DialogueRuntimeGraph.h"
 
 #include "DialogueNodeInfo.h"
+#include "DialogueChoiceNodeInfo.h"
 
 // 같은 Graph 안에서 노드/핀/선택 식별자의 유일성과 직렬화 대응을 검사한다.
 bool UDialogueRuntimeGraph::ValidateIdentifiers(TArray<FString>& OutIssues) const
@@ -66,6 +67,24 @@ bool UDialogueRuntimeGraph::ValidateIdentifiers(TArray<FString>& OutIssues) cons
 				{
 					OutIssues.Add(TEXT("ChoicePinIdentityMismatch"));
 				}
+			}
+		}
+		if (Node->DialogueNodeType == EDialogueType::ChoiceNode)
+		{
+			const UDialogueChoiceNodeInfo* Info = Cast<UDialogueChoiceNodeInfo>(Node->NodeInfo);
+			if (Info == nullptr || Info->HasValidOptions() == false || Info->Options.Num() != Node->OutputPins.Num())
+			{
+				OutIssues.Add(TEXT("InvalidChoiceOptions"));
+				continue;
+			}
+			for (int32 Index = 0; Index < Info->Options.Num(); ++Index)
+			{
+				const FGuid Id = Info->Options[Index].ChoiceId;
+				if (ChoiceIds.Contains(Id) || IsValid(Node->OutputPins[Index]) == false || Node->OutputPins[Index]->ChoiceId != Id)
+				{
+					OutIssues.Add(TEXT("InvalidChoicePinIdentity"));
+				}
+				ChoiceIds.Add(Id);
 			}
 		}
 	}

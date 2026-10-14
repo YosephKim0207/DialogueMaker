@@ -1,5 +1,7 @@
 #include "DialogueBlockRunner.h"
 #include "DialogueLineNodeInfo.h"
+#include "DialogueChoiceNodeInfo.h"
+#include "DialogueConditionLibrary.h"
 #include "DialogueEndNodeInfo.h"
 
 // 명시적으로 전달된 Block을 검사하여 Start에서 실행한다.
@@ -66,6 +68,8 @@ UDialogueRuntimeNode* UDialogueBlockRunner::ResolveOutput(const UDialogueRuntime
 bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 {
 	Presentation.State = EDialogueRunState::Running;
+	Presentation.Choices.Reset();
+	Presentation.ChoiceNodeGuid.Invalidate();
 	for (int32 Step = 0; Step < 4096; ++Step)
 	{
 		if (Node == nullptr)
@@ -92,6 +96,37 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 			Presentation.Line = DuplicateObject<UDialogueLineNodeInfo>(Info, this);
 			Presentation.State = EDialogueRunState::WaitingLine;
 			Presentation.DirectNextType = GetDirectNextType();
+			if (Presentation.DirectNextType == EDialogueType::ChoiceNode)
+			{
+				UDialogueRuntimeNode* Choice = ResolveOutput(Node, 0);
+				if (GetChoiceViews(Choice, Presentation.Choices) == false)
+				{
+					return Fail(TEXT("InvalidChoice"));
+				}
+				Presentation.ChoiceNodeGuid = Choice->NodeGuid;
+			}
+			Publish();
+			return true;
+		}
+		if (Node->DialogueNodeType == EDialogueType::ChoiceNode)
+		{
+			if (GetChoiceViews(Node, Presentation.Choices) == false)
+			{
+				return Fail(TEXT("InvalidChoice"));
+			}
+			if (Presentation.Choices.IsEmpty() == false)
+			{
+				Presentation.State = EDialogueRunState::WaitingChoice;
+				Presentation.ChoiceNodeGuid = Node->NodeGuid;
+				Presentation.DirectNextType = EDialogueType::Unknown;
+				Publish();
+				return true;
+			}
+			// 제작사는 이 방어 경로의 진단 Router에 오류 전송을 연결한다.
+			Report(TEXT("NoAvailableChoice"), TEXT("CompleteNormally"));
+			Presentation.State = EDialogueRunState::Completed;
+			Presentation.Line = nullptr;
+			Presentation.DirectNextType = EDialogueType::Unknown;
 			Publish();
 			return true;
 		}
@@ -159,4 +194,79 @@ void UDialogueBlockRunner::Publish()
 {
 	OnPresentationChangedNative.Broadcast(Presentation);
 	OnPresentationChanged.Broadcast(Presentation);
+}
+
+// 일반 선택지가 하나라도 통과하면 기본 선택지는 숨긴다.
+bool UDialogueBlockRunner::GetChoiceViews(UDialogueRuntimeNode* Node, TArray<FDialogueChoiceView>& OutViews)
+{
+	OutViews.Reset();
+	const UDialogueChoiceNodeInfo* Info = Node ? Cast<UDialogueChoiceNodeInfo>(Node->NodeInfo) : nullptr;
+	if (Info == nullptr || Info->HasValidOptions() == false || Node->OutputPins.Num() != Info->Options.Num())
+	{
+		return false;
+	}
+	const FDialogueOption* Default = nullptr;
+	FDialogueDiagnosticContext Context;
+	Context.Block = ActiveBlock->GetBlockReference();
+	Context.NodeGuid = Node->NodeGuid;
+	for (int32 Index = 0; Index < Info->Options.Num(); ++Index)
+	{
+		const FDialogueOption& Option = Info->Options[Index];
+		if (Node->OutputPins[Index] == nullptr || Node->OutputPins[Index]->ChoiceId != Option.ChoiceId)
+		{
+			return false;
+		}
+		if (Option.bDefault)
+		{
+			Default = &Option;
+		}
+		else if (UDialogueConditionLibrary::EvaluateConditions(Option.Conditions, StateProvider, false, Context, Router).bPassed)
+		{
+			FDialogueChoiceView View;
+			View.ChoiceId = Option.ChoiceId;
+			View.Text = Option.Text;
+			OutViews.Add(View);
+		}
+	}
+	if (OutViews.IsEmpty() && Default)
+	{
+		FDialogueChoiceView View;
+		View.ChoiceId = Default->ChoiceId;
+		View.Text = Default->Text;
+		OutViews.Add(View);
+	}
+	return true;
+}
+
+// 사용자가 실제 선택할 때 다시 자격을 평가하고 대응 출력 한 곳으로만 진행한다.
+bool UDialogueBlockRunner::SelectChoice(FGuid ChoiceId)
+{
+	if (bProcessing || (Presentation.State != EDialogueRunState::WaitingLine && Presentation.State != EDialogueRunState::WaitingChoice))
+	{
+		return false;
+	}
+	TGuardValue<bool> Guard(bProcessing, true);
+	UDialogueRuntimeNode* Node = Nodes.FindRef(Presentation.ChoiceNodeGuid);
+	TArray<FDialogueChoiceView> Views;
+	if (Node == nullptr || GetChoiceViews(Node, Views) == false)
+	{
+		return false;
+	}
+	if (Presentation.Choices.ContainsByPredicate([ChoiceId](const FDialogueChoiceView& View) { return View.ChoiceId == ChoiceId; }) == false ||
+		Views.ContainsByPredicate([ChoiceId](const FDialogueChoiceView& View) { return View.ChoiceId == ChoiceId; }) == false)
+	{
+		Presentation.Choices = MoveTemp(Views);
+		if (Presentation.State == EDialogueRunState::WaitingChoice && Presentation.Choices.IsEmpty())
+		{
+			Report(TEXT("NoAvailableChoice"), TEXT("CompleteNormally"));
+			Presentation.State = EDialogueRunState::Completed;
+			Presentation.Line = nullptr;
+			Presentation.ChoiceNodeGuid.Invalidate();
+		}
+		Publish();
+		return false;
+	}
+	const UDialogueChoiceNodeInfo* Info = CastChecked<UDialogueChoiceNodeInfo>(Node->NodeInfo);
+	const int32 Index = Info->Options.IndexOfByPredicate([ChoiceId](const FDialogueOption& Option) { return Option.ChoiceId == ChoiceId; });
+	return Pump(ResolveOutput(Node, Index));
 }

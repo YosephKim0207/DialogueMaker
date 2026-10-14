@@ -18,6 +18,16 @@ enum class EDialogueRunState : uint8
 };
 
 USTRUCT(BlueprintType)
+struct DIALOGUEKIT_API FDialogueChoiceView
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	FGuid ChoiceId;
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	FText Text;
+};
+
+USTRUCT(BlueprintType)
 struct DIALOGUEKIT_API FDialoguePresentation
 {
 	GENERATED_BODY()
@@ -36,6 +46,12 @@ struct DIALOGUEKIT_API FDialoguePresentation
 
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
 	FName ErrorCode;
+
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	FGuid ChoiceNodeGuid;
+
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	TArray<FDialogueChoiceView> Choices;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDialoguePresentationEvent, const FDialoguePresentation&, Presentation);
@@ -55,6 +71,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
 	bool AdvanceLine();
 
+	// 표시 순서가 아닌 고정 ID로 선택한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
+	bool SelectChoice(FGuid ChoiceId);
+
 	// 마지막 표시 상태를 조회한다. 조회로 커서·효과·열람·저장을 변경하지 않는다.
 	UFUNCTION(BlueprintPure, Category = "DialogueKit|Run")
 	FDialoguePresentation GetPresentation() const { return Presentation; }
@@ -73,6 +93,8 @@ private:
 	UDialogueRuntimeNode* ResolveOutput(const UDialogueRuntimeNode* Node, int32 Index) const;
 	// 자동 제어 노드를 통과하고 입력 대기 또는 종료 상태를 게시한다.
 	bool Pump(UDialogueRuntimeNode* Node);
+	// 선택지 조회는 진행 위치나 효과를 변경하지 않는다.
+	bool GetChoiceViews(UDialogueRuntimeNode* Node, TArray<FDialogueChoiceView>& OutViews);
 	// 오류는 중단 상태로 게시하고 마지막 게임 저장을 건드리지 않는다.
 	bool Fail(FName Code);
 	// 게임의 외부 로그 전송은 Router 구독자로 연결한다.
