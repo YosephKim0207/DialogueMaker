@@ -10,6 +10,7 @@
 - [6. Node와 Choice 식별 계약](#6-node와-choice-식별-계약)
 - [7. 범용 진단 연결](#7-범용-진단-연결)
 - [8. 게임 상태 제공과 조건 평가](#8-게임-상태-제공과-조건-평가)
+- [9. 효과 묶음과 게임 처리 계약](#9-효과-묶음과-게임-처리-계약)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -282,3 +283,25 @@ const FDialogueConditionResult Result = UDialogueConditionLibrary::EvaluateCondi
 EvaluateConditions의 bBranchCondition은 빈 Branch 진단 여부입니다. 빈 일반 조건은 True/무오류, 빈 Branch는 True/진단입니다. 오류 항목만 True로 바꾼 뒤 AND/OR로 종합하므로 AND의 다른 False는 유지되고 OR의 오류 항목은 최종 True를 만들 수 있습니다. bHadErrors와 Diagnostics에서 이를 구별합니다. 효과/저장 실패에는 이 정책을 적용하지 않습니다. Tag는 Equal/NotEqual만, 수치는 여섯 비교 연산을 지원합니다. double 동등 비교는 정확 비교이며 Count는 int64 그대로 비교합니다. Count의 현재 값은 0 이상이지만 비교 기준에는 음수도 허용하여 그대로 수치 비교합니다. 미구현 인터페이스 기본 구현은 false와 초기화된 출력값을 반환합니다. DataTable 반환 순서는 저작 정렬 기준이 아니므로 UI에서 표시 순서를 별도 정합니다.
 
 작가용 새 조건 선택 UI는 S2/S5에서 연결합니다. 현재는 독립 공통 계약과 샘플이며 기존 FPlayerCondition/Branch/내장 선택지 소비처를 바꾸지 않았습니다. 게임별 새 아이템/능력치는 목록과 제공자만 확장하면 되고 플러그인 enum에 게임 항목을 추가할 필요가 없습니다. 중첩 그룹은 지원하지 않습니다.
+
+## 9. 효과 묶음과 게임 처리 계약
+
+게임은 `IDialogueEffectProvider::ApplyDialogueEffects`를 C++의 `_Implementation` 또는 Blueprint로 구현합니다. 입력 FDialogueEffectBatch의 Context.ExecutionId는 이번 실행 발생의 GUID이며 정적 ChoiceId가 아닙니다. 상태 원본의 전체 적용 가능 여부를 확인하고 전부 성공하거나 아무것도 변경하지 않아야 합니다.
+
+호출자는 `UDialogueEffectLibrary::ApplyEffectBatch(Batch, Provider, Router)`를 사용합니다. 반환 FDialogueEffectResult의 Applied/AlreadyApplied만 성공입니다. Failed의 ErrorCode/Message로 게임이 안내·재시도·이후 흐름을 결정하며 플러그인은 팝업을 띄우지 않습니다. 빈 묶음/잘못된 키·연산/미구현 제공자는 실패입니다. 조건 평가의 오류 True 정책은 여기 적용하지 않습니다.
+
+| 종류 | 연산과 값 |
+|---|---|
+| Tag | Add/Remove. 이미 같은 상태여도 성공 가능 |
+| Value | Add/Set, 유한 double. Add의 음수는 감소 |
+| Count | Add/Set/Remove, 0 이상 int64. Remove가 소비이며 잔량 부족·overflow는 실패 |
+
+효과 대상 Key는 조건 계약과 같습니다. 예를 들어 Gift Count Remove 1과 NPC Charm Value Add 5를 Effects에 순서대로 넣습니다. 같은 항목을 여러 번 처리하면 작성된 순서가 의미를 가지며 요청 동일성에도 포함됩니다. 비활성 값과 Context.SaveRequestId 차이는 효과 내용 충돌로 취급하지 않습니다.
+
+메모리 테스트에서는 `UDialogueSampleEffectProvider`를 생성하고 앞 절의 AddDefinition/SetSampleState를 사용합니다. 같은 실행 ID의 성공은 AlreadyApplied로 재전달하고 상태를 바꾸지 않습니다. 같은 ID의 다른 효과/순서/발생 Block·Node는 ExecutionPayloadConflict입니다. 실패도 최종 결과로 기록하므로 게임이 새 재시도를 허용할 때는 새 ExecutionId를 발급해야 합니다. 재전달과 정상 재실행을 혼동하지 마세요.
+
+성공 직후 게임은 **게임 상태·실행/선택 기록·후속 재개 위치를 같은 시점에 캡처하여 공통 FIFO 저장 요청**에 포함해야 합니다. 인터페이스만으로 게임의 원자성이나 영속 중복 방지가 보장되지 않습니다. 샘플은 임시 배열에서 전량 적용 후 상태와 ledger를 확정하지만 메모리 구현이며 디스크 저장/프로세스 재시작을 처리하지 않습니다. S3에서 실제 저장 조율과 복원을 연결합니다.
+
+작가용 StateChange/Choice 효과 목록 UI는 S2에서 연결합니다. 이번 기능은 호출 계약과 게임 교체용 샘플입니다. 자동화는 부분 실패 무변경, 성공/실패 재전달, payload 충돌, 정상 새 실행, 수량 경계, 비유한 값, 상태·ledger 메모리 직렬화를 검사합니다. 실제 게임의 효과/저장/재시작 검증과 구분합니다.
+
+- 효과 Context의 Block/Node는 진단용 선택 정보이며 Graph 연결부는 실제 위치를 제공해야 합니다. ExecutionId는 필수입니다. 성공 반환의 ErrorCode는 wrapper가 비웁니다. 샘플은 실행 ledger 양쪽 중 하나만 남아 있으면 적용을 거부합니다. 손상된 음수 Count는 거부하고 Value Set은 유한한 값으로 교체 가능합니다.
