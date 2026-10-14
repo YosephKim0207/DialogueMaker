@@ -1,6 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "DialogueEdGraphSchema.h"
+#include "DialogueFlowEdGraphNode.h"
+#include "ScopedTransaction.h"
 #include "DialogueBranchEdGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
@@ -32,6 +34,11 @@ const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const U
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Can't connect with outputs."));
 	}
 	
+	const UEdGraphPin* Output = A->Direction == EGPD_Output ? A : B;
+	if (Output->LinkedTo.Num() > 0)
+	{
+		return FPinConnectionResponse(Output == A ? CONNECT_RESPONSE_BREAK_OTHERS_A : CONNECT_RESPONSE_BREAK_OTHERS_B, TEXT("Replace output connection."));
+	}
 	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, TEXT("Connect possible."));
 }
 
@@ -39,10 +46,10 @@ const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const U
 void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
 	TSharedPtr<FNewNodeAction> NewNodeAction = MakeShareable(new FNewNodeAction(
-		UDialogueEdGraphNode::StaticClass(),
+		UDialogueFlowEdGraphNode::StaticClass(),
 		FText::FromString("Nodes"),
-		FText::FromString("New Dialogue Node"),
-		FText::FromString("Add New Dialogue Node."),
+		FText::FromString("Line"),
+		FText::FromString("Add Line."),
 		0));
 
 	TSharedPtr<FNewNodeAction> NewEndNodeAction = MakeShareable(new FNewNodeAction(
@@ -66,7 +73,7 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 
 void UDialogueEdGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
 {
-	UDialogueEdStartGraphNode* StartNode = NewObject<UDialogueEdStartGraphNode>(&Graph);
+	UDialogueEdStartGraphNode* StartNode = NewObject<UDialogueEdStartGraphNode>(&Graph, NAME_None, RF_Transactional);
 	StartNode->CreateNewGuid();
 	StartNode->NodePosX = 0;
 	StartNode->NodePosY = 0;
@@ -80,7 +87,13 @@ void UDialogueEdGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
 // Dialogue Graph Node 정보 초기화
 UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
-	UDialogueEdGraphNodeBase* Result = NewObject<UDialogueEdGraphNodeBase>(ParentGraph, ClassTemplate);
+	if (ParentGraph == nullptr || ClassTemplate == nullptr)
+	{
+		return nullptr;
+	}
+	const FScopedTransaction Transaction(FText::FromString(TEXT("Create Dialogue Node")));
+	ParentGraph->Modify();
+	UDialogueEdGraphNodeBase* Result = NewObject<UDialogueEdGraphNodeBase>(ParentGraph, ClassTemplate, NAME_None, RF_Transactional);
 	Result->CreateNewGuid();
 	Result->NodePosX = Location.X;
 	Result->NodePosY = Location.Y;
@@ -91,11 +104,16 @@ UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* 
 	
 	if (FromPin != nullptr)
 	{
-		Result->GetSchema()->TryCreateConnection(FromPin, InputPin);
+		if (FromPin->Direction != EGPD_Output || ParentGraph->GetSchema()->TryCreateConnection(FromPin, InputPin) == false)
+		{
+			return nullptr;
+		}
 	}
 
 	ParentGraph->Modify();
-	ParentGraph->AddNode(Result, true, true);
+	ParentGraph->AddNode(Result, true, bSelectNewNode);
+	ParentGraph->NotifyGraphChanged();
+	ParentGraph->MarkPackageDirty();
 
 	return Result;
 }

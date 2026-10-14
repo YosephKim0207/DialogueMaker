@@ -1,12 +1,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/GCObject.h"
 #include "DialogueGraph.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
-class FDialogueGraphEditor : public FWorkflowCentricApplication, public FEditorUndoClient, public FNotifyHook
+class FDialogueGraphEditor : public FWorkflowCentricApplication, public FEditorUndoClient, public FNotifyHook, public FGCObject
 {
 public:
+	// Toolkit은 UObject가 아니므로 작업 그래프를 GC에 명시적으로 보존한다.
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("FDialogueGraphEditor"); }
+	virtual void SaveAsset_Execute() override;
+	virtual void SaveAssetAs_Execute() override;
 	virtual void RegisterTabSpawners  (const TSharedRef<FTabManager>&) override;
 	void InitEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, class UDialogueGraph* InGraph);
 	UDialogueGraph* GetWorkingAsset() const { return WorkingAsset; }
@@ -51,6 +57,7 @@ protected:
 
 	
 private:
+	bool bCanCommitWorkingGraph = false;
 	TSharedPtr<SGraphEditor> GraphEditor;
 	TSharedPtr<IDetailsView> DetailsView;
 	
