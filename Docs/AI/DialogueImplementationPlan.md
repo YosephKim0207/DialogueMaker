@@ -256,8 +256,9 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 | 단계/기능 | 상태 | 기능 Branch / 통합 Branch | BaseSHA / FeatureTip / MergeSHA | 검증·Commit·Push 근거 |
 |---|---|---|---|---|
 | 계획 | 작성 완료, 실행 미착수 | DiagnoseGraphSystem | d1b1937 / 해당 없음 | 문서 검증만 수행 |
-| S0 테스트 기반 | Verified / 통합 준비 | chore/dialogue-test-harness / Codex_Develop | 7601263 / 현재 기능 tip / 미정 | 3 UE 테스트·9 보고서 검사 통과; 실제 missing filter 실패 판정 확인 |
-| S0 패키징 기반 및 S1~S7 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
+| S0 테스트 기반 | Integrated | chore/dialogue-test-harness / Codex_Develop | 7601263 / 5a24cbd / 84ac3db | 3 UE 테스트·9 보고서 검사 통과; 실제 missing filter 실패 판정 확인 |
+| S0 패키징 기반 | Verification Failed / 기존 코드 수정 대기 | chore/dialogue-package-validation / Codex_Develop | 84ac3db / 미정 / 미정 | Package_20261014_173218_f3c4e602: HasMetaData 비Editor 컴파일 오류 |
+| S1~S7 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
 
 실행 시 기능별 행으로 분리하고 작은 커밋 목록·의존 커밋·복구 단위·Codex_Develop의 merge/검증 SHA를 함께 기록한다. 다음 정보를 갱신한다: 실행 승인 원문/일시, 현재 Branch·HEAD·BaseSHA, 변경 파일, 완료/미완료 체크, 테스트 명령·보고서·실패, 기술 검토/제품 검토 상태, Commit/Push SHA, 다음 한 가지 작업. 커밋 SHA는 커밋 후 보고 또는 다음 기록에서 반영하며 자기 SHA를 넣으려고 amend하지 않는다.
 
