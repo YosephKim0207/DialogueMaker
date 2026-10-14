@@ -6,6 +6,7 @@
 - [2. 자동화 실행 결과와 실패 진단](#2-자동화-실행-결과와-실패-진단)
 - [3. 지원 언어 목록의 게임 빌드 호환](#3-지원-언어-목록의-게임-빌드-호환)
 - [4. 샘플 맵 패키징 검증](#4-샘플-맵-패키징-검증)
+- [5. 안정 Block 식별자](#5-안정-block-식별자)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -163,3 +164,55 @@ UE 5.4.4와 C++ 빌드 도구가 설치된 Windows에서 에디터와 다른 빌
 ### 검증
 
 2026-10-14 기본 샘플 맵에서 UAT ExitCode 0, 실행 파일과 pak 생성, 로그 Error 0건을 확인했습니다. 최초 실제 UAT 컴파일 실패도 Failed/AutomationToolExit로 기록됐습니다. 실제 시간 초과 분기는 실험하지 않았습니다. 패키지 화면·입력·음향 및 PIE는 미검증입니다. 결과와 패키지 원본은 로컬 Saved에 두고 도구와 문서만 Git에서 관리합니다.
+
+## 5. 안정 Block 식별자
+
+### 기능과 현재 범위
+
+신규 Dialogue Graph에 이름·경로와 별개인 GUID를 부여합니다. `FDialogueBlockReference`는 `BlockId`와 `ContentVersion` 쌍이며 같은 ID의 다른 콘텐츠 버전은 구분됩니다. 현재는 식별 기반만 추가됐습니다. 기존 이름 기반 `GetPrimaryAssetId()`, 지역화, 열람 저장과 후보 선정은 아직 새 ID로 전환되지 않았습니다. 따라서 이 기능만으로 기존 에셋 이름 변경 후 저장/지역화 호환을 보장하지 않습니다.
+
+### 게임 개발자 사용법
+
+게임 모듈에서 `DialogueKit`에 의존하고 `DialogueGraph.h`를 포함합니다. 로드된 Graph에서 공개 API를 조회합니다.
+
+```cpp
+// Graph는 유효한 UDialogueGraph 포인터다.
+const FGuid Id = Graph->GetBlockId();
+const int32 Version = Graph->GetContentVersion();
+const FDialogueBlockReference Reference = Graph->GetBlockReference();
+if (!Reference.IsValid())
+{
+    // 기존 프로토타입 또는 누락된 ID: 게임/제작 도구의 오류 처리 경로로 반환한다.
+}
+```
+
+세 getter는 Blueprint에서도 `DialogueKit|Identity` 범주의 Pure 함수입니다. 조회는 ID를 생성하거나 저장하지 않습니다. `IsValid()`는 유효한 GUID와 양수 버전을 요구합니다. 기본 콘텐츠 버전은 1이며 콘텐츠 버전은 저장 형식 버전/Line 열람 버전과 다릅니다.
+
+C++ 제작 도구에서 새 `UDialogueGraph`를 생성했다면 `InitializeBlockIdentity()`를 명시 호출합니다. 새 ID를 부여한 경우에만 true이며 이미 ID가 있거나 CDO/Archetype 같은 템플릿이면 false입니다. Blueprint 실행용 함수로 노출하지 않습니다. 기존 에셋을 읽을 때 이 함수를 자동 호출해서는 안 됩니다. 이 함수 자체는 트랜잭션·디스크 저장을 수행하지 않으므로 별도 저작 도구를 만들면 해당 도구가 Undo/에셋 저장을 처리해야 합니다.
+
+영속 에셋 카탈로그의 참조 배열을 검사할 때는 다음 API를 사용합니다.
+
+```cpp
+TArray<int32> InvalidIndices;
+TArray<int32> DuplicateIndices;
+const bool bValid = FDialogueBlockIdentity::ValidateCatalog(
+    References, InvalidIndices, DuplicateIndices);
+```
+
+`References`는 `TArray<FDialogueBlockReference>`입니다. 반환값 false이면 누락/잘못된 버전 또는 동일 ID·버전 중복이 있습니다. 출력 배열은 매 호출 초기화되며 중복의 첫 항목 이후 인덱스만 보고합니다. 같은 ID의 다른 버전은 허용합니다. PIE/World/실행 복제본은 카탈로그에 넣지 않습니다. 자동 Asset Registry 수집이나 진단 UI를 수행하는 함수는 아닙니다.
+
+### 시나리오 작가 사용법
+
+콘텐츠 브라우저에서 기존 `Dialogue → Dialogue Graph` 생성 경로를 이용하면 Factory가 새 ID를 부여합니다. Graph를 열면 `DialoguePropertyTab`의 에셋 Details에 `DialogueKit|Identity` 값이 읽기 전용으로 노출됩니다. 값의 편집이나 버전 증가 버튼은 아직 추가하지 않았습니다. Factory 동작과 반영 필드는 자동 검증했지만 실제 UI 클릭/배치는 아직 수동 확인하지 않았습니다.
+
+일반 에셋 복제는 새 Block ID와 버전 1을 얻고, World/PIE 실행 복제는 원본 참조를 유지합니다. 일반 복제는 기존 Block의 새 버전을 만드는 기능이 아닙니다. 신규 버전 저작 도구는 후속 작업입니다. 기존 프로토타입 에셋은 로드·저장만으로 자동 ID를 받지 않으며 합의한 수동 재작성 대상입니다.
+
+### 확장과 검증 범위
+
+정확한 참조는 해시/동등 비교를 지원해 `TMap`/`TSet` 키로 사용할 수 있습니다. 직렬화되는 USTRUCT이지만 실제 저장 조율·복원·구버전 해석은 후속 S3/S4 작업입니다. Node/Choice 식별과 Line 열람 버전 확장은 이번 항목에 포함되지 않습니다.
+
+2026-10-14: Editor 빌드, Factory·이름 변경·일반/World/PIE 복제·템플릿 방어·메모리 직렬화·카탈로그 검증을 포함한 DialogueKit 7개 테스트, Game 빌드/cook/package가 통과했습니다. 실제 legacy package 저장/재로드와 UI/PIE 관찰은 별도 미검증입니다.
+
+```powershell
+.\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Contracts.BlockIdentity -TimeoutMinutes 5
+```
