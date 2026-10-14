@@ -13,6 +13,7 @@
 - [9. 효과 묶음과 게임 처리 계약](#9-효과-묶음과-게임-처리-계약)
 - [10. 체크포인트 요청과 저장 결과 계약](#10-체크포인트-요청과-저장-결과-계약)
 - [11. Chapter와 Scene 정의 및 소속 계약](#11-chapter와-scene-정의-및-소속-계약)
+- [12. 공통 계약 연결 검증](#12-공통-계약-연결-검증)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -217,7 +218,7 @@ const bool bValid = FDialogueBlockIdentity::ValidateCatalog(
 
 정확한 참조는 해시/동등 비교를 지원해 `TMap`/`TSet` 키로 사용할 수 있습니다. 직렬화되는 USTRUCT이지만 실제 저장 조율·복원·구버전 해석은 후속 S3/S4 작업입니다. Node/Choice 식별과 Line 열람 버전 확장은 이번 항목에 포함되지 않습니다.
 
-2026-10-14: Editor 빌드, Factory·이름 변경·일반/World/PIE 복제·템플릿 방어·메모리 직렬화·카탈로그 검증을 포함한 DialogueKit 7개 테스트, Game 빌드/cook/package가 통과했습니다. 실제 legacy package 저장/재로드와 UI/PIE 관찰은 별도 미검증입니다.
+2026-10-14 S1-1 구현 당시: Editor 빌드, Factory·이름 변경·일반/World/PIE 복제·템플릿 방어·메모리 직렬화·카탈로그 검증을 포함한 DialogueKit 7개 테스트, Game 빌드/cook/package가 통과했습니다. 실제 legacy package 저장/재로드와 UI/PIE 관찰은 별도 미검증입니다.
 
 ```powershell
 .\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Contracts.BlockIdentity -TimeoutMinutes 5
@@ -227,7 +228,7 @@ const bool bValid = FDialogueBlockIdentity::ValidateCatalog(
 
 기존 `NodeGuid`를 노드 식별자로 재사용하고 `FDialogueChoice::ChoiceId`로 선택 문구/순서와 분리합니다. 기존 저장 형식과 지역화 PinId는 유지합니다.
 
-개발자는 `UDialogueNodeInfo::AddDialogueChoice(const FDialogueChoice&)`로 선택을 추가합니다. 누락 ID와 같은 목록의 중복 ID는 새로 부여합니다. `EnsureChoiceIds()`는 명시 편집 전용이며 로드·조회에는 호출하지 않습니다. `GetReadVersion()`은 현재 열람 버전(기본 1), `AdvanceReadVersion()`은 명시 갱신용이며 잘못된 값/최대값이면 false로 무변경입니다. Undo와 저장은 호출하는 편집 도구 책임입니다. NodeInfo의 일반 DuplicateObject는 편집/실행 왕복 때문에 ID와 열람 버전을 유지합니다.
+개발자는 `UDialogueNodeInfo::AddDialogueChoice(const FDialogueChoice&)`로 선택을 추가합니다. 이 명시적 편집 호출에서 누락 ID와 같은 목록의 중복 ID는 새로 부여합니다. Graph 전체 중복 검사는 `ValidateIdentifiers`가 담당합니다. `EnsureChoiceIds()`는 명시 편집 전용이며 로드·조회에는 호출하지 않습니다. `GetReadVersion()`은 현재 열람 버전(기본 1), `AdvanceReadVersion()`은 명시 갱신용이며 잘못된 값/최대값이면 false로 무변경입니다. Undo와 저장은 호출하는 편집 도구 책임입니다. NodeInfo의 일반 DuplicateObject는 편집/실행 왕복 때문에 ID와 열람 버전을 유지합니다.
 
 작가는 기존 Line Details의 선택 배열을 편집합니다. ID가 있는 선택의 순서를 바꿔도 연결 핀과 목적지가 함께 유지됩니다. ID 없는 기존 프로토타입은 최초 명시 편집에서 기존 순서대로 핀을 승계하며, 그 전에 이미 바뀐 순서를 역추정하지 않습니다. 미열람 갱신 버튼과 독립 Choice 노드는 아직 후속 S5/S2 작업입니다.
 
@@ -376,8 +377,21 @@ const FDialogueStoryScopeResult Result =
 // Result.bValid와 Result.bMatches를 모두 확인한다.
 ```
 
-`EvaluateScope`는 Blueprint에서도 호출할 수 있습니다. 소속 없음/제한 없음은 정의를 조회하지 않으며 해당 모드의 남은 ID를 사용하지 않습니다. 다른 항목의 소속 오류까지 모든 Block에 전파하지 않고, 참조한 Chapter/Scene과 게임 진행의 정합성을 검사합니다. 실패는 ErrorCode와 false를 반환합니다. 조건 시스템의 조회 실패 True 대체와는 별도 계약입니다. 저장된 활성 Block을 복원할 때 이 신규 후보 필터로 다시 거부하지 않습니다.
+`EvaluateScope`는 Blueprint에서도 호출할 수 있습니다. 소속 없음/제한 없음은 정의를 조회하지 않으며 해당 모드의 남은 ID를 사용하지 않습니다. 다른 항목의 소속 오류까지 모든 Block에 전파하지 않고, 참조한 Chapter/Scene과 게임 진행의 정합성을 검사합니다. 잘못된 정의/소속은 ErrorCode와 bValid=false, bMatches=false를 반환합니다. 유효하지만 현재 진행과 다른 소속은 bValid=true, bMatches=false입니다. 조건 시스템의 조회 실패 True 대체와는 별도 계약입니다. 저장된 활성 Block을 복원할 때 이 신규 후보 필터로 다시 거부하지 않습니다.
 
 작가: 현재 `UDialogueGraph`의 Story 카테고리에 기본 자료형이 있지만 최종 스토리보드 드롭다운은 아직 제공하지 않습니다. 기존 에셋의 새 필드는 Unassigned이며 S4 후보 필터 연결 전 개발자/작가가 의도한 소속 또는 Unrestricted를 **명시적으로** 설정해야 합니다. 자동으로 제한 없음으로 바꾸지 않습니다. 정의 에셋 선택/로드의 공통 연결점도 S4에서 연결합니다.
 
 검증: 소속 모드·정확 일치·부모 불일치·중복 ID·소속 없는 Scene·이동 후 동일 SceneId, 이름/정렬 변경 및 정의/Graph의 메모리 직렬화 왕복을 테스트합니다. 실제 에셋 파일 편집/재열기와 UI 이동·삭제는 S5 검증 항목입니다.
+
+## 12. 공통 계약 연결 검증
+
+개발자용 연결 예제는 `Plugins/DialogueKit/Source/DialogueKit/Private/Tests/DialogueContractFlowTests.cpp`입니다. 실제 Block/NodeInfo의 식별자를 조건 조회 → 효과 적용 → 체크포인트 요청으로 전달하고, 변경 직후 복사한 게임 상태와 실행 ledger가 이후 live 변경의 영향을 받지 않는지 검사합니다.
+
+`DialogueKit.Contracts.Flow.StateEffectCheckpoint`는 메모리 연결 fixture입니다. Graph 실행기·디스크 파일·FIFO 큐·실제 UI까지 완성한 예제가 아닙니다. 기존 실행기 전환 S2, 저장 조율 S3, 후보·버전 연결 S4를 거쳐 실게임에 연결합니다. 샘플 provider를 실게임 저장 시스템으로 사용하지 않습니다.
+
+```powershell
+.\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit -TimeoutMinutes 5
+.\Scripts\AI\Invoke-PackageValidation.ps1 -Action Package
+```
+
+전체 결과와 후속 작업은 [S1 완료 보고서](Reports/S1-2026-10-14.md)에서 확인합니다. NullRHI 테스트와 패키징 성공은 실제 화면·입력·음향 및 패키지 실행 검증을 뜻하지 않습니다.

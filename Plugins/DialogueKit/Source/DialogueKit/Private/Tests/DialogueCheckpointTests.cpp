@@ -116,6 +116,10 @@ bool FDialogueCheckpointCopyTest::RunTest(const FString& Parameters)
 	FDialogueCheckpointRequest Request = MakeCheckpointRequest();
 	UDialogueSampleCheckpointProvider* Provider = NewObject<UDialogueSampleCheckpointProvider>();
 	TestTrue(TEXT("Accepted only"), UDialogueCheckpointLibrary::SubmitCheckpoint(Request, Provider, nullptr).bAccepted);
+	if (TestEqual(TEXT("One accepted request"), Provider->CapturedRequests.Num(), 1) == false)
+	{
+		return false;
+	}
 	Request.Snapshot.FullReadHistory[0].Lines[0].ReadVersion = 8;
 	TestEqual(TEXT("Captured copy isolated"), Provider->CapturedRequests[0].Snapshot.FullReadHistory[0].Lines[0].ReadVersion, 2);
 	TArray<uint8> Bytes;
