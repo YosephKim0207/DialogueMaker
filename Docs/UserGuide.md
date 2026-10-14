@@ -4,6 +4,7 @@
 
 - [1. 기존 대화 기능 회귀 테스트](#1-기존-대화-기능-회귀-테스트)
 - [2. 자동화 실행 결과와 실패 진단](#2-자동화-실행-결과와-실패-진단)
+- [3. 지원 언어 목록의 게임 빌드 호환](#3-지원-언어-목록의-게임-빌드-호환)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -97,3 +98,38 @@ if ($summary.FailureCategory) { throw $summary.FailureCategory }
 ### 주의사항과 검증 범위
 
 보고서 판정 9개와 실제 UE의 baseline 3개 성공 경로, 존재하지 않는 테스트 요청의 실패 결과 기록을 확인했습니다. 실제 장시간 timeout/프로세스 강제 종료 분기는 아직 별도 실험하지 않았습니다. 결과 파일은 로컬 Saved/AI에 생성되며 사용자 안내서와 스크립트만 Git에서 관리합니다.
+
+## 3. 지원 언어 목록의 게임 빌드 호환
+
+### 기능과 개발자 사용법
+
+기존 언어 목록 조회가 Editor 전용 메타데이터 때문에 Game 타깃에서 컴파일되지 않던 문제를 수정했습니다. 공개 API와 지원 언어 12개는 유지합니다. 사용하는 게임 모듈의 Build.cs에 `DialogueKit` 의존성을 추가하고 다음 공개 C++ API를 호출합니다.
+
+```cpp
+#include "DialogueLocalizationUtility.h"
+
+TArray<FDialogueLanguageMapping> Mappings;
+FDialogueLocalizationUtility::GetSupportedLanguageMappings(Mappings);
+FString KoreanCulture = FDialogueLocalizationUtility::ToCultureCode(ELanguage::Korean);
+// KoreanCulture == TEXT("ko-KR")
+```
+
+`GetSupportedLanguageMappings(TArray<FDialogueLanguageMapping>& OutMappings)`는 기존 출력 배열을 비우고 Language와 CultureCode 쌍으로 채웁니다. 반환형은 void이며 enum 조회 실패 시 빈 배열을 돌려줍니다. `ToCultureCode(ELanguage)`는 문화권 코드 FString을 반환하고 정의되지 않은 값에는 en-US를 반환합니다. 동기 조회이며 게임 상태 변경·저장·비동기 요청을 수행하지 않습니다.
+
+### 시나리오 작가 사용법
+
+이 수정은 새 에디터 메뉴나 설정을 추가하지 않습니다. 기존 대사 작성 절차는 그대로 사용합니다.
+
+### 확장 방법과 제한
+
+현재 언어 추가는 `ELanguage`와 `ToCultureCode` 매핑을 함께 수정하고 테스트의 기대 목록을 갱신하는 C++ 작업입니다. 동적 언어 제공자 인터페이스는 없습니다. `Hidden` 메타데이터는 Editor에서만 확인할 수 있습니다. 향후 게임에서 숨겨야 할 언어를 추가하면 명시적 런타임 지원 목록을 별도로 구현해야 합니다.
+
+### 검증
+
+Game 및 Editor Win64 Development 빌드를 검증합니다. 매핑 개수·중복·공개 변환 일치·한국어/영어 유지를 확인하는 테스트는 다음 명령으로 실행합니다.
+
+```powershell
+.\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Localization -TimeoutMinutes 5
+```
+
+이 테스트는 언어 목록을 검증하며 실제 번역 리소스나 화면 출력, 패키징 전체를 보증하지 않습니다.
