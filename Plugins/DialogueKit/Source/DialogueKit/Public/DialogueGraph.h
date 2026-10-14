@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "DialogueRuntimeGraph.h"
 #include "DialogueBlockIdentity.h"
+#include "DialogueStoryDefinition.h"
 #include "GameplayTagContainer.h"
 #include "Enum/PlayerProgress.h"
 #include "Enum/Portrait.h"
@@ -91,6 +92,10 @@ public:
 	std::function<void()> OnPreSaveListener;
 
 public:	// Properties
+	// 신규 소속 계약이다. 기존 ChapterID 소비처 전환은 후보 필터 단계에서 수행한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Story")
+	FDialogueStoryScope StoryScope;
+
 	// UPROPERTY(EditAnywhere)
 	// FString SpeakerName = FString("Enter Dialogue Name Here");
         UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueGraph|Runtime")

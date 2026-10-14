@@ -12,6 +12,7 @@
 - [8. 게임 상태 제공과 조건 평가](#8-게임-상태-제공과-조건-평가)
 - [9. 효과 묶음과 게임 처리 계약](#9-효과-묶음과-게임-처리-계약)
 - [10. 체크포인트 요청과 저장 결과 계약](#10-체크포인트-요청과-저장-결과-계약)
+- [11. Chapter와 Scene 정의 및 소속 계약](#11-chapter와-scene-정의-및-소속-계약)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -342,3 +343,41 @@ if (Result.bAccepted == false)
 검증: 스키마/위치/원인·열람 중복 검사, 값 복사 격리, 구조체 직렬화 왕복, 오래된 세대/재시도/순서 거부, 제공자 누락/미구현 실패를 자동 테스트합니다. 파일 원자성·실제 비동기 중단/복원·Blueprint 구현은 아직 검증 대상이 아닙니다.
 
 - `Replacement`는 합의대로 대체 Block 처음부터 시작합니다. 이 원인에는 Choice/효과 실행 ID를 넣지 않습니다. 필요한 보정·보정 완료 기록은 게임 상태가 소유하며 기존 효과 재실행으로 표현하지 않습니다. 저장할 DTO는 Snapshot이며 Request/Acceptance/Completion은 런타임 전달용입니다. 미완료 큐를 성공 저장처럼 복원하지 않습니다.
+
+## 11. Chapter와 Scene 정의 및 소속 계약
+
+S1은 저작 자료형과 순수 소속 판정 API를 제공합니다. 스토리보드 창·드롭다운·이동/삭제 확인 UI는 S5, 실제 시작/Refresh 후보 선별과 Asset Registry 메타데이터 연결은 S4에서 구현합니다. 기존 `ChapterID` 필터 소비처를 이번 단계에서 교체하지 않습니다.
+
+개발자는 게임 콘텐츠의 `UDialogueStoryDefinition`을 정의 원본으로 사용합니다. `AddChapter(DisplayName)`와 `AddScene(ChapterId, DisplayName)`은 새 GUID를 반환하며 잘못된 부모의 Scene 생성은 빈 GUID를 반환합니다. 일반 생성자·로드·저장은 ID를 발급하거나 재발급하지 않습니다. `FindChapter`/`FindScene`은 누락 또는 중복이면 nullptr입니다. 배열이 수정되면 반환 포인터를 다시 조회해야 합니다. `ValidateDefinitions`는 오류를 수집하되 입력을 수정하지 않습니다.
+
+`Chapters`와 `Scenes`는 별도 배열입니다. Chapter가 제거돼도 Scene을 보존할 수 있는 형식이며, 실제 삭제 도구가 하위 Scene의 부모를 비우는 작업은 S5에서 구현합니다. 배열을 직접 수정하면 이 동작이 자동 실행되지는 않습니다. 표시 이름/설명/SortOrder 변경은 ID를 바꾸지 않습니다. 현재 배열은 자동 정렬되지 않으며 UI 정렬은 S5에서 SortOrder와 안정 ID를 기준으로 처리할 예정입니다.
+
+| Block의 `StoryScope.Mode` | 입력할 식별자 | 신규 후보 소속 판정 |
+|---|---|---|
+| Unassigned | 사용하지 않음 | 제외 |
+| Unrestricted | 사용하지 않음 | Chapter/Scene 제한만 생략 |
+| Chapter | ChapterId, SceneId는 비움 | 현재 Chapter와 정확히 일치 |
+| Scene | SceneId, ChapterId는 비움 | 정의에서 부모를 조회하고 현재 Chapter·Scene과 일치 |
+
+Scene 소속의 부모 Chapter는 정의 원본에서 조회합니다. 따라서 Scene을 이동할 때 Block의 SceneId는 유지할 수 있습니다. 게임의 `FDialogueStoryProgress`는 현재 ChapterId·SceneId를 제공하며 두 값의 부모 관계도 검사합니다. 실제 게임 진행도 전환은 게임이 수행합니다.
+
+```cpp
+UDialogueStoryDefinition* Definition = NewObject<UDialogueStoryDefinition>();
+const FGuid Chapter = Definition->AddChapter(FText::FromString(TEXT("첫 장")));
+const FGuid Scene = Definition->AddScene(Chapter, FText::FromString(TEXT("광장")));
+FDialogueStoryScope Scope;
+Scope.Mode = EDialogueStoryScope::Scene;
+Scope.SceneId = Scene;
+FDialogueStoryProgress Progress;
+Progress.ChapterId = Chapter;
+Progress.SceneId = Scene;
+const FDialogueStoryScopeResult Result =
+    UDialogueStoryLibrary::EvaluateScope(Definition, Scope, Progress);
+// Result.bValid와 Result.bMatches를 모두 확인한다.
+```
+
+`EvaluateScope`는 Blueprint에서도 호출할 수 있습니다. 소속 없음/제한 없음은 정의를 조회하지 않으며 해당 모드의 남은 ID를 사용하지 않습니다. 다른 항목의 소속 오류까지 모든 Block에 전파하지 않고, 참조한 Chapter/Scene과 게임 진행의 정합성을 검사합니다. 실패는 ErrorCode와 false를 반환합니다. 조건 시스템의 조회 실패 True 대체와는 별도 계약입니다. 저장된 활성 Block을 복원할 때 이 신규 후보 필터로 다시 거부하지 않습니다.
+
+작가: 현재 `UDialogueGraph`의 Story 카테고리에 기본 자료형이 있지만 최종 스토리보드 드롭다운은 아직 제공하지 않습니다. 기존 에셋의 새 필드는 Unassigned이며 S4 후보 필터 연결 전 개발자/작가가 의도한 소속 또는 Unrestricted를 **명시적으로** 설정해야 합니다. 자동으로 제한 없음으로 바꾸지 않습니다. 정의 에셋 선택/로드의 공통 연결점도 S4에서 연결합니다.
+
+검증: 소속 모드·정확 일치·부모 불일치·중복 ID·소속 없는 Scene·이동 후 동일 SceneId, 이름/정렬 변경 및 정의/Graph의 메모리 직렬화 왕복을 테스트합니다. 실제 에셋 파일 편집/재열기와 UI 이동·삭제는 S5 검증 항목입니다.
