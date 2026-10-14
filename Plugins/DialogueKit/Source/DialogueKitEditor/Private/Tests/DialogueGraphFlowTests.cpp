@@ -5,6 +5,7 @@
 #include "DialogueEdGraphSchema.h"
 #include "DialogueEdStartGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
+#include "DialogueEdGraphNode.h"
 #include "DialogueFlowEdGraphNode.h"
 #include "DialogueLineNodeInfo.h"
 #include "DialogueBlockRunner.h"
@@ -16,6 +17,11 @@
 #include "DialogueSampleEffectProvider.h"
 #include "DialogueStateChangeNodeInfo.h"
 #include "DialogueStateChangeEdGraphNode.h"
+#include "DialogueEndNodeInfo.h"
+#include "DialogueSubsystem.h"
+#include "DialoguePresentationProbe.h"
+#include "DialogueLocalizationCSVConverter.h"
+#include "Engine/GameInstance.h"
 #include "EdGraph/EdGraph.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -412,6 +418,162 @@ bool FDialogueStateChangeFlowTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("No-effect choice accepted"), NoEffect->SelectChoice(ChoiceId));
 		TestEqual(TEXT("One record boundary"), Records, 1);
 	}
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDialogueAllNodesRoundtripTest,
+	"DialogueKit.Graph.AllNodesPackageAndUIBridge",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 모든 신규 노드를 실제 파일로 왕복하고 Subsystem/Blueprint UI 이벤트를 통해 실행한다.
+bool FDialogueAllNodesRoundtripTest::RunTest(const FString& Parameters)
+{
+	const FString Id = FGuid::NewGuid().ToString(EGuidFormats::Digits);
+	const FString Mount = TEXT("/DialogueFlowTest") + Id + TEXT("/");
+	const FString Folder = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("AI/GraphTests") / Id) + TEXT("/");
+	IFileManager::Get().MakeDirectory(*Folder, true);
+	FPackageName::RegisterMountPoint(Mount, Folder);
+	const FString PackageName = Mount + TEXT("AllNodes");
+	UPackage* Package = CreatePackage(*PackageName);
+	UDialogueGraph* Asset = NewObject<UDialogueGraph>(Package, TEXT("AllNodes"), RF_Public | RF_Standalone);
+	Asset->InitializeBlockIdentity();
+	UEdGraph* Graph = NewObject<UEdGraph>(Asset);
+	Graph->Schema = UDialogueEdGraphSchema::StaticClass();
+	Graph->GetSchema()->CreateDefaultNodesForGraph(*Graph);
+	UDialogueEdGraphNodeBase* Line = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Graph->Nodes[0]->Pins[0]);
+	UDialogueEdGraphNodeBase* Choice = AddFlowTestNode(Graph, UDialogueChoiceEdGraphNode::StaticClass(), Line->Pins[1]);
+	UDialogueEdGraphNodeBase* Branch = AddFlowTestNode(Graph, UDialogueBranchEdGraphNode::StaticClass(), Choice->Pins[1]);
+	UDialogueEdGraphNodeBase* Change = AddFlowTestNode(Graph, UDialogueStateChangeEdGraphNode::StaticClass(), Branch->Pins[1]);
+	UDialogueEdGraphNodeBase* LastLine = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Change->Pins[1]);
+	UDialogueEdGraphNodeBase* End = AddFlowTestNode(Graph, UDialogueEdEndGraphNode::StaticClass(), LastLine->Pins[1]);
+	Graph->GetSchema()->TryCreateConnection(Branch->Pins[2], End->Pins[0]);
+	UDialogueChoiceNodeInfo* ChoiceInfo = CastChecked<UDialogueChoiceNodeInfo>(Choice->GetNodeInfo());
+	ChoiceInfo->Options[0].Text = FText::FromString(TEXT("Answer"));
+	ChoiceInfo->bSaveOnSelection = true;
+	Choice->OnPropertiesChanged();
+	const FGuid ChoiceId = ChoiceInfo->Options[0].ChoiceId;
+	const FGuid LastLineId = LastLine->NodeGuid;
+	FDialogueEffect Effect;
+	Effect.Key.Kind = EDialogueStateKind::Count;
+	Effect.Key.ItemId = TEXT("Coin");
+	Effect.Count = 2;
+	ChoiceInfo->Options[0].Effects.Add(Effect);
+	Effect.Count = 3;
+	CastChecked<UDialogueStateChangeNodeInfo>(Change->GetNodeInfo())->Effects.Add(Effect);
+	CastChecked<UDialogueEndNodeInfo>(End->GetNodeInfo())->bSaveOnEnd = true;
+	FDialogueCondition Condition;
+	Condition.Key.Kind = EDialogueStateKind::Value;
+	Condition.Key.ItemId = TEXT("Level");
+	CastChecked<UDialogueBranchNodeInfoBase>(Branch->GetNodeInfo())->Conditions.Conditions.Add(Condition);
+	FString Error;
+	if (TestTrue(TEXT("All nodes export"), FDialogueGraphCodec::ExportGraph(Graph, Asset, Error)) == false) return false;
+	TArray<FGuid> NodeIds;
+	TArray<FGuid> PinIds;
+	for (UDialogueRuntimeNode* Node : Asset->Graph->Nodes)
+	{
+		NodeIds.Add(Node->NodeGuid);
+		for (UDialogueRuntimePin* Pin : Node->OutputPins) PinIds.Add(Pin->PinId);
+	}
+	FSavePackageArgs Args;
+	Args.TopLevelFlags = RF_Public | RF_Standalone;
+	Args.SaveFlags = SAVE_NoError;
+	if (TestTrue(TEXT("All nodes saved"), UPackage::SavePackage(Package, Asset, *(Folder + TEXT("AllNodes.uasset")), Args)) == false) return false;
+	TArray<UPackage*> Packages = {Package};
+	if (TestTrue(TEXT("All nodes unloaded"), UPackageTools::UnloadPackages(Packages)) == false) return false;
+	UPackage* Reloaded = LoadPackage(nullptr, *PackageName, LOAD_None);
+	UDialogueGraph* Loaded = Reloaded ? FindObject<UDialogueGraph>(Reloaded, TEXT("AllNodes")) : nullptr;
+	if (TestNotNull(TEXT("All nodes reloaded"), Loaded) == false) return false;
+	UEdGraph* Reopened = NewObject<UEdGraph>(Loaded);
+	Reopened->Schema = UDialogueEdGraphSchema::StaticClass();
+	if (TestTrue(TEXT("All nodes import"), FDialogueGraphCodec::ImportGraph(Loaded, Reopened, Error)) == false) return false;
+	if (TestTrue(TEXT("All nodes re-export"), FDialogueGraphCodec::ExportGraph(Reopened, Loaded, Error)) == false) return false;
+	TArray<FGuid> ReopenedNodes;
+	TArray<FGuid> ReopenedPins;
+	for (UDialogueRuntimeNode* Node : Loaded->Graph->Nodes)
+	{
+		ReopenedNodes.Add(Node->NodeGuid);
+		for (UDialogueRuntimePin* Pin : Node->OutputPins) ReopenedPins.Add(Pin->PinId);
+	}
+	TestTrue(TEXT("Node identities preserved"), NodeIds == ReopenedNodes);
+	TestTrue(TEXT("Pin identities preserved"), PinIds == ReopenedPins);
+	TestTrue(TEXT("Standalone Choice exported for localization"), FDialogueLocalizationCSVConverter::BuildDialogueGraphCSVFromAsset(Loaded).Contains(TEXT("Answer")));
+	UDialogueSampleEffectProvider* Provider = NewObject<UDialogueSampleEffectProvider>();
+	FDialogueStateDefinition Definition;
+	Definition.Key = Effect.Key;
+	Provider->AddDefinition(Definition);
+	Definition.Key = Condition.Key;
+	Provider->AddDefinition(Definition);
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	UDialogueSubsystem* Subsystem = NewObject<UDialogueSubsystem>(GameInstance);
+	UDialoguePresentationProbe* Probe = NewObject<UDialoguePresentationProbe>();
+	Subsystem->OnBlockPresentationChanged.AddDynamic(Probe, &UDialoguePresentationProbe::Receive);
+	Subsystem->ConfigureBlockProviders(Provider, Provider, nullptr);
+	int32 Boundaries = 0;
+	int32 Completions = 0;
+	Subsystem->GetBlockRunner()->OnExecutionBoundaryNative.AddLambda([&](const FDialogueExecutionBoundary& Boundary)
+	{
+		++Boundaries;
+		if (Boundary.bBlockCompleted)
+		{
+			++Completions;
+			TestTrue(TEXT("End requests configured save"), Boundary.bSaveRequested && Boundary.Context.ExecutionId.IsValid() == false && Boundary.NextNodeGuid.IsValid() == false);
+			TestFalse(TEXT("Completion callback cannot replace active context"), Subsystem->StartDialogueBlock(Loaded));
+		}
+	});
+	TestTrue(TEXT("Subsystem starts new graph"), Subsystem->StartDialogueBlock(Loaded));
+	TestTrue(TEXT("Dynamic UI receives line and Choice"), Probe->Events == 1 && Probe->LastPresentation.Line && Probe->LastPresentation.Choices.Num() == 1);
+	TArray<FText> Texts;
+	TArray<int32> Indices;
+	Subsystem->GetSelectableChoiceTexts(nullptr, Texts, Indices);
+	TestTrue(TEXT("Legacy UI choice adapter"), Texts.Num() == 1 && Texts[0].ToString() == TEXT("Answer") && Indices[0] == 0);
+	TestTrue(TEXT("ID selection through Subsystem"), Subsystem->SelectBlockChoice(ChoiceId));
+	TestTrue(TEXT("Branch and StateChange reach next Line"), Probe->LastPresentation.NodeGuid == LastLineId && Probe->Events == 2);
+	int64 Count = 0;
+	Provider->QueryDialogueCount_Implementation(NAME_None, TEXT("Coin"), Count);
+	TestEqual(TEXT("Choice and StateChange effects preserved"), Count, int64(5));
+	TestTrue(TEXT("End via legacy progression adapter"), Subsystem->ProgressNextDialogue() == nullptr && Probe->LastPresentation.State == EDialogueRunState::Completed);
+	TestEqual(TEXT("Choice state and End boundaries"), Boundaries, 3);
+	TestEqual(TEXT("Single completion"), Completions, 1);
+	TestEqual(TEXT("UI receives completion"), Probe->Events, 3);
+	// 프로세스 수명까지 마운트를 유지하여 저장 후 지연 검증도 같은 파일을 확인한다.
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDialogueCompletionAndMixedGraphTest,
+	"DialogueKit.Runtime.DefaultEndAndMixedGraph",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 기본 End는 저장 요청 없이 완료하며 혼합 Graph는 효과 전에 거부한다.
+bool FDialogueCompletionAndMixedGraphTest::RunTest(const FString& Parameters)
+{
+	UDialogueGraph* Asset = NewObject<UDialogueGraph>();
+	Asset->InitializeBlockIdentity();
+	UEdGraph* Graph = NewObject<UEdGraph>(Asset);
+	Graph->Schema = UDialogueEdGraphSchema::StaticClass();
+	Graph->GetSchema()->CreateDefaultNodesForGraph(*Graph);
+	UDialogueEdGraphNodeBase* Line = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Graph->Nodes[0]->Pins[0]);
+	UDialogueEdGraphNodeBase* End = AddFlowTestNode(Graph, UDialogueEdEndGraphNode::StaticClass(), Line->Pins[1]);
+	UDialogueEndNodeInfo* EndInfo = CastChecked<UDialogueEndNodeInfo>(End->GetNodeInfo());
+	TestFalse(TEXT("SaveOnEnd defaults off"), EndInfo->bSaveOnEnd);
+	// legacy Quest가 지정되어 있어도 새 실행기는 이 액션을 실행하지 않는다.
+	EndInfo->Action = EDialogueNodeAction::StartQuest;
+	FString Error;
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	UDialogueSubsystem* Subsystem = NewObject<UDialogueSubsystem>(GameInstance);
+	int32 Completed = 0;
+	Subsystem->GetBlockRunner()->OnExecutionBoundaryNative.AddLambda([&](const FDialogueExecutionBoundary& Boundary)
+	{
+		++Completed;
+		TestTrue(TEXT("Completion without save or effect"), Boundary.bBlockCompleted && Boundary.bSaveRequested == false && Boundary.bHasEffects == false);
+	});
+	TestTrue(TEXT("New block start"), Subsystem->StartDialogueBlock(Asset));
+	Subsystem->ProgressNextDialogue();
+	TestEqual(TEXT("Exactly one default completion"), Completed, 1);
+	TestTrue(TEXT("Completed without legacy Quest subsystem"), Subsystem->GetBlockPresentation().State == EDialogueRunState::Completed);
+	AddFlowTestNode(Graph, UDialogueEdGraphNode::StaticClass());
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	TestFalse(TEXT("Mixed legacy/new rejected before any presentation or effect"), Subsystem->StartDialogueBlock(Asset));
+	TestEqual(TEXT("Mixed graph diagnostic"), Subsystem->GetBlockPresentation().ErrorCode, FName(TEXT("UnsupportedNodeType")));
+	TestEqual(TEXT("No completion on failed graph"), Completed, 1);
 	return true;
 }
 #endif
