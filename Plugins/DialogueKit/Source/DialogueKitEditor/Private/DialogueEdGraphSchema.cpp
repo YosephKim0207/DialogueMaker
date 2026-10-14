@@ -2,6 +2,7 @@
 
 #include "DialogueEdGraphSchema.h"
 #include "DialogueFlowEdGraphNode.h"
+#include "DialogueChoiceEdGraphNode.h"
 #include "ScopedTransaction.h"
 #include "DialogueBranchEdGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
@@ -66,6 +67,7 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 		FText::FromString("Branch Statement\nIf Condition is true, execution goes to True, otherwise it goes to False"),
 		0));
 	
+	ContextMenuBuilder.AddAction(MakeShareable(new FNewNodeAction(UDialogueChoiceEdGraphNode::StaticClass(), FText::FromString(TEXT("Nodes")), FText::FromString(TEXT("Choice")), FText::FromString(TEXT("Add Choice")), 0)));
 	ContextMenuBuilder.AddAction(NewNodeAction);
 	ContextMenuBuilder.AddAction(NewEndNodeAction);
 	ContextMenuBuilder.AddAction(BranchNodeAction);

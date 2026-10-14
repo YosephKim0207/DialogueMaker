@@ -1,6 +1,8 @@
 #include "DialogueGraphCodec.h"
 #include "DialogueGraph.h"
 #include "DialogueLineNodeInfo.h"
+#include "DialogueChoiceNodeInfo.h"
+#include "DialogueChoiceEdGraphNode.h"
 #include "DialogueBranchNodeInfoBase.h"
 #include "DialogueEndNodeInfo.h"
 #include "DialogueEdGraphNode.h"
@@ -18,6 +20,7 @@ static UClass* GetEditorNodeClass(EDialogueType Type)
 	case EDialogueType::StartNode: return UDialogueEdStartGraphNode::StaticClass();
 	case EDialogueType::DialogueNode: return UDialogueEdGraphNode::StaticClass();
 	case EDialogueType::LineNode: return UDialogueFlowEdGraphNode::StaticClass();
+	case EDialogueType::ChoiceNode: return UDialogueChoiceEdGraphNode::StaticClass();
 	case EDialogueType::BranchNode: return UDialogueBranchEdGraphNode::StaticClass();
 	case EDialogueType::EndNode: return UDialogueEdEndGraphNode::StaticClass();
 	default: return nullptr;
@@ -35,6 +38,11 @@ static bool HasValidPayload(EDialogueType Type, UDialogueNodeInfoBase* Info, int
 	{
 		const UDialogueLineNodeInfo* Line = Cast<UDialogueLineNodeInfo>(Info);
 		return Line && Line->GetReadVersion() > 0 && Line->GetDialogueChoices().IsEmpty() && Outputs == 1;
+	}
+	case EDialogueType::ChoiceNode:
+	{
+		const UDialogueChoiceNodeInfo* Choice = Cast<UDialogueChoiceNodeInfo>(Info);
+		return Choice && Choice->HasValidOptions() && Outputs == Choice->Options.Num();
 	}
 	case EDialogueType::DialogueNode: return Cast<UDialogueNodeInfo>(Info) != nullptr && Cast<UDialogueLineNodeInfo>(Info) == nullptr;
 	case EDialogueType::BranchNode: return Cast<UDialogueBranchNodeInfoBase>(Info) && Outputs == 2;
@@ -124,6 +132,12 @@ bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Ass
 			Pair.Value->Connections.Add(Target);
 			Pair.Value->LinkedToNodeGuid = Target->OwnerNodeGuid;
 		}
+	}
+	TArray<FString> Issues;
+	if (RuntimeGraph->ValidateIdentifiers(Issues) == false)
+	{
+		OutError = FString::Join(Issues, TEXT(", "));
+		return false;
 	}
 	Asset->Modify();
 	Asset->Graph = RuntimeGraph;
