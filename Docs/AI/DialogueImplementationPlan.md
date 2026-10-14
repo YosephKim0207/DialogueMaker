@@ -1,6 +1,6 @@
 # DialogueMaker 구현 실행계획과 자동 진행 지침
 
-작성: 2026-10-13. 상태: 계획 작성 완료 / 구현 미착수 / 실행 검증 미실행.
+작성: 2026-10-13. 상태: 구현 진행 중 / S0 검증 기반 검증 완료·통합 준비 / S1~S7 미완료.
 이 계획은 PLANS.md의 실행계획이며 제품 기준은 Blueprint.md이다. 단계의 작업·검증·Git 운영 기준을 한곳에서 관리한다. 최신 사용자 지시가 우선하며 계획이 제품 결정을 임의 변경하지 않는다.
 
 ## Goal
@@ -256,14 +256,18 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 | 단계/기능 | 상태 | 기능 Branch / 통합 Branch | BaseSHA / FeatureTip / MergeSHA | 검증·Commit·Push 근거 |
 |---|---|---|---|---|
 | 계획 | 작성 완료, 실행 미착수 | DiagnoseGraphSystem | d1b1937 / 해당 없음 | 문서 검증만 수행 |
-| S0 테스트 기반 | Verified / 통합 준비 | chore/dialogue-test-harness / Codex_Develop | 7601263 / 현재 기능 tip / 미정 | 3 UE 테스트·9 보고서 검사 통과; 실제 missing filter 실패 판정 확인 |
-| S0 패키징 기반 및 S1~S7 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
+| S0 테스트 기반 | Integrated | chore/dialogue-test-harness / Codex_Develop | 7601263 / 5a24cbd / 84ac3db | 3 UE 테스트·9 보고서 검사 통과; 실제 missing filter 실패 판정 확인 |
+| S0 패키징 기반 | Verified / 통합 준비 | chore/dialogue-package-validation / Codex_Develop | 76e4fb5 / 현재 기능 tip / 미정 | Package_20261014_174122_a18bf895: UAT 0, 새 exe/pak 확인, Error 0 |
+| S1~S7 | Planned | 기능별 Branch / Codex_Develop | 미정 | 미실행 |
 
 실행 시 기능별 행으로 분리하고 작은 커밋 목록·의존 커밋·복구 단위·Codex_Develop의 merge/검증 SHA를 함께 기록한다. 다음 정보를 갱신한다: 실행 승인 원문/일시, 현재 Branch·HEAD·BaseSHA, 변경 파일, 완료/미완료 체크, 테스트 명령·보고서·실패, 기술 검토/제품 검토 상태, Commit/Push SHA, 다음 한 가지 작업. 커밋 SHA는 커밋 후 보고 또는 다음 기록에서 반영하며 자기 SHA를 넣으려고 amend하지 않는다.
 
 - 실행 승인: 2026-10-14 사용자 “이제 앞서 논의한 내용을 순서대로 스스로 작업해봐.”에 따라 구현·검증·문서·기능별 Git 통합을 시작했다. 기준 빌드: Saved/AI/20261014_172137_a97d4dc2/Build.log, ExitCode 0. 기존 EnhancedInput 선언 경고는 분리 추적한다.
 
 - S0 테스트 기반 검증: Build `Saved/AI/20261014_172742_d4a3b189`, UE 3개 Success `Saved/AI/20261014_172756_47af708b`, 합성 보고서 9개 `Saved/AI/ReportValidation_cdacc1f12b6c4d209c18cd64a5429655`, 의도한 실패 `Saved/AI/20261014_172830_9f259835`(EditorExit 255 / NoReport / wrapper 비정상 종료). 기존 6종 초기화 오류 12줄만 확인, 신규 오류 0. Sol Medium 검토 통과. 사용자 안내서 1~2절 작성. 다음 작업은 별도 package-validation 기능이며 UI·cook 검증은 아직 미실행이다.
+
+- S0 컴파일 수정 통합: fix/dialogue-runtime-enum-metadata, Base 84ac3db / Feature 0cece7c / Merge 76e4fb5. Game 빌드 `GameBuild_0d6864bcb4684197a44475942223898d`, Editor `20261014_173826_7b801094`, UE 4개 `20261014_173845_2a23088a` 통과. 통합 후 핵심 1개 `20261014_174016_c64237d2` 통과. 기존 초기화 진단 12줄은 별도 미해결이며 신규 오류 0. 수정/통합 브랜치 push 완료.
+- S0 패키징 재개: WIP 3ef1d26에 통합 수정 반영 33f3306. `Package_20261014_174122_a18bf895`에서 UAT 0, 새 exe/pak, Error 0 확인. 사용자 안내서 4절과 실행 명령 작성. Sol Medium 독립 검토 차단 없음. timeout 소유 프로세스 종료는 정적 검토만 수행. GUI/PIE/실제 패키지 실행 미검증. 다음 작업은 S1 안정 식별자이며 패키징 기능 통합 후 시작한다.
 
 ## Decision Log / Discoveries
 
@@ -284,4 +288,4 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - 계획 작성 및 최종 검증: Sol Medium 독립 검토에서 제품 합의·단계 의존·기능 통합/복구·Prototype2 경계의 중대한 구조 모순을 발견하지 못했다. 추가 지시인 모든 커밋 메시지 요약 의무를 반영했다. 관련 문서·코드 경로/스크립트 정적 검토와 Windows Git diff 검사. UE 빌드·PIE·자동화·패키징은 실행하지 않았다.
 - 구현 시: Saved/AI/<실행ID>/Build.log, result.json, Report/index.json 등 실제 산출물 경로와 테스트 수/결과를 단계 행에 기록한다. 테스트 0개·보고서 없음·미실행은 통과가 아니다.
 - 종료 보고: 단계·변경 목적·Branch/커밋/원격 push·통과 검증·미검증·제품 검토·다음 단계. 로그 원문은 필요 최소한만 공유한다.
-- 현재 결과: 실행계획과 자동 진행 지침 작성. 기능 구현은 시작하지 않았으며 실제 검증 성공을 선언하지 않는다.
+- 현재 결과: S0 테스트 기반과 Game 빌드 수정 통합. 패키징 생성 검증 통과 후 통합 준비. S1~S7 구현과 실제 PIE/패키지 연출 검증은 미완료.
