@@ -39,6 +39,9 @@ struct DIALOGUEKIT_API FDialoguePresentation
 	FGuid NodeGuid;
 
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	FGuid LineNodeGuid;
+
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
 	TObjectPtr<UDialogueNodeInfo> Line;
 
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
@@ -69,6 +72,8 @@ struct DIALOGUEKIT_API FDialogueExecutionBoundary
 	bool bHasEffects = false;
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
 	bool bSaveRequested = false;
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	bool bBlockCompleted = false;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDialogueExecutionBoundaryEvent, const FDialogueExecutionBoundary&, Boundary);
@@ -86,6 +91,11 @@ public:
 	// 실행 중 재진입은 거부한다. 게임은 제공자를 UObject/Blueprint 구현으로 교체할 수 있다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
 	bool StartBlock(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter);
+
+	// 콜백 중 재진입까지 포함하여 새 시작 가능 여부를 조회한다.
+	UFUNCTION(BlueprintPure, Category = "DialogueKit|Run")
+	bool CanStartBlock() const;
+
 
 	// 현재 발화 이후로 진행한다. 실패는 정상 종료가 아니며 게임이 반환값/상태로 안내한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
@@ -124,6 +134,8 @@ private:
 	bool GetChoiceViews(UDialogueRuntimeNode* Node, TArray<FDialogueChoiceView>& OutViews);
 	// 오류는 중단 상태로 게시하고 마지막 게임 저장을 건드리지 않는다.
 	bool Fail(FName Code);
+	// 정상 완료와 저장 요청 경계를 한 경로로 통일한다.
+	bool Complete(bool bSaveRequested);
 	// 게임의 외부 로그 전송은 Router 구독자로 연결한다.
 	void Report(FName Code, const FString& Handling);
 	// 동기 콜백의 재진입은 호출 측 처리 구간에서 차단한다.
