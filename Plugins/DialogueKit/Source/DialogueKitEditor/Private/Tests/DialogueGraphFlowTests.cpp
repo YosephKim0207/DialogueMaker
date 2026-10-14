@@ -8,6 +8,9 @@
 #include "DialogueFlowEdGraphNode.h"
 #include "DialogueLineNodeInfo.h"
 #include "DialogueBlockRunner.h"
+#include "DialogueChoiceEdGraphNode.h"
+#include "DialogueChoiceNodeInfo.h"
+#include "DialogueSampleStateProvider.h"
 #include "EdGraph/EdGraph.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
@@ -147,6 +150,90 @@ bool FDialogueGraphConnectionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Replace A to C"), Schema->TryCreateConnection(C->Pins[0], A->Pins[1]));
 	TestEqual(TEXT("Single output"), A->Pins[1]->LinkedTo.Num(), 1);
 	TestTrue(TEXT("Other incoming preserved"), B->Pins[0]->LinkedTo.Num() == 1 && B->Pins[0]->LinkedTo[0] == D->Pins[1]);
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDialogueChoiceFlowTest,
+	"DialogueKit.Runtime.ChoiceFilteringAndLoop",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+// 직접 Choice 동시 표시, 기본 선택지, ID 기반 선택과 정상 질문 반복을 확인한다.
+bool FDialogueChoiceFlowTest::RunTest(const FString& Parameters)
+{
+	UDialogueGraph* Asset = NewObject<UDialogueGraph>();
+	Asset->InitializeBlockIdentity();
+	UEdGraph* Graph = NewObject<UEdGraph>(Asset);
+	Graph->Schema = UDialogueEdGraphSchema::StaticClass();
+	Graph->GetSchema()->CreateDefaultNodesForGraph(*Graph);
+	UDialogueEdGraphNodeBase* Line = AddFlowTestNode(Graph, UDialogueFlowEdGraphNode::StaticClass(), Graph->Nodes[0]->Pins[0]);
+	UDialogueEdGraphNodeBase* Choice = AddFlowTestNode(Graph, UDialogueChoiceEdGraphNode::StaticClass(), Line->Pins[1]);
+	UDialogueChoiceNodeInfo* Info = CastChecked<UDialogueChoiceNodeInfo>(Choice->GetNodeInfo());
+	FDialogueOption Default;
+	Default.bDefault = true;
+	Default.Text = FText::FromString(TEXT("Fallback"));
+	Info->Options.Add(Default);
+	Choice->OnPropertiesChanged();
+	const FGuid OrdinaryId = Info->Options[0].ChoiceId;
+	const FGuid DefaultId = Info->Options[1].ChoiceId;
+	Graph->GetSchema()->TryCreateConnection(Choice->Pins[1], Line->Pins[0]);
+	AddFlowTestNode(Graph, UDialogueEdEndGraphNode::StaticClass(), Choice->Pins[2]);
+	const FGuid OrdinaryPin = Choice->Pins[1]->PinId;
+	Info->Options.Swap(0, 1);
+	Choice->OnPropertiesChanged();
+	TestTrue(TEXT("Reorder retains identity and connection"), Choice->Pins[2]->PinId == OrdinaryPin && Choice->Pins[2]->LinkedTo.Contains(Line->Pins[0]));
+	FString Error;
+	if (TestTrue(TEXT("Export choices"), FDialogueGraphCodec::ExportGraph(Graph, Asset, Error)) == false) return false;
+	UDialogueBlockRunner* Runner = NewObject<UDialogueBlockRunner>();
+	TestTrue(TEXT("Start"), Runner->StartBlock(Asset, nullptr, nullptr, nullptr));
+	FDialoguePresentation View = Runner->GetPresentation();
+	TestTrue(TEXT("Line and direct Choice together"), View.State == EDialogueRunState::WaitingLine && View.ChoiceNodeGuid == Choice->NodeGuid && View.Choices.Num() == 1 && View.Choices[0].ChoiceId == OrdinaryId);
+	TestFalse(TEXT("Hidden default cannot be selected"), Runner->SelectChoice(DefaultId));
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		TestTrue(TEXT("Normal player loop"), Runner->SelectChoice(OrdinaryId));
+		TestTrue(TEXT("Returns to original Line"), Runner->GetPresentation().NodeGuid == Line->NodeGuid);
+	}
+	// 조회 실패 True 대체와 구분하기 위해 등록된 기본값 0으로 False 조건을 구성한다.
+	UDialogueSampleStateProvider* Provider = NewObject<UDialogueSampleStateProvider>();
+	FDialogueStateDefinition Definition;
+	Definition.Key.Kind = EDialogueStateKind::Value;
+	Definition.Key.ItemId = TEXT("Level");
+	Provider->AddDefinition(Definition);
+	FDialogueCondition Condition;
+	Condition.Key = Definition.Key;
+	Condition.Comparison = EDialogueComparison::Greater;
+	Condition.ValueOperand = 10;
+	Info->Options[1].Conditions.Conditions.Add(Condition);
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Runner = NewObject<UDialogueBlockRunner>();
+	TestTrue(TEXT("Start fallback"), Runner->StartBlock(Asset, Provider, nullptr, nullptr));
+	View = Runner->GetPresentation();
+	TestTrue(TEXT("Only default shown"), View.Choices.Num() == 1 && View.Choices[0].ChoiceId == DefaultId);
+		// 표시되지 않았던 ID는 조건이 바뀌어도 첫 요청에서 실행하지 않는다.
+	UDialogueChoiceNodeInfo* RuntimeInfo = CastChecked<UDialogueChoiceNodeInfo>(Asset->Graph->Nodes[2]->NodeInfo);
+	RuntimeInfo->Options[1].Conditions.Conditions.Reset();
+	TestFalse(TEXT("Newly eligible hidden ID rejected"), Runner->SelectChoice(OrdinaryId));
+	TestTrue(TEXT("Next input accepts now published ID"), Runner->SelectChoice(OrdinaryId));
+	RuntimeInfo->Options[1].Conditions.Conditions.Add(Condition);
+	TestFalse(TEXT("Stale ordinary rejected and fallback published"), Runner->SelectChoice(OrdinaryId));
+	TestTrue(TEXT("Default reaches End"), Runner->SelectChoice(DefaultId));
+	TestTrue(TEXT("Completed"), Runner->GetPresentation().State == EDialogueRunState::Completed);
+	Info->Options.RemoveAt(0);
+	Choice->OnPropertiesChanged();
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Runner = NewObject<UDialogueBlockRunner>();
+	Runner->StartBlock(Asset, Provider, nullptr, nullptr);
+	TestTrue(TEXT("Preview does not complete empty choice"), Runner->GetPresentation().State == EDialogueRunState::WaitingLine);
+	TestTrue(TEXT("Entering empty filtered choice completes normally"), Runner->AdvanceLine());
+	TestTrue(TEXT("Fallback completion"), Runner->GetPresentation().State == EDialogueRunState::Completed);
+	Info->Options[0].Conditions.Conditions.Reset();
+	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
+	Runner = NewObject<UDialogueBlockRunner>();
+	Runner->StartBlock(Asset, Provider, nullptr, nullptr);
+	Runner->AdvanceLine();
+	TestTrue(TEXT("Waiting for explicit choice"), Runner->GetPresentation().State == EDialogueRunState::WaitingChoice);
+	CastChecked<UDialogueChoiceNodeInfo>(Asset->Graph->Nodes[2]->NodeInfo)->Options[0].Conditions.Conditions.Add(Condition);
+	TestFalse(TEXT("Stale choice returns false"), Runner->SelectChoice(OrdinaryId));
+	TestTrue(TEXT("No permanent wait after all choices disappear"), Runner->GetPresentation().State == EDialogueRunState::Completed);
 	return true;
 }
 #endif
