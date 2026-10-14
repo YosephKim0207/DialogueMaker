@@ -3,6 +3,8 @@
 #include "DialogueLineNodeInfo.h"
 #include "DialogueChoiceNodeInfo.h"
 #include "DialogueChoiceEdGraphNode.h"
+#include "DialogueStateChangeEdGraphNode.h"
+#include "DialogueStateChangeNodeInfo.h"
 #include "DialogueBranchNodeInfoBase.h"
 #include "DialogueEndNodeInfo.h"
 #include "DialogueEdGraphNode.h"
@@ -21,6 +23,7 @@ static UClass* GetEditorNodeClass(EDialogueType Type)
 	case EDialogueType::DialogueNode: return UDialogueEdGraphNode::StaticClass();
 	case EDialogueType::LineNode: return UDialogueFlowEdGraphNode::StaticClass();
 	case EDialogueType::ChoiceNode: return UDialogueChoiceEdGraphNode::StaticClass();
+	case EDialogueType::StateChangeNode: return UDialogueStateChangeEdGraphNode::StaticClass();
 	case EDialogueType::BranchNode: return UDialogueBranchEdGraphNode::StaticClass();
 	case EDialogueType::EndNode: return UDialogueEdEndGraphNode::StaticClass();
 	default: return nullptr;
@@ -45,6 +48,7 @@ static bool HasValidPayload(EDialogueType Type, UDialogueNodeInfoBase* Info, int
 		return Choice && Choice->HasValidOptions() && Outputs == Choice->Options.Num();
 	}
 	case EDialogueType::DialogueNode: return Cast<UDialogueNodeInfo>(Info) != nullptr && Cast<UDialogueLineNodeInfo>(Info) == nullptr;
+	case EDialogueType::StateChangeNode: return Cast<UDialogueStateChangeNodeInfo>(Info) && Outputs == 1;
 	case EDialogueType::BranchNode: return Cast<UDialogueBranchNodeInfoBase>(Info) && Outputs == 2;
 	case EDialogueType::EndNode: return Cast<UDialogueEndNodeInfo>(Info) && Outputs == 0;
 	default: return false;
