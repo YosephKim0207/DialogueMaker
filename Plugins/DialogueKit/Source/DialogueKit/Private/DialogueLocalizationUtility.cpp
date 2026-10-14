@@ -47,11 +47,13 @@ void FDialogueLocalizationUtility::GetSupportedLanguageMappings(TArray<FDialogue
 
 	for (int32 EnumIndex = 0; EnumIndex < LanguageEnum->NumEnums(); ++EnumIndex)
 	{
-		// Hidden 언어 skip
+#if WITH_EDITOR
+		// 메타데이터는 에디터 전용이다. 게임 빌드에서는 런타임 enum 값으로 목록을 구성한다.
 		if (LanguageEnum->HasMetaData(TEXT("Hidden"), EnumIndex))
 		{
 			continue;
 		}
+#endif
 
 		const int64 EnumValue = LanguageEnum->GetValueByIndex(EnumIndex);
 		
