@@ -46,6 +46,15 @@ Test 프로세스 실행 이후 실패에도 result.json을 남긴다. Outcome, 
 
 개발자용 공개 실행 인자·결과 해석·확장 방법은 [사용자 안내서](../UserGuide.md)를 따른다. 샘플 슬롯은 테스트 실행별 GUID로 격리되며 실제 사용자 슬롯은 사용하지 않는다. 자동화 성공은 GUI/PIE/패키징 성공을 뜻하지 않는다.
 
+## 패키징
+
+```powershell
+.\Scripts\AI\Invoke-PackageValidation.ps1 -Action Check
+.\Scripts\AI\Invoke-PackageValidation.ps1 -Action Package -TimeoutMinutes 30
+```
+
+UE 5.4.4의 BuildCookRun을 사용하며 실행별 Saved/AI/Package_*에 출력한다. 기본 맵은 `/DialogueKit/Sample/Maps/NewWorld`, Win64 Development이다. 기존 사용자 실행 프로세스는 중단하지 않으며 다른 수동 UAT를 동시에 시작하지 않는다. UAT 성공과 새 exe/pak 확인을 PackagedNotLaunched로 기록한다. 이는 실제 패키지 실행/화면/입력/음향 검증이 아니다. 상세 인자와 한계는 사용자 안내서 4절을 따른다.
+
 ## Git과 Fork
 
 ```powershell

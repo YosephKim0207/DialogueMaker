@@ -5,6 +5,7 @@
 - [1. 기존 대화 기능 회귀 테스트](#1-기존-대화-기능-회귀-테스트)
 - [2. 자동화 실행 결과와 실패 진단](#2-자동화-실행-결과와-실패-진단)
 - [3. 지원 언어 목록의 게임 빌드 호환](#3-지원-언어-목록의-게임-빌드-호환)
+- [4. 샘플 맵 패키징 검증](#4-샘플-맵-패키징-검증)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -133,3 +134,32 @@ Game 및 Editor Win64 Development 빌드를 검증합니다. 매핑 개수·중�
 ```
 
 이 테스트는 언어 목록을 검증하며 실제 번역 리소스나 화면 출력, 패키징 전체를 보증하지 않습니다.
+
+## 4. 샘플 맵 패키징 검증
+
+### 기능과 개발자 사용법
+
+UE 5.4.4와 C++ 빌드 도구가 설치된 Windows에서 에디터와 다른 빌드를 정상 종료한 뒤 프로젝트 루트에서 실행합니다.
+
+```powershell
+.\Scripts\AI\Invoke-PackageValidation.ps1 -Action Check
+.\Scripts\AI\Invoke-PackageValidation.ps1 -Action Package -TimeoutMinutes 30
+```
+
+`Check`가 기본 동작이며 환경과 RunUAT 경로를 확인합니다. `Package`는 Win64 Development로 Build/Cook/Stage/Package/Archive를 수행합니다. `-EngineRoot`는 엔진 경로, `-Map`은 맵의 패키지 경로(기본 `/DialogueKit/Sample/Maps/NewWorld`), `-TimeoutMinutes`는 1~240분 제한입니다. 맵 경로는 영문·숫자·밑줄·슬래시만 지원합니다.
+
+출력은 매번 고유한 `Saved/AI/Package_<시각>_<GUID>/` 안에 생성합니다. `result.json`의 Outcome이 `PackagedNotLaunched`이고 ExitCode가 0이면 UAT 성공과 새 실행 파일·pak의 존재를 확인한 상태입니다. `Archive`는 배포 형태의 출력, `Staged`는 중간 배치, `Package.log`는 원문 로그입니다. 자동 게임 실행은 하지 않습니다.
+
+실행 후 실패는 `AutomationToolExit`, `Timeout`, `MissingArtifacts`, `ExecutionError`로 기록하고 명령도 실패합니다. 환경/다른 프로세스 검사에서 거부되면 실행 폴더 생성 전 콘솔 오류가 표시됩니다. 시간 초과 시 도구 자신이 시작한 프로세스 트리만 종료합니다. 기존 저장 파일이나 Content 에셋은 수정하지 않습니다. Cooker의 Sentry 자동 초기화만 실행 인자로 끄며 패키지에 저장된 게임 설정은 바꾸지 않습니다.
+
+### 시나리오 작가 사용법
+
+이 도구는 개발자 명령행 검증용이며 작가용 UI는 추가하지 않습니다. Block 단독 연출 테스트는 후속 기능입니다.
+
+### 확장 방법과 주의사항
+
+다른 맵은 `-Map /Game/Maps/맵이름` 형태로 지정하되 현재 인자 검증이 허용하는 영문 패키지 이름을 사용합니다. 실제 게임의 Asset Manager/cook 설정과 구버전 보존 에셋 포함은 별도 확인해야 합니다. 현재 검사는 실행 파일과 pak 존재까지이며 IoStore 파일 전체 무결성이나 런타임 동작을 보증하지 않습니다. 다른 터미널/IDE에서 수동 RunUAT를 동시에 실행하지 마세요. 공통 mutex는 이 저장소의 자동화 도구끼리만 직렬화합니다.
+
+### 검증
+
+2026-10-14 기본 샘플 맵에서 UAT ExitCode 0, 실행 파일과 pak 생성, 로그 Error 0건을 확인했습니다. 최초 실제 UAT 컴파일 실패도 Failed/AutomationToolExit로 기록됐습니다. 실제 시간 초과 분기는 실험하지 않았습니다. 패키지 화면·입력·음향 및 PIE는 미검증입니다. 결과와 패키지 원본은 로컬 Saved에 두고 도구와 문서만 Git에서 관리합니다.
