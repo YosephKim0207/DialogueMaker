@@ -3,6 +3,7 @@
 #include "DialogueEdGraphSchema.h"
 #include "DialogueFlowEdGraphNode.h"
 #include "DialogueChoiceEdGraphNode.h"
+#include "DialogueStateChangeEdGraphNode.h"
 #include "ScopedTransaction.h"
 #include "DialogueBranchEdGraphNode.h"
 #include "DialogueEdEndGraphNode.h"
@@ -68,6 +69,7 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 		0));
 	
 	ContextMenuBuilder.AddAction(MakeShareable(new FNewNodeAction(UDialogueChoiceEdGraphNode::StaticClass(), FText::FromString(TEXT("Nodes")), FText::FromString(TEXT("Choice")), FText::FromString(TEXT("Add Choice")), 0)));
+	ContextMenuBuilder.AddAction(MakeShareable(new FNewNodeAction(UDialogueStateChangeEdGraphNode::StaticClass(), FText::FromString(TEXT("Nodes")), NSLOCTEXT("DialogueKit", "StateChangeNode", "상태 변경"), FText::FromString(TEXT("StateChange")), 0)));
 	ContextMenuBuilder.AddAction(NewNodeAction);
 	ContextMenuBuilder.AddAction(NewEndNodeAction);
 	ContextMenuBuilder.AddAction(BranchNodeAction);

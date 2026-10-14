@@ -13,4 +13,5 @@ enum class EDialogueType : uint8
 	BranchNode,
 	LineNode,
 	ChoiceNode,
+	StateChangeNode,
 };
