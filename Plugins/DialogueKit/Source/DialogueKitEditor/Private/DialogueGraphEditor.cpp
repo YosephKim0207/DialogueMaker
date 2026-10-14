@@ -137,6 +137,7 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
             UDialogueRuntimePin* RuntimePin = NewObject<UDialogueRuntimePin>(RuntimeNode);
             RuntimePin->PinName = Pin->PinName;
             RuntimePin->PinId = Pin->PinId;
+            RuntimePin->ChoiceId = Pin->PersistentGuid;
             RuntimePin->OwnerNodeGuid = RuntimeNode->NodeGuid;
             
             // Pin 연결 관계 캐싱
@@ -164,6 +165,7 @@ void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
         UDialogueEdGraphNodeBase* EdGraphNode = Cast<UDialogueEdGraphNodeBase>(Node);
         RuntimeNode->NodeInfo = DuplicateObject(EdGraphNode->GetNodeInfo(), RuntimeNode);
         RuntimeNode->DialogueNodeType = EdGraphNode->GetDialogueNodeType();
+
         
         RuntimeGraph->Nodes.Add(RuntimeNode);
     }
@@ -257,6 +259,7 @@ void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
         {
             UEdGraphPin* OutputPin = NewNode->CreateCustomPin(EGPD_Output, RuntimeOutputPin->PinName);
             OutputPin->PinId = RuntimeOutputPin->PinId;
+            OutputPin->PersistentGuid = RuntimeOutputPin->ChoiceId;
 
             if (RuntimeOutputPin->Connections.Num() > 0)
             {

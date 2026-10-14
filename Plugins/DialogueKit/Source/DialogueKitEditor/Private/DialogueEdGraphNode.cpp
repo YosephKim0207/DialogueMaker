@@ -23,6 +23,7 @@ void UDialogueEdGraphNode::CreateDefaultOutputPin()
 	FString DefaultResponse = TEXT("Continue");
 	CreateCustomPin(EGPD_Output, FName(DefaultResponse));
 	GetDialogueNodeInfo()->AddDialogueChoice(FDialogueChoice(FText::FromString(DefaultResponse)));
+	SyncPinWithResponses();
 }
 
 EDialogueType UDialogueEdGraphNode::GetDialogueNodeType() const
@@ -51,27 +52,58 @@ UEdGraphPin* UDialogueEdGraphNode::CreateCustomPin(EEdGraphPinDirection Directio
 void UDialogueEdGraphNode::SyncPinWithResponses()
 {
 	UDialogueNodeInfo* NodeInfo = GetDialogueNodeInfo();
-	int GraphNodePinsCount = Pins.Num() - 1;	// 첫 번째 pin은 언제나 input pin이라고 가정한다
-	int NodeInfoPinsCount = NodeInfo->GetDialogueChoices().Num();
-
-	while (GraphNodePinsCount > NodeInfoPinsCount)
+	NodeInfo->EnsureChoiceIds();
+	TArray<UEdGraphPin*> OldOutputs;
+	TArray<UEdGraphPin*> OrderedPins;
+	for (UEdGraphPin* Pin : Pins)
 	{
-		RemovePinAt(GraphNodePinsCount - 1, EGPD_Output);
-		GraphNodePinsCount--;
+		if (Pin->Direction == EGPD_Output)
+		{
+			OldOutputs.Add(Pin);
+		}
+		else
+		{
+			OrderedPins.Add(Pin);
+		}
 	}
-
-	while (NodeInfoPinsCount > GraphNodePinsCount)
+	for (const FDialogueChoice& Choice : NodeInfo->GetDialogueChoices())
 	{
-		CreateCustomPin(EGPD_Output, FName(NodeInfo->GetDialogueChoices()[GraphNodePinsCount].ResponseText.ToString()));
-		GraphNodePinsCount++;
+		UEdGraphPin* MatchedPin = nullptr;
+		for (UEdGraphPin* Pin : OldOutputs)
+		{
+			if (Pin->PersistentGuid == Choice.ChoiceId)
+			{
+				MatchedPin = Pin;
+				break;
+			}
+		}
+		// 기존 ID 없는 프로토타입을 명시 편집할 때만 기존 순서의 미지정 핀을 승계한다.
+		if (MatchedPin == nullptr)
+		{
+			for (UEdGraphPin* Pin : OldOutputs)
+			{
+				if (Pin->PersistentGuid.IsValid() == false)
+				{
+					MatchedPin = Pin;
+					break;
+				}
+			}
+		}
+		if (MatchedPin == nullptr)
+		{
+			MatchedPin = CreateCustomPin(EGPD_Output, NAME_None);
+		}
+		MatchedPin->PersistentGuid = Choice.ChoiceId;
+		MatchedPin->PinName = FName(Choice.ResponseText.ToString());
+		OrderedPins.Add(MatchedPin);
+		OldOutputs.Remove(MatchedPin);
 	}
-
-	int PinIndex = 1;	// 첫 번째 pin은 언제나 input pin이라고 가정한다
-	for (const FDialogueChoice Choice : DialogueNodeInfo->GetDialogueChoices())
+	for (UEdGraphPin* Pin : OldOutputs)
 	{
-		GetPinAt(PinIndex)->PinName = FName(Choice.ResponseText.ToString());
-		PinIndex++;
+		Pin->BreakAllPinLinks();
+		RemovePin(Pin);
 	}
+	Pins = MoveTemp(OrderedPins);
 }
 
 void UDialogueEdGraphNode::InitNodeInfo(UObject* Outer)
