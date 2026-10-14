@@ -14,6 +14,7 @@
 - [10. 체크포인트 요청과 저장 결과 계약](#10-체크포인트-요청과-저장-결과-계약)
 - [11. Chapter와 Scene 정의 및 소속 계약](#11-chapter와-scene-정의-및-소속-계약)
 - [12. 공통 계약 연결 검증](#12-공통-계약-연결-검증)
+- [13. Line 노드와 Block 실행 기반](#13-line-노드와-block-실행-기반)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -395,3 +396,19 @@ const FDialogueStoryScopeResult Result =
 ```
 
 전체 결과와 후속 작업은 [S1 완료 보고서](Reports/S1-2026-10-14.md)에서 확인합니다. NullRHI 테스트와 패키징 성공은 실제 화면·입력·음향 및 패키지 실행 검증을 뜻하지 않습니다.
+
+## 13. Line 노드와 Block 실행 기반
+
+### 작가: 발화 작성
+
+DialogueGraph 편집기 빈 공간 우클릭 → `Line`을 선택합니다. 노드 선택 후 Details에서 화자·대사·초상화 정보를 작성하고 `Start → Line → End`를 연결합니다. 출력 핀 하나는 목적지 하나만 가지며 새 목적지 연결 시 기존 출력 연결을 교체합니다. 입력에는 여러 출력이 합류할 수 있습니다. 기존 프로토타입 Dialogue 노드는 읽기를 유지하지만 새 저작은 Line으로 수동 재작성합니다.
+
+### 개발자: 공개 실행 API
+
+`UDialogueBlockRunner`를 UObject 소유자의 UPROPERTY에 보관하고 `OnPresentationChanged`(Blueprint) 또는 `OnPresentationChangedNative`(C++)에 UI를 연결한 뒤 `StartBlock(Block, StateProvider, EffectProvider, Router)`를 호출합니다. 현재는 Start·Line·End가 실행됩니다. `AdvanceLine()`이 다음 노드로 진행하고 `GetPresentation()`은 현재 표시 데이터를 반환합니다. `GetDirectNextType()`은 직접 연결 타입만 조회합니다. UI에 전달하는 Line은 에셋 원본이 아닌 복사본입니다.
+
+실행 중 StartBlock 재호출은 false로 거부합니다. 잘못된 연결은 Failed와 ErrorCode를 반환하며 정상 완료나 저장으로 바꾸지 않습니다. 개발자는 Router로 외부 로그를 전송하고 반환값과 State로 복구 UI를 구현합니다. 이 실행기는 실제 게임 저장을 호출하지 않습니다.
+
+### 검증과 제한
+
+Editor와 테스트는 `FDialogueGraphCodec::ExportGraph/ImportGraph`를 함께 사용합니다. 변환 실패 시 기존 자료를 보존합니다. 에디터 저장/다른 이름 저장은 변환 실패를 안내합니다. 상세 경고 목록 UI는 S5에서 제공합니다. 실제 파일 저장·언로드·재로드와 표시 이벤트는 자동 테스트로 확인했고, GUI 화면·음향은 아직 검증하지 않았습니다.

@@ -43,7 +43,7 @@ bool UDialogueRuntimeGraph::ValidateIdentifiers(TArray<FString>& OutIssues) cons
 			}
 			PinIds.Add(Pin->PinId);
 		}
-		if (const UDialogueNodeInfo* Info = Cast<UDialogueNodeInfo>(Node->NodeInfo))
+		if (const UDialogueNodeInfo* Info = Node->DialogueNodeType == EDialogueType::DialogueNode ? Cast<UDialogueNodeInfo>(Node->NodeInfo) : nullptr)
 		{
 			if (Info->GetReadVersion() < 1)
 			{

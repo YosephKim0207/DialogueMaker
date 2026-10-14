@@ -66,6 +66,10 @@ public:
     UFUNCTION(Category = "DialogueKit|DialogueNodeInfo|Portrait")
     const TArray<FPortraitActionData>& GetPortraitActionDatas() const;
 	
+protected:
+	UPROPERTY()
+	bool bStandaloneLine = false;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueNodeInfo|Identity")
 	int32 ReadVersion = 1;
@@ -85,7 +89,7 @@ private:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true"))
     FText DialogueText;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true", EditCondition = "!bStandaloneLine", EditConditionHides))
     TArray<FDialogueChoice> DialogueChoices;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|State", meta = (AllowPrivateAccess = "true"))

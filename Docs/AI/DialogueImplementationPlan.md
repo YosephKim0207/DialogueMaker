@@ -1,6 +1,6 @@
 # DialogueMaker 구현 실행계획과 자동 진행 지침
 
-작성: 2026-10-13. 상태: S1 공통 데이터·게임 계약 구현 및 검증 완료 / 사용자 요청에 따라 대기 / S2~S7 미착수.
+작성: 2026-10-13. 상태: S1 완료 / 사용자 승인으로 S2 진행 / S2 완료 후 보고·대기 / S3~S7 미착수.
 이 계획은 PLANS.md의 실행계획이며 제품 기준은 Blueprint.md이다. 단계의 작업·검증·Git 운영 기준을 한곳에서 관리한다. 최신 사용자 지시가 우선하며 계획이 제품 결정을 임의 변경하지 않는다.
 
 ## Goal
@@ -8,7 +8,7 @@
 - UE 5.4.4 DialogueKit을 확정된 Graph 저작·실행·게임 연동·저장 복원 계약에 맞춰 구현한다.
 - 각 기능에서 재현 가능한 검증 증거를 확보하고 기능별 Branch와 작은 커밋을 남긴다. `Codex_Develop`에 검증된 기능을 merge하여 누적 통합한다. S0~S7은 의존성과 검증 마일스톤이며 Branch 단위가 아니다.
 - 승인된 구현 실행 중에는 필요한 조사→구현→검토→검증→명시적 Stage→작은 Commit→기능 Branch Push→검증된 기능 merge→Codex_Develop Push→다음 기능 진행을 반복 확인 없이 수행한다.
-- 최초 요청은 실행계획 작성이었으며 이후 사용자가 실행을 승인했다. 최신 승인은 코드 스타일 지침 반영과 S1 전체 완료 후 보고·대기다. S2 이후는 재개 요청을 기다린다.
+- 최초 요청은 실행계획 작성이었으며 이후 사용자가 실행을 승인했다. 최신 승인은 S2까지 구현·검증 후 보고·대기다. S3 이후는 재개 요청을 기다린다.
 
 ## Background / Self-Contained Context
 
@@ -365,3 +365,20 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - GUI/PIE/실제 패키지 실행·음향·외부 Sentry 전송·Prototype2 연동 미검증. 기존 구조체 초기화 진단과 EnhancedInput 의존성 경고는 남아 있다.
 - 후속 주의: S2에서 새 노드/조건 소비처를 연결하고 Graph 파일 왕복 검증, S3에서 불변 통합 저장/FIFO/완료 대기 추적, S4에서 legacy 소속 명시 및 정의 에셋 선택·메타데이터, S5에서 Scene 이동/삭제 transaction·진단 위치를 구현한다.
 - 사용법: `Docs/UserGuide.md` 5~12절. 변경 범위·검증·기능별 merge/복구 기준은 `Docs/Reports/S1-2026-10-14.md`를 따른다. 각 기능 Branch는 원격에 보존하며 통합 Branch는 Codex_Develop다.
+
+## 2026-10-14 S2 실행 승인과 세부 계획
+
+- 사용자: “S2 단계까지 진행하고 작업 내용을 정리해서 나한테 출력해.” 기준 Codex_Develop 5ae3a57. S2만 구현·검증·문서·기능별 Commit/Push하며 S3는 시작하지 않는다.
+- 기존 사용자 에셋은 자동 변환하지 않는다. 기존 DialogueNode 타입/Info/API를 남겨 읽기 호환을 유지하고 신규 Line/Choice/StateChange 타입을 추가한다. 공통 실행기는 UDialogueGraph를 직접 받는 테스트 가능한 UObject로 분리하고 Subsystem 공개 연결 및 UI 프레임 이벤트를 제공한다.
+- 기능 1 Line: 신규 단일 발화 노드/Details·단일 출력, Start-Line-End 최소 실행/직접 다음 타입, Editor↔Runtime 공통 변환과 패키지 왕복 fixture. 기존 Line 표현에 쓰는 UDialogueNodeInfo의 공개 읽기 API와 ID는 재사용하며 legacy 선택 편집은 새 Line에서 숨긴다.
+- 기능 2 Choice: 독립 항목/조건/기본 항목/ID별 출력, 입력 다중·출력 단일 교체, 현재 Line의 직접 Choice 조회 및 실제 선택 검증. 기본/빈 Choice는 확정 규칙 적용.
+- 기능 3 Branch: S1 조건 제공자 연결·True/False·빈 조건 진단·자동 구간 Branch 재방문 차단. 사용자 입력 후 정상 반복은 허용한다.
+- 기능 4 StateChange: 실제 진입에서만 게임 효과 묶음을 요청하고 실패 반환·진단한다. 공개 효과 완료 경계를 제공하되 FIFO/체크포인트 파일 저장은 S3에 남긴다. StateChange 자동 순환 추가 정책은 구현하지 않는다.
+- 기능 5 End/통합: 정상 완료/오류 중단 구분·Save on End 기본false 메타데이터·게임 연결/UMG 데이터 이벤트, 전체 노드 저장/재열기 및 실행 테스트. 기존 게임 저장/Quest를 신규 실행기에서 자동 호출하지 않는다.
+- 기능마다 기능 Branch, 작은 구현/테스트 및 사용법 커밋, 독립 Sol Medium 검토, Editor Build/관련 자동화 후 --no-ff 통합 및 push. 최종 전체 회귀/패키징. 원격 기능 Branch와 Base/Tip 복구 기록 보존.
+- PoC: Editor 공통 변환 API로 임시 패키지 저장/언로드/재열기를 자동 시험한다. ID/노드 속성/연결 유실이나 잘못된 소유 관계는 수정 후 본 경로에 적용한다. GUI 창/실제 음향은 S6 관찰 대상이며 S2는 비시각 데이터 바인딩을 검증한다.
+- 조사: 기존 변환은 RuntimeNode Outer가 작업용 EditorGraph인 문제와 입력/출력 연결 검증 부재가 있다. 런타임 객체는 영속 RuntimeGraph 하위로 소유하고 변환 실패 시 이전 assetGraph를 유지한다. 조회가 ID를 생성하거나 진행/효과를 변경하지 않게 한다.
+- 제품 검토: GameDirector 역할은 여전히 제공되지 않아 미실행이다. 기존 확정 설계만 구현하며 Sol Medium 기술 검토와 Luna High 조사를 실제 위임한다.
+
+- S2 Line: 공통 Codec/독립 실행기/단일 출력/저장 전 검사/GC 수명 보완. Build 220457_fd859d4a, 전체21개 220525_bf08e25e 통과(기존12/신규0). 첫 파일 왕복 테스트의 임시 마운트 조기 해제는 지연 검증을 고려해 프로세스 수명까지 유지하도록 수정했다. GUI는 미검증.
+- S2 Line 최종 보완: legacy/Line 본문 혼동 및 손상 Start/End 거부, 출력 교체/입력 합류 검증 추가. Build 220821_45ec5056, 전체22개 220835_ac3a7b68 통과. Sol Medium 지적 반영.

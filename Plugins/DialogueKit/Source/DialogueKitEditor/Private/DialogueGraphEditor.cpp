@@ -1,4 +1,5 @@
 #include "DialogueGraphEditor.h"
+#include "DialogueGraphCodec.h"
 
 #include "DesktopPlatformModule.h"
 #include "DialogueBranchEdGraphNode.h"
@@ -105,183 +106,25 @@ void FDialogueGraphEditor::OnGraphSelectionChanged(const FGraphPanelSelectionSet
 // Graph UI로부터 Data Asset 저장
 void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
 {
-    if (WorkingAsset == nullptr || WorkingGraph == nullptr)
+    if (bCanCommitWorkingGraph == false)
     {
         return;
     }
-
-    UDialogueRuntimeGraph* RuntimeGraph = NewObject<UDialogueRuntimeGraph>(WorkingAsset);
-    WorkingAsset->Graph = RuntimeGraph;
-
-    TArray<std::pair<FGuid, FGuid>> Connections;
-    TMap<FGuid, UDialogueRuntimePin*> IdToPinMap;
-
-    // Node Data 정리
-    for (UEdGraphNode* Node : WorkingGraph->Nodes)
+    FString Error;
+    if (FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, Error) == false)
     {
-        UDialogueRuntimeNode* RuntimeNode = NewObject<UDialogueRuntimeNode>(WorkingGraph);
-        RuntimeNode->Position = FVector2D(Node->NodePosX, Node->NodePosY);
-        if (Node->NodeGuid.IsValid())
-        {
-            RuntimeNode->NodeGuid = Node->NodeGuid;
-        }
-        else
-        {
-            Node->CreateNewGuid();
-            RuntimeNode->NodeGuid = Node->NodeGuid;
-            UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::UpdateWorkingAssetFromGraph : Regenerate invalid NodeGuid"));
-        }
-
-        for (UEdGraphPin* Pin : Node->Pins)
-        {
-            UDialogueRuntimePin* RuntimePin = NewObject<UDialogueRuntimePin>(RuntimeNode);
-            RuntimePin->PinName = Pin->PinName;
-            RuntimePin->PinId = Pin->PinId;
-            RuntimePin->ChoiceId = Pin->PersistentGuid;
-            RuntimePin->OwnerNodeGuid = RuntimeNode->NodeGuid;
-            
-            // Pin 연결 관계 캐싱
-            if (Pin->HasAnyConnections() && Pin->Direction == EGPD_Output)
-            {
-                for (UEdGraphPin* LinkToPin : Pin->LinkedTo)
-                {
-                    std::pair<FGuid, FGuid> Connection = std::make_pair(Pin->PinId, LinkToPin->PinId);
-                    Connections.Add(Connection);
-                }
-            }
-            
-            IdToPinMap.Add(Pin->PinId, RuntimePin);
-
-            if (Pin->Direction == EGPD_Input)
-            {
-                RuntimeNode->InputPin = RuntimePin;
-            }
-            else
-            {
-                RuntimeNode->OutputPins.Add(RuntimePin);
-            }
-        }
-        
-        UDialogueEdGraphNodeBase* EdGraphNode = Cast<UDialogueEdGraphNodeBase>(Node);
-        RuntimeNode->NodeInfo = DuplicateObject(EdGraphNode->GetNodeInfo(), RuntimeNode);
-        RuntimeNode->DialogueNodeType = EdGraphNode->GetDialogueNodeType();
-
-        
-        RuntimeGraph->Nodes.Add(RuntimeNode);
-    }
-
-    for (std::pair<FGuid, FGuid> Connection : Connections)
-    {
-        UDialogueRuntimePin* PinFrom = IdToPinMap[Connection.first];
-        UDialogueRuntimePin* PinTo = IdToPinMap[Connection.second];
-        PinFrom->Connections.Add(PinTo);
-        PinFrom->LinkedToNodeGuid = PinTo->OwnerNodeGuid;
+        UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::UpdateWorkingAssetFromGraph : %s"), *Error);
     }
 }
 
-// Asset Data로부터 Graph UI 시각화 
+// 에셋의 실행 자료를 동일한 공통 변환 경로로 복원한다.
 void FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset()
 {
-    if (WorkingAsset->Graph == nullptr)
+    FString Error;
+    bCanCommitWorkingGraph = FDialogueGraphCodec::ImportGraph(WorkingAsset, WorkingGraph, Error);
+    if (bCanCommitWorkingGraph == false)
     {
-        WorkingGraph->GetSchema()->CreateDefaultNodesForGraph(*WorkingGraph.Get());
-        return;
-    }
-
-    TArray<std::pair<FGuid, FGuid>> Connections;
-    TMap<FGuid, UEdGraphPin*> IdToPinMap;
-
-    for (UDialogueRuntimeNode* RuntimeNode : WorkingAsset->Graph->Nodes)
-    {
-        UDialogueEdGraphNodeBase* NewNode = nullptr;
-        if (RuntimeNode->DialogueNodeType == EDialogueType::DialogueNode)
-        {
-            NewNode = NewObject<UDialogueEdGraphNode>(WorkingGraph);
-        }
-        else if (RuntimeNode->DialogueNodeType == EDialogueType::StartNode)
-        {
-            NewNode = NewObject<UDialogueEdStartGraphNode>(WorkingGraph);
-        }
-        else if (RuntimeNode->DialogueNodeType == EDialogueType::EndNode)
-        {
-            NewNode = NewObject<UDialogueEdEndGraphNode>(WorkingGraph);
-        }
-        else if (RuntimeNode->DialogueNodeType == EDialogueType::BranchNode)
-        {
-            NewNode = NewObject<UDialogueBranchEdGraphNode>(WorkingGraph);
-        }
-        else
-        {
-            UE_LOG(DialogueKitEditorSub, Error, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : Unknown Node Type"));
-            continue;
-        }
-        
-        if (RuntimeNode->NodeGuid.IsValid())
-        {
-            NewNode->NodeGuid = RuntimeNode->NodeGuid;
-        }
-        else
-        {
-            NewNode->CreateNewGuid();
-            RuntimeNode->NodeGuid = NewNode->NodeGuid;
-            UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : RuntimeNodeGuid is invalid. Generated new Guid"));
-        }
-        NewNode->NodePosX = RuntimeNode->Position.X;
-        NewNode->NodePosY = RuntimeNode->Position.Y;
-        
-        if (RuntimeNode->NodeInfo != nullptr)
-        {
-            NewNode->SetDialogueNodeInfo(DuplicateObject(RuntimeNode->NodeInfo, NewNode));
-        }
-        else
-        {
-            NewNode->InitNodeInfo(NewNode);
-        }
-
-        if (RuntimeNode->InputPin != nullptr)
-        {
-            UDialogueRuntimePin* RuntimeInputPin = RuntimeNode->InputPin;
-            UEdGraphPin* Pin = NewNode->CreateCustomPin(EGPD_Input, RuntimeInputPin->PinName);
-            Pin->PinId = RuntimeInputPin->PinId;
-
-            if (RuntimeInputPin->Connections.Num() > 0)
-            {
-                for (UDialogueRuntimePin* ConnectPin : RuntimeInputPin->Connections)
-                {
-                    Connections.Add(std::make_pair(RuntimeInputPin->PinId, ConnectPin->PinId));
-                }
-            }
-
-            IdToPinMap.Add(RuntimeInputPin->PinId, Pin);
-        }
-
-        for (UDialogueRuntimePin* RuntimeOutputPin : RuntimeNode->OutputPins)
-        {
-            UEdGraphPin* OutputPin = NewNode->CreateCustomPin(EGPD_Output, RuntimeOutputPin->PinName);
-            OutputPin->PinId = RuntimeOutputPin->PinId;
-            OutputPin->PersistentGuid = RuntimeOutputPin->ChoiceId;
-
-            if (RuntimeOutputPin->Connections.Num() > 0)
-            {
-                for (UDialogueRuntimePin* ConnectPin : RuntimeOutputPin->Connections)
-                {
-                    Connections.Add(std::make_pair(RuntimeOutputPin->PinId, ConnectPin->PinId));
-                }
-            }
-
-            IdToPinMap.Add(RuntimeOutputPin->PinId, OutputPin);
-        }
-
-        WorkingGraph->AddNode(NewNode, true, true);
-    }
-
-    // Node의 각 pin 연결 구현
-    for (std::pair<FGuid, FGuid> Connection : Connections)
-    {
-        UEdGraphPin* FromPin = IdToPinMap[Connection.first];
-        UEdGraphPin* ToPin = IdToPinMap[Connection.second];
-        FromPin->LinkedTo.Add(ToPin);
-        ToPin->LinkedTo.Add(FromPin);
+        UE_LOG(DialogueKitEditorSub, Warning, TEXT("FDialogueGraphEditor::UpdateEditorGraphFromWorkingAsset : %s"), *Error);
     }
 }
 
@@ -568,3 +411,34 @@ FLinearColor FDialogueGraphEditor::GetWorldCentricTabColorScale() const
     return FLinearColor::White;
 }
 #undef LOCTEXT_NAMESPACE
+
+// 닫히기 전까지 편집용 객체와 원본 에셋의 수명을 유지한다.
+void FDialogueGraphEditor::AddReferencedObjects(FReferenceCollector& Collector)
+{
+    Collector.AddReferencedObject(WorkingAsset);
+    Collector.AddReferencedObject(WorkingGraph);
+}
+
+// 변환 실패를 성공 저장처럼 보이지 않게 하고 원래 에셋을 보존한다.
+void FDialogueGraphEditor::SaveAsset_Execute()
+{
+    FString Error;
+    if (bCanCommitWorkingGraph == false || FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, Error) == false)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Graph conversion failed. The existing asset was preserved. ") + Error));
+        return;
+    }
+    FAssetEditorToolkit::SaveAsset_Execute();
+}
+
+// 다른 이름 저장에도 같은 기본 구조 검사를 적용한다.
+void FDialogueGraphEditor::SaveAssetAs_Execute()
+{
+    FString Error;
+    if (bCanCommitWorkingGraph == false || FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, Error) == false)
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Graph conversion failed. The existing asset was preserved. ") + Error));
+        return;
+    }
+    FAssetEditorToolkit::SaveAssetAs_Execute();
+}

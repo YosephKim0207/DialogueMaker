@@ -3,12 +3,13 @@
 #include "CoreMinimal.h"
 #include "DialogueNodeType.generated.h"
 
-UENUM()
-enum class EDialogueType
+UENUM(BlueprintType)
+enum class EDialogueType : uint8
 {
 	Unknown,
 	StartNode,
 	DialogueNode,
 	EndNode,
 	BranchNode,
+	LineNode,
 };
