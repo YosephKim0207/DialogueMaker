@@ -329,3 +329,5 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - S1 조건 계약: Tag/Value/Count·정의/현재값 인터페이스·AND/OR·공통 DataTable·메모리 샘플 구현. 오류항목 True 대체·0과 조회실패 구분·int64 정밀도·NaN/대상격리·기본실패 검증. Build 194429_7a15d66c 통과. 기존 조건 소비처는 S2에서 전환한다. Sol Medium 검토 반영, UserGuide 8절.
 
 - S1 효과 계약: 순서 있는 묶음의 all-or-none 적용·실행 ID와 의미상 payload 비교·성공/실패 재전달·상태/ledger 메모리 왕복 샘플. 독립 검토에서 발견한 ledger 한쪽 누락을 실패 처리하고 양방향 손상 fixture 추가. Build 195441_21f6f662, Effects 2개 195514_52ea3e78 성공(기존12/신규0). 디스크 exactly-once/FIFO는 S3. UserGuide 9절.
+
+- S1 체크포인트 계약: 논리 스냅샷/물리 요청/완료 분리, 전체 누적열람·완료 일관성, 세대/재시도 상관검사와 비영속 샘플 구현. 첫 빌드의 Interface 기본 구현 선언 누락/테스트 destructor 접근 오류(195846_6e3daff9)를 수정. Build 200059_d505aa9a 성공, Checkpoints 2개 통과. Sol Medium 검토 반영. 실제 FIFO/파일/복원은 S3, UserGuide 10절.

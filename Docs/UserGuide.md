@@ -11,6 +11,7 @@
 - [7. 범용 진단 연결](#7-범용-진단-연결)
 - [8. 게임 상태 제공과 조건 평가](#8-게임-상태-제공과-조건-평가)
 - [9. 효과 묶음과 게임 처리 계약](#9-효과-묶음과-게임-처리-계약)
+- [10. 체크포인트 요청과 저장 결과 계약](#10-체크포인트-요청과-저장-결과-계약)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -305,3 +306,39 @@ EvaluateConditions의 bBranchCondition은 빈 Branch 진단 여부입니다. 빈
 작가용 StateChange/Choice 효과 목록 UI는 S2에서 연결합니다. 이번 기능은 호출 계약과 게임 교체용 샘플입니다. 자동화는 부분 실패 무변경, 성공/실패 재전달, payload 충돌, 정상 새 실행, 수량 경계, 비유한 값, 상태·ledger 메모리 직렬화를 검사합니다. 실제 게임의 효과/저장/재시작 검증과 구분합니다.
 
 - 효과 Context의 Block/Node는 진단용 선택 정보이며 Graph 연결부는 실제 위치를 제공해야 합니다. ExecutionId는 필수입니다. 성공 반환의 ErrorCode는 wrapper가 비웁니다. 샘플은 실행 ledger 양쪽 중 하나만 남아 있으면 적용을 거부합니다. 손상된 음수 Count는 거부하고 Value Set은 유한한 값으로 교체 가능합니다.
+
+## 10. 체크포인트 요청과 저장 결과 계약
+
+개발자용 S1 계약입니다. 기존 SaveGame 형식이나 실행기를 교체하지 않습니다. 현재 그래프 UI에 저장 설정을 추가한 단계가 아니며 실제 FIFO·파일 저장·복원은 S3에서 연결합니다.
+
+- `FDialogueCheckpointSnapshot`: CheckpointId, SchemaVersion=1, 재개 위치, 원인 선택/효과, **전체 누적 열람 이력** 값입니다. 게임 상태·전체 선택 기록·효과 중복 방지 ledger는 게임이 같은 저장 단위에 보존합니다. 임시/증분 이력만 넣지 않습니다.
+- `FDialogueResumePosition`: Block ID/콘텐츠 버전, BlockRunId, 대화 대상 TargetTag, 위치입니다. `BeforeNode`는 **해당 노드 실행 직전**이므로 효과가 성공한 노드의 다음 노드를 지정합니다. `BlockStart`/`BlockCompleted`는 NodeGuid를 비우며, 활성 대화가 없으면 `None`과 빈 참조를 사용합니다. 종료 위치는 활성 커서가 아닙니다.
+- `FDialogueBlockReadRecord`: BlockId별 완료 여부와 Line의 NodeGuid/ReadVersion입니다. 누적 완료는 후보의 영구 소진 조건이 아닙니다. 콘텐츠 버전·저장 스키마·Line 열람 버전은 별개입니다.
+- `FDialogueCheckpointRequest`: RequestId·QueueGenerationId·Sequence와 스냅샷입니다. 재시도는 같은 CheckpointId/스냅샷을 보존하고 새 RequestId를 사용합니다. 복원/새 게임 등 경계에서는 게임 조율자가 세대를 바꿔 오래된 완료 통지를 배제합니다.
+- `IDialogueCheckpointProvider::RequestDialogueCheckpoint`를 게임 UObject에 C++ `_Implementation` 또는 Blueprint로 구현하고 `UDialogueCheckpointLibrary::SubmitCheckpoint`에 넘깁니다. 반환 `bAccepted`는 **큐 접수**만 뜻합니다. 실패는 ErrorCode/Message와 진단 Router로 전달됩니다. 개발자가 UI와 이후 흐름을 결정합니다.
+- 실제 비동기 저장 완료는 게임이 `FDialogueCheckpointCompletion`으로 전달합니다. `MatchesCompletion`은 요청 ID·세대·순서·결과 형식만 검사합니다. 중복/취소 callback은 게임이 아직 대기 중인 요청인지 확인해서 거부해야 합니다. 일치하는 Failed도 true이므로 반드시 `bSaved`를 확인합니다.
+
+호출 순서 예제:
+
+```cpp
+// 효과가 전부 성공한 직후, 다음 게임 상태 변경 전에 실행한다.
+FDialogueCheckpointRequest Request; // 게임 조율자가 ID/세대/Sequence를 채운다.
+// Snapshot.Resume에는 선택 이후 위치, Trigger에는 원인 선택을 기록한다.
+// Snapshot.FullReadHistory에는 이 시점의 전체 누적 이력을 값 복사한다.
+// 게임 provider는 함수 반환 전에 게임 상태/ledger와 Request를 함께 복사한다.
+const FDialogueCheckpointAcceptance Result =
+    UDialogueCheckpointLibrary::SubmitCheckpoint(Request, GameSaveProvider, DiagnosticRouter);
+if (Result.bAccepted == false)
+{
+    // 게임에서 오류 안내/재시도 정책을 처리한다. 마지막 성공 저장은 유지한다.
+}
+// 접수 후 디스크 완료를 기다리지 않고 진행한다. 저장 표시는 실제 큐 상태에 연결한다.
+```
+
+위 예제의 빈 Request는 그대로 호출하면 검증에 실패합니다. 실제 조립·복사 예제는 `Private/Tests/DialogueCheckpointTests.cpp`와 `UDialogueSampleCheckpointProvider`에 있습니다. 샘플은 요청의 값 복사만 누적하며 파일 기록이나 성공 통지를 흉내 내지 않습니다. 실게임 조율자로 사용하지 마세요.
+
+저장 시점은 결과가 있는 Choice/StateChange의 성공 직후, 선택적 Choice 저장, Save on End가 켜진 정상 종료, 대체 Block의 준비·보정 완료 후 시작 경계입니다. Save on End 기본값은 꺼짐이며 비활성 정상 종료의 완료·열람은 캐시만 반영합니다. 매 Line/조건 평가/PIE 테스트에서 저장하지 않습니다. 저장 실패 재시도는 보존한 값 복사를 다시 제출하고 이후 변경된 live 상태를 읽지 않습니다.
+
+검증: 스키마/위치/원인·열람 중복 검사, 값 복사 격리, 구조체 직렬화 왕복, 오래된 세대/재시도/순서 거부, 제공자 누락/미구현 실패를 자동 테스트합니다. 파일 원자성·실제 비동기 중단/복원·Blueprint 구현은 아직 검증 대상이 아닙니다.
+
+- `Replacement`는 합의대로 대체 Block 처음부터 시작합니다. 이 원인에는 Choice/효과 실행 ID를 넣지 않습니다. 필요한 보정·보정 완료 기록은 게임 상태가 소유하며 기존 효과 재실행으로 표현하지 않습니다. 저장할 DTO는 Snapshot이며 Request/Acceptance/Completion은 런타임 전달용입니다. 미완료 큐를 성공 저장처럼 복원하지 않습니다.
