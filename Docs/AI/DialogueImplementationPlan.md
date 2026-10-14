@@ -323,3 +323,5 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - 각 기능은 Codex_Develop에서 분기·작은 커밋·검증·문서화·일반 merge/push한다. 기존 에셋 일괄 변경과 기존 저장 형식 교체는 하지 않는다. GameDirector 역할은 여전히 미노출이며 제품 검토 미완료로 유지한다.
 
 - S1 Node/Choice 식별: 기존 NodeGuid 유지, ChoiceId↔PersistentGuid↔RuntimePin 대응과 재정렬 연결 보존, ReadVersion 경계 및 순수 검사 구현. 첫 실행에서 AddDialogueChoice에 같은 배열 요소를 입력할 때 assert가 재현되어 로컬 복사 후 추가하도록 수정했다(193301_e85ec019). 수정 후 전체9개 통과(193356_719a6d30), 경계 보완 Build 193437_3b5b650e. 실제 Graph 저장/재열기 UI는 S2 검증 대상. Sol Medium 검토 차단 없음.
+
+- S1 진단 계약: Blueprint/native 이벤트와 서비스 비의존 FDialogueDiagnostic/Context 구현. Build 193723_e0c3f871 및 native 전달·해제/일부 Context 테스트 193759_291fe40b 통과. Sol Medium 검토 후 문서의 BP 이벤트/전체 필드 검증 주장을 낮췄다. 실제 Sentry 전송은 미검증.

@@ -8,6 +8,7 @@
 - [4. 샘플 맵 패키징 검증](#4-샘플-맵-패키징-검증)
 - [5. 안정 Block 식별자](#5-안정-block-식별자)
 - [6. Node와 Choice 식별 계약](#6-node와-choice-식별-계약)
+- [7. 범용 진단 연결](#7-범용-진단-연결)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -229,3 +230,22 @@ const bool bValid = FDialogueBlockIdentity::ValidateCatalog(
 `UDialogueRuntimeGraph::ValidateIdentifiers`는 현재 식별 오류의 문자열 코드 목록을 반환하는 검사 기반입니다. false여도 자료를 자동 고치지 않으며, Graph 검사 UI는 아직 추가하지 않았습니다. S5 노드 복제 도구는 NodeGuid·ChoiceId·PinId를 새로 부여해야 합니다. 노드 정보 복제 함수에 재발급을 넣으면 저장 왕복마다 ID가 바뀌므로 금지합니다.
 
 Editor 핀의 PersistentGuid와 RuntimePin.ChoiceId를 직렬화 변환에서 함께 보존합니다. 자동화는 재정렬 시 핀/연결 보존, 자기 배열의 선택 복제, NodeInfo 메모리 왕복, 누락/중복, 열람 버전 경계를 검사합니다. 실제 전체 Graph 에셋 저장·재열기 및 Undo UI는 S2/S5에서 검증합니다. 기존 에셋의 자동 일괄 재작성은 하지 않습니다.
+
+## 7. 범용 진단 연결
+
+게임은 `UDialogueDiagnosticRouter`를 NewObject 또는 Blueprint의 Construct Object로 생성하고 UPROPERTY로 수명을 유지합니다. C++에서는 `OnDiagnosticNative.AddUObject`/`AddLambda`로 구독하고 반환 FDelegateHandle로 Remove합니다. Blueprint에서는 `OnDiagnostic` 이벤트를 바인딩/해제합니다. 두 경로에 동시에 같은 전송을 연결하면 중복 전송되므로 하나를 선택합니다.
+
+`ReportDiagnostic(FDialogueDiagnostic)`는 로컬 로그를 남기고 같은 진단을 구독자에게 전달한 뒤 반환합니다. `Code`, `Severity`, `Message`, `Handling`, `Context`의 Block ID/콘텐츠 버전·NodeGuid·ExecutionId·SaveRequestId를 제공하며 GameName 빈 값은 현재 프로젝트 이름, Component는 DialogueMaker입니다. 게임 이름은 전송 목적지를 결정하지 않습니다. 모든 호출은 게임 스레드에서 수행합니다.
+
+```cpp
+FDelegateHandle Handle = Router->OnDiagnosticNative.AddLambda(
+	[](const FDialogueDiagnostic& Diagnostic)
+	{
+		// 게임에서 초기화한 Sentry의 메시지별 scope에 game/component/code 및 Context를 넣는다.
+		// 이곳에 게임의 CaptureMessageWithScope 등 실제 로그 전송 코드를 연결한다.
+		// SDK/DSN, 빈도 제한, 중복 억제, 개인정보 정책은 게임이 관리한다.
+	});
+// 게임 연동 종료 시 Router->OnDiagnosticNative.Remove(Handle);
+```
+
+조건 평가 등 C++ 호출부는 `Dispatch(Diagnostic, Router)`를 사용할 수 있으며 Router가 없으면 로컬 로그만 유지합니다. 로그 전송 여부로 조건/효과/저장 반환값을 변경하지 않습니다. Sentry SDK는 코어 의존성이 아니며 위 예시는 전송 삽입 위치입니다. 실제 외부 수신 검증은 수행하지 않았습니다. 작가용 UI는 없으며 향후 Graph 검사 UI에서 이 구조를 이용합니다. native 이벤트 전달·해제와 일부 Context 직렬화는 자동화로 검증했습니다. Blueprint 이벤트의 실제 바인딩 실행과 모든 필드 왕복은 아직 별도 검증하지 않았습니다. Code에는 호출자가 비어 있지 않은 안정 오류 코드를 지정해야 하며 게임 스레드 호출 계약을 지켜야 합니다.
