@@ -1,6 +1,6 @@
 # DialogueMaker 구현 실행계획과 자동 진행 지침
 
-작성: 2026-10-13. 상태: 사용자 승인으로 S1 재개 / S1 전체 완료 후 보고·대기 / S2~S7 미착수.
+작성: 2026-10-13. 상태: S1 공통 데이터·게임 계약 구현 및 검증 완료 / 사용자 요청에 따라 대기 / S2~S7 미착수.
 이 계획은 PLANS.md의 실행계획이며 제품 기준은 Blueprint.md이다. 단계의 작업·검증·Git 운영 기준을 한곳에서 관리한다. 최신 사용자 지시가 우선하며 계획이 제품 결정을 임의 변경하지 않는다.
 
 ## Goal
@@ -8,7 +8,7 @@
 - UE 5.4.4 DialogueKit을 확정된 Graph 저작·실행·게임 연동·저장 복원 계약에 맞춰 구현한다.
 - 각 기능에서 재현 가능한 검증 증거를 확보하고 기능별 Branch와 작은 커밋을 남긴다. `Codex_Develop`에 검증된 기능을 merge하여 누적 통합한다. S0~S7은 의존성과 검증 마일스톤이며 Branch 단위가 아니다.
 - 승인된 구현 실행 중에는 필요한 조사→구현→검토→검증→명시적 Stage→작은 Commit→기능 Branch Push→검증된 기능 merge→Codex_Develop Push→다음 기능 진행을 반복 확인 없이 수행한다.
-- 이번 요청은 실행계획과 운영 지침 작성이다. 계획 작성만으로 구현·빌드·기능 Branch 생성이 실행됐다고 기록하지 않는다. 이후 이 계획의 실행을 요청하면 아래 범위의 구현과 기능별 Git 동작을 함께 수행하며 매 단계 재승인을 요구하지 않는다.
+- 최초 요청은 실행계획 작성이었으며 이후 사용자가 실행을 승인했다. 최신 승인은 코드 스타일 지침 반영과 S1 전체 완료 후 보고·대기다. S2 이후는 재개 요청을 기다린다.
 
 ## Background / Self-Contained Context
 
@@ -17,10 +17,10 @@
 - 엔진 UE 5.4.4, Editor 타깃 DialogueMakerEditor Win64 Development. 빌드는 Scripts/AI/Invoke-UE.ps1을 사용한다.
 - Runtime 루트 R = Plugins/DialogueKit/Source/DialogueKit. Editor 루트 E = Plugins/DialogueKit/Source/DialogueKitEditor. 이하 R/E는 이 경로의 축약이다.
 - UDialogueGraph 한 에셋이 Block이다. 현재 DialogueNode에 선택지가 내장되어 있고 Editor Graph와 RuntimeGraph가 서로 변환된다. 신규 Choice·StateChange 및 버전/ID를 양쪽에 함께 반영해야 한다.
-- 현재 Graph ID는 이름 기반 PrimaryAssetId이고, 열람 저장은 Graph별 NodeGuid 목록이다. 신규 안정 Block ID·Line 열람 버전·활성 체크포인트와 다르다.
+- 기존 실행/저장 소비처의 Graph 키는 이름 기반 PrimaryAssetId이며 열람 저장은 Graph별 NodeGuid 목록이다. S1에서 안정 Block ID·ChoiceId·열람 버전·체크포인트 계약을 추가했으며 기존 소비처 전환은 S2~S4다.
 - 현재 후보 전체를 비동기 로드한 뒤 첫 객체를 사용한다. 신규 방식은 Registry 메타데이터 조건 평가→후보 선정→선정 Block만 로드한다.
 - 현재 저장은 여러 SaveGame 자료의 동기 저장 경로다. 신규 정책은 게임이 단일 FIFO 조율자를 소유하고 게임 상태와 대화 상태를 동일 스냅샷으로 저장하는 것이다.
-- 기존 샘플 UMG 내부는 정적 검토로 확인하지 못했다. 자체 C++ 자동화 테스트는 현재 확인되지 않았으며 엔진 내장 테스트는 기능 검증이 아니다.
+- 기존 샘플 UMG 내부는 정적 검토로 확인하지 못했다. 최초 조사에는 자체 C++ 테스트가 없었고 S0/S1에서 DialogueKit.Baseline/Contracts 테스트를 추가했다. 엔진 내장 테스트만으로 기능 검증을 대체하지 않는다.
 - Prototype2는 별도 저장소다. 현재 chore/dialogue-integration-handoff에 Blueprint.md 미커밋 인계가 있다. 본 계획에서 이를 커밋하거나 코드·플러그인을 복사하지 않는다.
 
 ## Scope / Constraints
@@ -50,7 +50,7 @@
 - 단계 순서는 S0→S1→S2→S3→S4→S5→S6→S7. UI 편의 기능은 뒤로 미루되 데이터 왕복과 기본 UI 검증은 S2부터 수행한다.
 - 일반 제품 결정의 미결정 항목은 현재 없다. 상세 내부 API와 테스트 구성은 아래 PoC 결과를 반영한다.
 - 남은 기술 불확실성: 새 ID와 지역화 키 연결, 새로운 Graph 저장 왕복, 실제 UI 바인딩, 공통 저장 스냅샷 연동, cook 메타데이터/구버전 에셋 보존, GUI/음향 확인 수단.
-- 현재 Invoke-UE.ps1은 Check/Build/Test만 지원한다. Cook/Package/PIE라는 미구현 Action을 호출하지 않는다. S0에서 로컬 엔진과 기존 스크립트 기준으로 필요한 실행 경로를 만들거나 수동 검증 절차를 고정한다.
+- Invoke-UE.ps1은 Check/Build/Test를 지원하며 S0에서 별도 Invoke-PackageValidation.ps1의 Check/Package 경로를 구현했다. PIE Action은 제공하지 않는다. 실제 화면·입력 검증은 별도 필요하다.
 - GUI 제어가 없으면 코드 기반 Editor/기능 테스트를 먼저 자동화하고 실제 표시·입력·음향의 수동 검증이 남는 범위를 명시한다. 새 외부 도구 설치를 자동 전제로 삼지 않는다.
 
 ## 자동 실행 및 Git 운영 지침
@@ -158,7 +158,7 @@ S0~S7은 마일스톤이다. 각 항목의 기능 Branch 후보를 같은 마일
 - 기능 Branch 후보: feature/dialogue-stable-identifiers, feature/dialogue-condition-contract, feature/dialogue-effect-contract, feature/dialogue-checkpoint-contract, feature/dialogue-story-scope, feature/dialogue-diagnostics. Files: R/Public/DialogueGraph.h, R/Private/DialogueGraph.cpp, R/Public/DialogueRuntimeGraph.h, R/Public/DialogueNodeType.h, R/Public/DialogueNodeInfo*.h, R/Public/Struct/DialogueStructure.h, R/Public/Struct/DialogueConditionEvalCriteria.h, 신규 조건/효과/저장/진단 계약·샘플·테스트.
 - Change: 안정 Block/Node/선택 식별자와 핀 대응, Chapter/Scene 정의·소속/제한 없음 자료형(관리 UI는 S5), 콘텐츠/저장/열람 버전 분리, Tag/Value/Count 정의와 조회, 조건 AND/OR, 게임 효과 묶음·오류값·저장 스냅샷 DTO·진단 이벤트 규약을 만든다. 구현을 다 끝내기 전 기존 공개 소비처가 컴파일되게 필요한 연결부를 함께 조정한다.
 - Validation: DialogueKit.Contracts 접두사(신규 등록). ID 생성/복제/중복 검출, DTO 직렬화 왕복, 알려진 아이템 수량 0과 조회 실패 구분, 빈 조건과 True 대체 후 AND/OR 평가, 런타임의 Editor 의존성 없음, 샘플 어댑터 컴파일.
-- Exit: 저장/실행/편집에서 동일한 ID와 조건 의미를 사용하고 게임별 코드를 수정하지 않고 샘플 제공자를 교체할 수 있다.
+- Exit: 저장/실행/편집용 공통 계약과 연결 fixture에서 동일한 ID와 조건 의미를 사용하고 게임별 코드를 수정하지 않고 샘플 제공자를 교체할 수 있다. 기존 실행기·저장기·후보 소비처의 실제 전환은 각각 S2·S3·S4 완료 조건이며 S1 완료로 주장하지 않는다.
 
 ### S2 — 최소 Graph 편집·왕복·실행
 
@@ -253,6 +253,8 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 
 ## Progress Log / Resume Record
 
+아래 초기 중단 표는 S1 재개 전의 역사 기록이다. 최신 진행 상태는 문서 하단의 S1 최종 결과를 따른다.
+
 | 단계/기능 | 상태 | 기능 Branch / 통합 Branch | BaseSHA / FeatureTip / MergeSHA | 검증·Commit·Push 근거 |
 |---|---|---|---|---|
 | 계획 | 작성 완료, 실행 미착수 | DiagnoseGraphSystem | d1b1937 / 해당 없음 | 문서 검증만 수행 |
@@ -314,7 +316,7 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - 계획 작성 및 최종 검증: Sol Medium 독립 검토에서 제품 합의·단계 의존·기능 통합/복구·Prototype2 경계의 중대한 구조 모순을 발견하지 못했다. 추가 지시인 모든 커밋 메시지 요약 의무를 반영했다. 관련 문서·코드 경로/스크립트 정적 검토와 Windows Git diff 검사. UE 빌드·PIE·자동화·패키징은 실행하지 않았다.
 - 구현 시: Saved/AI/<실행ID>/Build.log, result.json, Report/index.json 등 실제 산출물 경로와 테스트 수/결과를 단계 행에 기록한다. 테스트 0개·보고서 없음·미실행은 통과가 아니다.
 - 종료 보고: 단계·변경 목적·Branch/커밋/원격 push·통과 검증·미검증·제품 검토·다음 단계. 로그 원문은 필요 최소한만 공유한다.
-- 현재 결과: S0 테스트·실패 판정·패키징 기반과 기존 Game 컴파일 수정 완료. S1 안정 Block 식별자만 구현·검증하고 현재 기능을 통합하고 사용자 요청에 따라 중단했다. 나머지 S1~S7 및 실제 UI/PIE/패키지 연출은 미완료.
+- 이전 중단 시점 결과: S0와 S1 안정 Block 식별자까지 완료했다. 이후 S1 재개/최종 결과는 아래 별도 기록을 따른다.
 
 ## 2026-10-14 S1 재개 승인
 
@@ -333,3 +335,33 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - S1 체크포인트 계약: 논리 스냅샷/물리 요청/완료 분리, 전체 누적열람·완료 일관성, 세대/재시도 상관검사와 비영속 샘플 구현. 첫 빌드의 Interface 기본 구현 선언 누락/테스트 destructor 접근 오류(195846_6e3daff9)를 수정. Build 200059_d505aa9a 성공, Checkpoints 2개 통과. Sol Medium 검토 반영. 실제 FIFO/파일/복원은 S3, UserGuide 10절.
 
 - S1 스토리 소속: Chapter/Scene 정의 에셋·안정 ID, SceneId 정본 소속·부모 조회, 게임 제공 현재 진행과 순수 범위 판정. Build 200646_3bd91110, Story 2개 통과. Sol Medium 검토 경계 테스트 반영. S4 전 기존 Graph 소속을 명시 설정하고, S5 삭제/이동은 transaction과 위치 포함 진단을 제공한다. UI/Registry/후보 연결은 아직 후속 단계이며 UserGuide 11절에 명시했다.
+
+## 2026-10-14 S1 최종 결과 — 완료 후 대기
+
+- 사용자 코드 스타일 분석을 `CodeStyle.md`와 AGENTS.md에 반영했다. S1의 공통 자료형·공개 계약·샘플·검증을 완료했으며 다음 사용자 요청 전 S2에 착수하지 않는다.
+- S1 종료 기준은 신규 계약과 메모리 연결 fixture 기준이다. 기존 실행기/저장기/후보의 교체는 S2/S3/S4이고 실제 제품 전체 통합 완료가 아니다. 기존 에셋/저장 포맷 및 Prototype2는 변경하지 않았다.
+
+| 단계 | 구현 항목 | 최종 상태 |
+|---|---|---|
+| S0 | 기준 회귀 테스트·실패 판정·패키징 기반 | 완료 |
+| S1-1 | 안정 Block ID·콘텐츠 버전·생성/복제/검사 | 완료·통합(이전 작업) |
+| S1-2 | Node/Choice ID·핀 대응·열람 버전 | 완료·통합 |
+| S1-3 | Tag/Value/Count 정의·조회·AND/OR·샘플 | 완료·통합 |
+| S1-4 | 효과 묶음·오류 반환·체크포인트 DTO/요청/완료·샘플 | 완료·통합 |
+| S1-5 | Chapter/Scene 정의·소속·제한 없음 판정 | 완료·통합 |
+| S1-6 | 범용 진단 이벤트·게임 로그 연결 계약 | 완료·통합 |
+| S2 | Line/Choice/Branch/StateChange/End·Graph 편집/왕복/실행 | 미착수·대기 |
+| S3 | 실제 효과 실행·FIFO 저장·누적 이력·복원 | 미착수 |
+| S4 | Registry 필터·후보·비동기 로드·버전/교체 | 미착수 |
+| S5 | 검색·복제·경유점·스토리보드·편집 진단 | 미착수 |
+| S6 | 연출·입력·음향·Block PIE 도구 | 미착수 |
+| S7 | 기존 소비처·전체 통합·배포/실행 검증 | 미착수 |
+
+- 최종 Editor Build: `Saved/AI/20261014_201009_a925ffc3/Build.log` Exit0.
+- 전체 DialogueKit 테스트: `Saved/AI/20261014_201031_22d53f72/Report/index.json` 19/19 성공. 기존 초기화 진단12/신규0, PassedWithDiagnostics. 테스트 중단/실패 이력은 지우지 않았고 수정 근거를 위 진행 기록에 남겼다.
+- Game Win64 Development 빌드/cook/package: `Saved/AI/Package_20261014_201059_6f35ae4a/result.json` UAT0·새 exe/pak 확인, PackagedNotLaunched.
+- 메모리 계약 연결 fixture는 조건→효과→스냅샷 요청의 동일 ID와 복사 격리를 검증한다. 게임 상태+대화 요청의 실제 단일 원자 저장을 증명한 것은 아니며 S3에서 구현·검증한다.
+- Sol Medium 기술 검토와 Luna High 문서/스타일 조사를 실제 위임했다. ledger 비대칭 손상·완료 이력 일치·런타임 envelope/영속 DTO 분리·Scene 부모 정본·테스트 실패 접근 방어를 반영했다. GameDirector 역할은 미제공으로 제품 검토 미실행이다.
+- GUI/PIE/실제 패키지 실행·음향·외부 Sentry 전송·Prototype2 연동 미검증. 기존 구조체 초기화 진단과 EnhancedInput 의존성 경고는 남아 있다.
+- 후속 주의: S2에서 새 노드/조건 소비처를 연결하고 Graph 파일 왕복 검증, S3에서 불변 통합 저장/FIFO/완료 대기 추적, S4에서 legacy 소속 명시 및 정의 에셋 선택·메타데이터, S5에서 Scene 이동/삭제 transaction·진단 위치를 구현한다.
+- 사용법: `Docs/UserGuide.md` 5~12절. 변경 범위·검증·기능별 merge/복구 기준은 `Docs/Reports/S1-2026-10-14.md`를 따른다. 각 기능 Branch는 원격에 보존하며 통합 Branch는 Codex_Develop다.
