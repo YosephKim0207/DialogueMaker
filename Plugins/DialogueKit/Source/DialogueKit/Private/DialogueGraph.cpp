@@ -26,6 +26,7 @@ void UDialogueGraph::SetPreSaveListener(std::function<void()> NewOnPreSaveListen
 
 void UDialogueGraph::PreSave(FObjectPreSaveContext SaveContext)
 {
+	Super::PreSave(SaveContext);
 	if (OnPreSaveListener != nullptr)
 	{
 		OnPreSaveListener();
