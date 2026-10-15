@@ -29,6 +29,10 @@ bool UDialogueSampleCombinedSave::Validate() const
 			return false;
 		}
 	}
+	for (FGuid CorrectionId : Request.Snapshot.AppliedCorrections)
+	{
+		if (Game.Corrections.ContainsByPredicate([&](const FDialogueSampleCorrectionReceipt& Receipt) { return Receipt.CorrectionId == CorrectionId; }) == false) return false;
+	}
 	const FDialogueCheckpointTrigger& Trigger = Request.Snapshot.Trigger;
 	if (Trigger.bHasEffects)
 	{
