@@ -252,7 +252,11 @@ void UDialogueSubsystem::EndDialogue()
 	}
 
 	// Load해둔 Portrait 해제
-	PortraitPreLoadHandle->ReleaseHandle();
+	if (PortraitPreLoadHandle.IsValid())
+	{
+		PortraitPreLoadHandle->ReleaseHandle();
+		PortraitPreLoadHandle.Reset();
+	}
 
 	// TODO 진행 상황 저장
 	UDialogueRuntimeNode* DialogueRuntimeNode = GetDialogueNode(CurrentOngoingNodeGuid);
@@ -547,6 +551,10 @@ const TArray<FPortraitActionData> UDialogueSubsystem::GetPortraitActionDatas() c
 #if !UE_BUILD_SHIPPING
 void UDialogueSubsystem::PlayDialogueGraph(UDialogueGraph* DialogueGraph)
 {
+	if (!IsValid(DialogueGraph))
+	{
+		return;
+	}
 	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::PlayDialogueGraph : Play %s"), *DialogueGraph->GetName());
 	
 	CheckDelegates();
@@ -1101,6 +1109,14 @@ void UDialogueSubsystem::PreloadPortraits()
 		}
 	}
 
+	// 초상화 없는 발화도 정상이다. 빈 목록을 엔진 preload에 넘기면 ensure가 발생한다.
+	if (AssetIds.IsEmpty())
+	{
+		PortraitPreLoadHandle.Reset();
+		CreateDialogueUI();
+		return;
+	}
+
 	// 필터와 일치하는 DialoguePortraitData에서 중 Portrait bundle만 가져오기(텍스처 로드)
 	UAssetManager& AssetManager = UAssetManager::Get();
 	TArray<FName> Bundles;
@@ -1110,6 +1126,11 @@ void UDialogueSubsystem::PreloadPortraits()
 	
 	FStreamableDelegate OnPortraitLoaded = FStreamableDelegate::CreateUObject(this, &UDialogueSubsystem::CreateDialogueUI);
 	PortraitPreLoadHandle = AssetManager.PreloadPrimaryAssets(AssetIds, Bundles, false, OnPortraitLoaded);
+	if (!PortraitPreLoadHandle.IsValid())
+	{
+		UE_LOG(DialogueSubSystemLog, Warning, TEXT("UDialogueSubsystem::PreloadPortraits : 초상화 로드 요청 실패, 이미지 없이 진행합니다."));
+		CreateDialogueUI();
+	}
 }
 
 UTexture2D* UDialogueSubsystem::GetPortrait(const ESpeakerID SpeakerID, const EEmoteType EmoteType) const
