@@ -8,6 +8,7 @@
 #include "DialogueRuntimeGraph.h"
 #include "DialogueBlockIdentity.h"
 #include "DialogueStoryDefinition.h"
+#include "DialogueBlockMetadata.h"
 #include "GameplayTagContainer.h"
 #include "Enum/PlayerProgress.h"
 #include "Enum/Portrait.h"
@@ -90,6 +91,21 @@ public:
 	
 public:
 	std::function<void()> OnPreSaveListener;
+
+public:
+	// 화자가 아니라 대화를 시작하는 대상이다. NPC/장소 등 게임이 등록한 Tag 하나를 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Selection")
+	FGameplayTag DialogueTarget;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Selection")
+	EDialogueBlockAvailability Availability = EDialogueBlockAvailability::Active;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Selection")
+	bool bDefaultBlock = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Selection", meta = (EditCondition = "!bDefaultBlock"))
+	bool bTopPriorityBlock = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Selection")
+	FDialogueConditionSet EntryConditions;
+	// 원본 필드에서 Registry 자료를 생성한다. 별도 수동 카탈로그를 유지하지 않는다.
+	FDialogueBlockMetadata GetSelectionMetadata() const;
 
 public:	// Properties
 	// 신규 소속 계약이다. 기존 ChapterID 소비처 전환은 후보 필터 단계에서 수행한다.
