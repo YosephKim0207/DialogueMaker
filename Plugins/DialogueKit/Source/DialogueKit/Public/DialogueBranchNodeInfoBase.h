@@ -17,6 +17,6 @@ public:
 
 	bool ConditionCheck(const FPlayerCondition& PlayerEvalCondition) const;
 	
-    UPROPERTY(EditAnywhere, Category = "DialogueKit|Legacy")
+    UPROPERTY(VisibleAnywhere, Category = "DialogueKit|Legacy", meta = (DisplayName = "구형 조건 (신규 실행기 미사용)", ToolTip = "기존 에셋 확인용 읽기 전용 자료입니다. 새 Branch는 DialogueKit|Branch의 Conditions를 편집하세요."))
     FDialogueConditionEvalCriteria DialoguePassCondition;
 };

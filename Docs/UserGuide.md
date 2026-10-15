@@ -54,6 +54,8 @@
 
 - [35. 스토리보드와 Block 소속·대상 편집](#35-스토리보드와-block-소속대상-편집)
 
+- [36. 신규 조건과 구형 조건 구분](#36-신규-조건과-구형-조건-구분)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -844,9 +846,17 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 
 ### 게임 개발자 설정과 공개 확장 지점
 
-- `UDialogueSettings::StoryDefinition`은 저작 원본입니다. 게임은 동일 정의의 ID를 사용해 `FDialogueStoryProgress`를 제공하며 현재 진행/전환 책임을 유지합니다.
+- `UDialogueSettings::StoryDefinition`은 저작 원본입니다. 게임은 동일 정의의 ID를 사용해 `FDialogueStoryProgress`를 제공하며 현재 진행/전환 책임을 유지합니다. 런타임 자동 로드나 cook 포함을 보장하는 설정은 아니므로 게임이 정의 에셋을 참조하거나 cook 포함 규칙을 지정하고 로더에 전달해야 합니다.
 - `TargetFieldLabel`로 대화 NPC·대화 장소 등 필드 표시명을, `TargetDisplayNames`로 등록 GameplayTag별 게임 표시명을 지정합니다. Project Settings에서 설정하거나 게임 설정 코드/Config로 공급합니다. 표시명은 식별자가 아니며 바꿔도 저장된 Tag는 그대로입니다.
 - Block Details 대상 드롭다운의 최상위 분류는 등록된 GameplayTag에서 동적으로 수집합니다. 선택 목록은 태그 원문과 게임 표시명 모두 검색합니다. 필터/검색만 바꾸면 Block 값은 바뀌지 않습니다. 실제 선택한 **태그 하나**만 저장하고 런타임은 정확 일치합니다.
 - Editor 전용 `FDialogueStoryEditor::CollectBlocks`, `MoveScene`, `MoveBlocks`, `RemoveChapter`, `RemoveScene`은 메타데이터 기반 조회 및 Undo 가능한 저작 변경입니다. `DeleteUnassigned`는 UI의 두 확인과 미출시 확인 이후에만 호출하며 반환 bool/결과 메시지를 처리해야 합니다. 게임 런타임 API로 호출하지 마세요.
 - Block 목록은 Asset Registry에서 수집하고, 이미 로드된 Block은 현재 편집값을 사용합니다. 목록만 보기 위해 모든 Graph를 로드하지 않으며 상세 편집/이동/삭제 대상만 로드합니다. 읽을 수 없는 메타데이터는 확인 필요 항목으로 표시하고 삭제 대상에서는 제외합니다.
 - 실제 UI 배치·클릭과 삭제 확인 팝업은 GUI 미검증입니다. 자동화는 임시 객체의 소속/안정 ID/Undo/삭제 거부와 Saved/AI 격리 에셋의 선택 삭제·비선택 파일 보존을 검증했습니다. 기존 프로젝트 에셋은 삭제하지 않았습니다.
+
+
+## 36. 신규 조건과 구형 조건 구분
+
+- 새 Branch는 `DialogueKit → Branch → Conditions`를 편집합니다. `Legacy → 구형 조건 (신규 실행기 미사용)`은 기존 값 확인용 읽기 전용입니다. 자동 변환하지 않습니다.
+- Block 진입 조건은 `Entry Conditions`, 선택지 표시 조건은 각 `Options → Conditions`입니다. 조건 배열의 추가/삭제와 All/Any 조합을 사용하며, Tag/Value/Count 항목과 비교 기준을 지정합니다. 게임은 기존 `IDialogueStateProvider`로 값을 제공해야 합니다.
+- Block Details의 `Legacy 안내`를 확인하세요. 구형 Required All/Any/Blocked Tags가 남으면 신규 후보에서 제외됩니다. 신규 조건에 필요한 내용을 수동 작성한 다음 구형 태그를 명시적으로 비우세요. 구형 `SpeakerID`/`ChapterID`는 새 `DialogueTarget`/`StoryScope`를 대신하지 않습니다.
+- 기존 직렬화 필드와 호환 함수는 유지합니다. 읽기 전용 표시는 신규 작가의 혼동을 줄이기 위한 에디터 제약이며 외부 게임 코드를 자동 변환하지 않습니다.
