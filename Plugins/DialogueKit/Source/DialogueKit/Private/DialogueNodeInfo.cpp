@@ -85,3 +85,10 @@ void UDialogueNodeInfo::CopySpeakerPresentationFrom(const UDialogueNodeInfo& Sou
 	PortraitData.EmoteType = Source.PortraitData.EmoteType;
 	PortraitData.SidePosition = Source.PortraitData.SidePosition;
 }
+
+// 새 Node ID의 열람 수명을 시작한다. 실행/저장 복원에는 사용하지 않는다.
+void UDialogueNodeInfo::ResetReadIdentityForDuplicate()
+{
+	ReadVersion = 1;
+	bIsShown = false;
+}
