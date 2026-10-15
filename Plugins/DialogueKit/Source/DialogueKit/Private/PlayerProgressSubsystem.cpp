@@ -1,3 +1,4 @@
+#include "DialoguePreviewPolicy.h"
 #include "PlayerProgressSubsystem.h"
 
 #include "PlayerProgressSaveData.h"
@@ -33,6 +34,7 @@ UPlayerProgressSubsystem* UPlayerProgressSubsystem::Get(const UObject* WorldCont
 void UPlayerProgressSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	bPreviewPersistenceBlocked = UDialoguePreviewPolicy::IsPreviewWorld(this);
 
 	if (LoadProgress() == false)
 	{
@@ -88,6 +90,7 @@ EChapterID UPlayerProgressSubsystem::GetCurrentChapter() const
 
 bool UPlayerProgressSubsystem::LoadProgress()
 {
+	if (bPreviewPersistenceBlocked) return false;
 	SaveData = Cast<UPlayerProgressSaveData>(UGameplayStatics::LoadGameFromSlot(SaveSlot, SaveIndex));
 	if (SaveData == nullptr)
 	{
@@ -99,5 +102,6 @@ bool UPlayerProgressSubsystem::LoadProgress()
 
 void UPlayerProgressSubsystem::SaveProgress() const
 {
+	if (bPreviewPersistenceBlocked) return;
 	UGameplayStatics::SaveGameToSlot(SaveData, SaveSlot, SaveIndex);
 }

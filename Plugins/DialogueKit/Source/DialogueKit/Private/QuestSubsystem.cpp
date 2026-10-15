@@ -1,3 +1,4 @@
+#include "DialoguePreviewPolicy.h"
 #include "QuestSubsystem.h"
 
 #include "GameplayTagsManager.h"
@@ -35,6 +36,7 @@ UQuestSubsystem* UQuestSubsystem::Get(const UObject* WorldContextObject)
 void UQuestSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	bPreviewPersistenceBlocked = UDialoguePreviewPolicy::IsPreviewWorld(this);
 
 	if (LoadProgress() == false)
 	{
@@ -104,6 +106,7 @@ void UQuestSubsystem::AdvanceQuestStep(UQuestBase* Quest) const
 
 bool UQuestSubsystem::LoadProgress()
 {
+	if (bPreviewPersistenceBlocked) return false;
 	SaveData = Cast<UQuestProgressSaveData>(UGameplayStatics::LoadGameFromSlot(QuestProgressSaveSlot, SaveIndex));
 	if (SaveData == nullptr)
 	{
@@ -115,5 +118,6 @@ bool UQuestSubsystem::LoadProgress()
 
 void UQuestSubsystem::SaveProgress() const
 {
+	if (bPreviewPersistenceBlocked) return;
 	UGameplayStatics::SaveGameToSlot(SaveData, QuestProgressSaveSlot, SaveIndex);
 }

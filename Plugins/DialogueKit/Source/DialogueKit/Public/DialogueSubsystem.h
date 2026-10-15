@@ -123,6 +123,8 @@ public:
 	#endif
 	
 private:
+	// 초기화 당시의 격리 상태를 유지하여 PIE 종료 중에도 파일에 접근하지 않는다.
+	bool bPreviewPersistenceBlocked = false;
 	// 새 실행기의 표시만 반영하며 legacy EndDialogue의 Quest/Save를 호출하지 않는다.
 	void HandleBlockPresentation(const FDialoguePresentation& NewPresentation);
 
