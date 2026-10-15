@@ -57,6 +57,8 @@
 - [36. 신규 조건과 구형 조건 구분](#36-신규-조건과-구형-조건-구분)
 
 - [37. 텍스트 표시 상태와 안전한 입력](#37-텍스트-표시-상태와-안전한-입력)
+- [38. 기본 대화 화면과 이미지·음향](#38-기본-대화-화면과-이미지음향)
+
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -876,3 +878,24 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 6. 게임 상태가 변경되면 `UDialogueBlockRunner::RefreshChoices`를 호출합니다. Choice-only 이벤트는 현재 출력률을 유지합니다. 실제 재진입/복원은 새 revision으로 처음부터 표시합니다. `CancelBlock`은 Idle을 게시하여 화면이 수명을 정리하도록 합니다.
 
 기존 Subsystem의 `ProgressNextDialogue`/`SelectBlockChoice`와 Runner 호출은 저수준 호환 API로 남습니다. 새 화면의 물리 입력에 직접 연결하면 펼치기 방어를 우회하므로 위 입력 판정 또는 기본 화면의 Submit API를 사용하세요. 이 절의 자동화는 비시각 상태 검사이며 실제 화면/음향 검증은 별도입니다.
+
+
+## 38. 기본 대화 화면과 이미지·음향
+
+### 게임 개발자 연결
+
+`UDialoguePresentationWidget`은 별도 바이너리 UI 에셋 없이 사용하는 고정 기본 화면입니다. 기존 `DialogueWidgetClass`나 샘플 Widget을 자동 대체하지 않습니다. Blueprint Designer 상속용 화면이 아니며, 커스텀 UI는 37절의 표시 객체와 Subsystem 이벤트를 사용합니다.
+
+1. 플레이어를 소유자로 `CreateWidget<UDialoguePresentationWidget>` → `AddToViewport` → `BindSubsystem` 순서로 연결합니다. 단독 Runner는 `BindRunner`를 사용합니다. 두 구독을 동시에 사용하지 않습니다.
+2. 게임의 PlayerController에서 UI 입력 모드를 지정하고 `SetWidgetToFocus(View->TakeWidget())` 또는 `SetUserFocus`로 포커스를 줍니다. 이동 제한·커서·종료 후 입력 복원은 게임 책임입니다.
+3. 연결 후 `StartDialogueBlock`을 호출합니다. 출력 중 배경 클릭/Space/Enter는 전체 표시와 음성 중지만 합니다. 동일 프레임의 추가 입력과 키 반복은 진행하지 않습니다. Choice 버튼은 생성 당시 ID·화면 revision을 사용합니다.
+4. 종료/취소 시 화면은 숨겨지고 자신이 만든 음향 컴포넌트를 정리합니다. `DetachPresentation`/`RemoveFromParent`는 저장 큐나 게임 상태를 취소하지 않습니다. 제거한 Widget을 재사용하면 `AddToViewport` 이후 반드시 다시 Bind하세요.
+
+### 작가 설정
+
+- Line Details에서 직접 `Portrait Image`를 지정하거나 비워 두고 화자+표정이 모두 일치하는 `DialoguePortraitData`를 사용합니다. `Portrait Offset`, 좌/우/중앙 위치, `Mirror Portrait`를 반영합니다. 직접 이미지가 지정되어 있으면 표정 에셋보다 우선합니다.
+- `Line Audio`의 `Background Music`, `Sound Effect`, `Voice`에 Sound 에셋을 지정합니다. 기본값은 무음입니다. BGM은 각 Line에 명시하며 빈 값은 정지, 동일 BGM은 이어집니다. 반복 BGM은 Sound 에셋에서 loop를 설정하세요. 효과음과 음성은 새 Line마다 시작합니다.
+- 출력 중 입력하면 음성만 중지하며 BGM/효과음은 유지합니다. 새 Line/취소/화면 제거에서는 이전 Line 음성·효과음을 정리합니다. Choice 조건만 갱신하면 텍스트와 음향을 재시작하지 않습니다.
+- 연속 화자 생성은 기존 합의된 이미지·시간 설정만 계승하며 음향은 복사하지 않습니다. 게임의 기존 ActionSequencer를 자동 실행하는 화면은 아닙니다.
+
+이미지·음향은 표시할 때 동기 로드하므로 큰 리소스는 게임에서 미리 로드해 두세요. 실제 프레임·비율·포커스·소리 확인은 PIE 관찰 대상이며 화면 없는 자동화 성공으로 대체하지 않습니다. 게임별 커스텀 화면은 공개 `UDialogueTextPresentation`과 지역화된 `OnBlockPresentationChanged`를 사용하고 물리 입력을 37절의 판정으로 처리합니다.

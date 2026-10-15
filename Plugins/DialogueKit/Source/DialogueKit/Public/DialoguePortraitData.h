@@ -60,6 +60,8 @@ class DIALOGUEKIT_API UDialoguePortraitData : public UPrimaryDataAsset
 
 public:
 	UTexture2D* GetPortraitTexture() const;
+	// 현재 표시할 초상화만 명시적으로 로드한다.
+	UTexture2D* LoadPortraitTexture() const;
 
 	static FORCEINLINE FName GetSpeakerIDTag()
 	{
