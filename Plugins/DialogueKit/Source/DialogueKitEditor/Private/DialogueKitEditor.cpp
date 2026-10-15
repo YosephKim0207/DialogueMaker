@@ -2,6 +2,8 @@
 
 #include "DialogueKitEditor.h"
 #include "DialogueGraphValidation.h"
+#include "DialogueGraphDetails.h"
+#include "DialogueStoryEditor.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DesktopPlatformModule.h"
@@ -212,6 +214,7 @@ void FDialogueKitEditorModule::StartupModule()
 	PinFactory = MakeShareable(new FDialoguePinFactory);
 	FEdGraphUtilities::RegisterVisualPinFactory(PinFactory);
 	FDialogueGraphEditorCommands::Register();
+	FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor")).RegisterCustomClassLayout(TEXT("DialogueGraph"), FOnGetDetailCustomizationInstance::CreateStatic(&FDialogueGraphDetails::MakeInstance));
 	FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor")).RegisterCustomClassLayout(TEXT("DialogueLineNodeInfo"), FOnGetDetailCustomizationInstance::CreateStatic(&FDialogueLineDetails::MakeInstance));
 	LoadDialogueLanguageOverrideFromConfig();
 
@@ -227,6 +230,7 @@ void FDialogueKitEditorModule::ShutdownModule()
 	FDialogueGraphValidation::Shutdown();
 	if (FPropertyEditorModule* PropertyEditor = FModuleManager::GetModulePtr<FPropertyEditorModule>(TEXT("PropertyEditor")))
 	{
+		PropertyEditor->UnregisterCustomClassLayout(TEXT("DialogueGraph"));
 		PropertyEditor->UnregisterCustomClassLayout(TEXT("DialogueLineNodeInfo"));
 	}
 	if (UToolMenus::IsToolMenuUIEnabled())
@@ -261,7 +265,7 @@ void FDialogueKitEditorModule::RegisterMainMenu()
 	FToolMenuSection& MainSection = MainMenu->FindOrAddSection(TEXT("DialogueKitMenuSection"));
 	MainSection.AddSubMenu(
 		TEXT("DialogueKitMenu"),
-		LOCTEXT("DialogueMenu_Label", "Dialogue"),
+		LOCTEXT("DialogueMenu_Label", "DialogueMaker"),
 		LOCTEXT("DialogueMenu_Tooltip", "Dialogue 관련 도구"),
 		FNewToolMenuDelegate::CreateRaw(this, &FDialogueKitEditorModule::BuildDialogueMainMenu),
 		false,
@@ -277,6 +281,7 @@ void FDialogueKitEditorModule::BuildDialogueMainMenu(UToolMenu* InMenu)
 	}
 
 	FToolMenuSection& Section = InMenu->FindOrAddSection(TEXT("DialogueKitCSVSection"));
+	Section.AddMenuEntry(TEXT("DialogueStoryboard"), FText::FromString(TEXT("스토리보드")), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateStatic(&FDialogueStoryEditor::Open)));
 	Section.AddMenuEntry(
 		TEXT("DialogueKitMakeCSV"),
 		LOCTEXT("DialogueMakeCSV_Label", "Make CSV"),
