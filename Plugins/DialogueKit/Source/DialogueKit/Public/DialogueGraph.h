@@ -63,6 +63,10 @@ public:
     virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
 private:
+#if WITH_EDITOR
+    friend class UDialogueVersionLibrary;
+    bool InitializeContentVersion(const UDialogueGraph* Source, int32 NewVersion);
+#endif
     UPROPERTY(VisibleAnywhere, Category = "DialogueKit|Identity")
     FGuid BlockId;
 

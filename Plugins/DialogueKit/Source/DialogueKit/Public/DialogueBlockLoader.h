@@ -30,6 +30,14 @@ public:
 	// 연타 방지는 게임이 입력/이동 정책에서 추가한다. 이 클래스는 늦은 이전 완료를 폐기한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Loading")
 	FGuid RequestFromRegistry(FGameplayTag Target, UDialogueStoryDefinition* Story, FDialogueStoryProgress Progress, UObject* Provider, UDialogueDiagnosticRouter* Router);
+	// 저장 복원 전용. 현재 태그/조건/우선순위를 재검사하지 않는다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Loading")
+	FGuid RequestExactReference(FDialogueBlockReference Reference, UDialogueDiagnosticRouter* Router);
+	// 게임 카탈로그 또는 명시적 교체에서 이미 찾은 경로도 로드 후 ID/버전을 검증한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Loading")
+	FGuid RequestExactPath(TSoftObjectPtr<UDialogueGraph> Block, FDialogueBlockReference Reference, UDialogueDiagnosticRouter* Router);
+	static bool FindExactReference(FDialogueBlockReference Reference, FSoftObjectPath& OutPath, FName& OutError);
+
 	// 게임의 별도 카탈로그/테스트에서 메타데이터 후보를 공급하는 확장점이다.
 	FGuid RequestCandidates(const TArray<FDialogueBlockCandidate>& Candidates, FGameplayTag Target,
 		UDialogueStoryDefinition* Story, const FDialogueStoryProgress& Progress, UObject* Provider, UDialogueDiagnosticRouter* Router);
@@ -80,4 +88,5 @@ private:
 	FSoftObjectPath ExpectedPath;
 	bool bPending = false;
 	bool bGreeting = false;
+	bool bRestoring = false;
 };
