@@ -12,3 +12,9 @@ void UDialogueStateChangeEdGraphNode::InitNodeInfo(UObject* Outer)
 {
 	NodeInfo = NewObject<UDialogueStateChangeNodeInfo>(Outer, NAME_None, RF_Transactional);
 }
+
+// 노드와 입출력 핀에 같은 역할 색상을 사용한다.
+FLinearColor UDialogueStateChangeEdGraphNode::GetNodeTitleColor() const
+{
+	return FLinearColor(0.1f, 0.65f, 0.45f);
+}
