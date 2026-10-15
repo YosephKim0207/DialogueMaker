@@ -1,5 +1,9 @@
 #include "DialogueGraphCodec.h"
 #include "DialogueGraph.h"
+#include "DialogueRerouteNode.h"
+#include "DialogueEdGraphSchema.h"
+#include "EdGraphNode_Comment.h"
+#include "DialogueCommentNode.h"
 #include "DialogueLineNodeInfo.h"
 #include "DialogueChoiceNodeInfo.h"
 #include "DialogueChoiceEdGraphNode.h"
@@ -59,25 +63,73 @@ static bool HasValidPayload(EDialogueType Type, UDialogueNodeInfoBase* Info, int
 	}
 }
 
+// 경유점만 통과해 실제 입력을 찾는다. 끊긴 경로/자동 순환은 저장을 거부한다.
+static UEdGraphPin* ResolveInput(UEdGraphPin* Input)
+{
+	TSet<UEdGraphNode*> Seen;
+	while (Input && Cast<UDialogueRerouteNode>(Input->GetOwningNode()))
+	{
+		UEdGraphNode* Node = Input->GetOwningNode();
+		if (Seen.Contains(Node) || Node->Pins.Num() != 2 || Node->Pins[0] == nullptr || Node->Pins[1] == nullptr ||
+			Node->Pins[0]->Direction != EGPD_Input || Node->Pins[1]->Direction != EGPD_Output ||
+			Node->Pins[0]->LinkedTo.IsEmpty() || Node->Pins[1]->LinkedTo.Num() != 1)
+		{
+			return nullptr;
+		}
+		Seen.Add(Node);
+		Input = Node->Pins[1]->LinkedTo[0];
+	}
+	return Input;
+}
+
 // 먼저 전체 구조를 검사하고 성공한 새 RuntimeGraph만 에셋에 설치한다.
 bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Asset, FString& OutError)
 {
 	OutError = TEXT("Invalid editor graph");
-	if (IsValid(EditorGraph) == false || IsValid(Asset) == false)
+	if (IsValid(EditorGraph) == false || IsValid(Asset) == false || Cast<UDialogueEdGraphSchema>(EditorGraph->GetSchema()) == nullptr)
 	{
 		return false;
 	}
 	TSet<FGuid> NodeIds;
 	TSet<FGuid> PinIds;
+	FDialogueEditorLayout Layout;
+	Layout.bPresent = true;
 	for (UEdGraphNode* Node : EditorGraph->Nodes)
 	{
 		UDialogueEdGraphNodeBase* Typed = Cast<UDialogueEdGraphNodeBase>(Node);
-		if (Typed == nullptr || GetEditorNodeClass(Typed->GetDialogueNodeType()) == nullptr ||
+		const bool bReroute = Cast<UDialogueRerouteNode>(Node) != nullptr;
+		const UEdGraphNode_Comment* Comment = Cast<UEdGraphNode_Comment>(Node);
+		if ((Comment == nullptr && (Typed == nullptr || (bReroute == false && GetEditorNodeClass(Typed->GetDialogueNodeType()) == nullptr))) ||
 			Node->NodeGuid.IsValid() == false || NodeIds.Contains(Node->NodeGuid))
 		{
 			return false;
 		}
 		NodeIds.Add(Node->NodeGuid);
+		if (Comment || bReroute)
+		{
+			FDialogueLayoutNode Record;
+			Record.Id = Node->NodeGuid;
+			Record.Position = FVector2D(Node->NodePosX, Node->NodePosY);
+			Record.bComment = Comment != nullptr;
+			if (Comment)
+			{
+				if (Node->Pins.IsEmpty() == false) return false;
+				Record.Size = FVector2D(Node->NodeWidth, Node->NodeHeight);
+				Record.Text = Node->NodeComment;
+				Record.Description = FDialogueCommentDetails::GetDescription(Comment);
+				Record.Color = Comment->CommentColor;
+				Record.FontSize = Comment->FontSize;
+				Record.bGroupMovement = Comment->MoveMode == ECommentBoxMode::GroupMovement;
+			}
+			else
+			{
+				if (Node->Pins.Num() != 2 || Node->Pins[0] == nullptr || Node->Pins[1] == nullptr ||
+					Node->Pins[0]->Direction != EGPD_Input || Node->Pins[1]->Direction != EGPD_Output || Node->Pins[0]->LinkedTo.IsEmpty() || ResolveInput(Node->Pins[0]) == nullptr) return false;
+				Record.InputId = Node->Pins[0]->PinId;
+				Record.OutputId = Node->Pins[1]->PinId;
+			}
+			Layout.Nodes.Add(Record);
+		}
 		int32 Inputs = 0;
 		for (UEdGraphPin* Pin : Node->Pins)
 		{
@@ -87,6 +139,13 @@ bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Ass
 				return false;
 			}
 			PinIds.Add(Pin->PinId);
+			if (Pin->Direction == EGPD_Output && Pin->LinkedTo.Num() == 1 && Pin->LinkedTo[0])
+			{
+				FDialogueLayoutEdge Edge;
+				Edge.OutputId = Pin->PinId;
+				Edge.InputId = Pin->LinkedTo[0]->PinId;
+				Layout.Edges.Add(Edge);
+			}
 			Inputs += Pin->Direction == EGPD_Input ? 1 : 0;
 			for (UEdGraphPin* Other : Pin->LinkedTo)
 			{
@@ -98,7 +157,7 @@ bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Ass
 				}
 			}
 		}
-		if (HasValidPayload(Typed->GetDialogueNodeType(), Typed->GetNodeInfo(), Inputs, Node->Pins.Num() - Inputs) == false)
+		if (Comment == nullptr && bReroute == false && HasValidPayload(Typed->GetDialogueNodeType(), Typed->GetNodeInfo(), Inputs, Node->Pins.Num() - Inputs) == false)
 		{
 			return false;
 		}
@@ -107,6 +166,10 @@ bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Ass
 	TMap<UEdGraphPin*, UDialogueRuntimePin*> Pins;
 	for (UEdGraphNode* Node : EditorGraph->Nodes)
 	{
+		if (Cast<UDialogueRerouteNode>(Node) || Cast<UEdGraphNode_Comment>(Node))
+		{
+			continue;
+		}
 		UDialogueEdGraphNodeBase* Typed = CastChecked<UDialogueEdGraphNodeBase>(Node);
 		UDialogueRuntimeNode* RuntimeNode = NewObject<UDialogueRuntimeNode>(RuntimeGraph);
 		RuntimeNode->NodeGuid = Node->NodeGuid;
@@ -136,7 +199,10 @@ bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Ass
 	{
 		if (Pair.Key->Direction == EGPD_Output && Pair.Key->LinkedTo.Num() == 1)
 		{
-			UDialogueRuntimePin* Target = Pins.FindChecked(Pair.Key->LinkedTo[0]);
+			UEdGraphPin* Resolved = ResolveInput(Pair.Key->LinkedTo[0]);
+			UDialogueRuntimePin** Found = Pins.Find(Resolved);
+			if (Found == nullptr) return false;
+			UDialogueRuntimePin* Target = *Found;
 			Pair.Value->Connections.Add(Target);
 			Pair.Value->LinkedToNodeGuid = Target->OwnerNodeGuid;
 		}
@@ -149,6 +215,7 @@ bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Ass
 	}
 	Asset->Modify();
 	Asset->Graph = RuntimeGraph;
+	Asset->EditorLayout = MoveTemp(Layout);
 	OutError.Reset();
 	return true;
 }
@@ -157,7 +224,7 @@ bool FDialogueGraphCodec::ExportGraph(UEdGraph* EditorGraph, UDialogueGraph* Ass
 bool FDialogueGraphCodec::ImportGraph(const UDialogueGraph* Asset, UEdGraph* EditorGraph, FString& OutError)
 {
 	OutError = TEXT("Invalid runtime graph");
-	if (IsValid(Asset) == false || IsValid(EditorGraph) == false)
+	if (IsValid(Asset) == false || IsValid(EditorGraph) == false || Cast<UDialogueEdGraphSchema>(EditorGraph->GetSchema()) == nullptr)
 	{
 		return false;
 	}
@@ -232,6 +299,72 @@ bool FDialogueGraphCodec::ImportGraph(const UDialogueGraph* Asset, UEdGraph* Edi
 				return false;
 			}
 			Pair.Value->MakeLinkTo(*Input);
+		}
+	}
+	if (Asset->EditorLayout.bPresent)
+	{
+		if (Asset->EditorLayout.Version != 1) return false;
+		TMap<FGuid, UEdGraphPin*> LayoutPins;
+		TMap<FGuid, FGuid> ExpectedTargets;
+		for (const auto& Pair : Pins)
+		{
+			LayoutPins.Add(Pair.Value->PinId, Pair.Value);
+			if (Pair.Value->Direction == EGPD_Output)
+			{
+				ExpectedTargets.Add(Pair.Value->PinId, Pair.Value->LinkedTo.IsEmpty() ? FGuid() : Pair.Value->LinkedTo[0]->PinId);
+			}
+		}
+		for (const FDialogueLayoutNode& Record : Asset->EditorLayout.Nodes)
+		{
+			if (Record.Id.IsValid() == false || NodeIds.Contains(Record.Id)) return false;
+			NodeIds.Add(Record.Id);
+			UEdGraphNode* Node = nullptr;
+			if (Record.bComment)
+			{
+				auto* Comment = NewObject<UEdGraphNode_Comment>(EditorGraph, NAME_None, RF_Transactional);
+				Comment->NodeComment = Record.Text;
+				FDialogueCommentDetails::SetDescription(Comment, Record.Description);
+				Comment->NodeWidth = Record.Size.X;
+				Comment->NodeHeight = Record.Size.Y;
+				Comment->CommentColor = Record.Color;
+				Comment->FontSize = Record.FontSize;
+				Comment->MoveMode = Record.bGroupMovement ? ECommentBoxMode::GroupMovement : ECommentBoxMode::NoGroupMovement;
+				Node = Comment;
+			}
+			else
+			{
+				if (Record.InputId.IsValid() == false || Record.OutputId.IsValid() == false || Record.InputId == Record.OutputId ||
+					LayoutPins.Contains(Record.InputId) || LayoutPins.Contains(Record.OutputId)) return false;
+				auto* Reroute = NewObject<UDialogueRerouteNode>(EditorGraph, NAME_None, RF_Transactional);
+				Reroute->AllocateDefaultPins();
+				Reroute->Pins[0]->PinId = Record.InputId;
+				Reroute->Pins[1]->PinId = Record.OutputId;
+				LayoutPins.Add(Record.InputId, Reroute->Pins[0]);
+				LayoutPins.Add(Record.OutputId, Reroute->Pins[1]);
+				Node = Reroute;
+			}
+			Node->NodeGuid = Record.Id;
+			Node->NodePosX = Record.Position.X;
+			Node->NodePosY = Record.Position.Y;
+			NewNodes.Add(Node);
+		}
+		for (auto& Pair : LayoutPins) Pair.Value->BreakAllPinLinks(false);
+		for (const FDialogueLayoutEdge& Edge : Asset->EditorLayout.Edges)
+		{
+			UEdGraphPin** Output = LayoutPins.Find(Edge.OutputId);
+			UEdGraphPin** Input = LayoutPins.Find(Edge.InputId);
+			if (Output == nullptr || Input == nullptr || (*Output)->Direction != EGPD_Output || (*Input)->Direction != EGPD_Input || (*Output)->LinkedTo.IsEmpty() == false) return false;
+			(*Output)->MakeLinkTo(*Input);
+		}
+		for (const auto& Pair : ExpectedTargets)
+		{
+			UEdGraphPin* Output = LayoutPins.FindChecked(Pair.Key);
+			UEdGraphPin* Target = Output->LinkedTo.IsEmpty() ? nullptr : ResolveInput(Output->LinkedTo[0]);
+			if ((Target ? Target->PinId : FGuid()) != Pair.Value) return false;
+		}
+		for (UEdGraphNode* Node : NewNodes)
+		{
+			if (Cast<UDialogueRerouteNode>(Node) && ResolveInput(Node->Pins[0]) == nullptr) return false;
 		}
 	}
 	EditorGraph->Modify();

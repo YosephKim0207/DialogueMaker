@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueRuntimeGraph.h"
+#include "DialogueEditorLayout.h"
 #include "DialogueBlockIdentity.h"
 #include "DialogueStoryDefinition.h"
 #include "DialogueBlockMetadata.h"
@@ -43,6 +44,10 @@ class DIALOGUEKIT_API UDialogueGraph : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+#if WITH_EDITORONLY_DATA
+    UPROPERTY()
+    FDialogueEditorLayout EditorLayout;
+#endif
     // 새 에셋 생성 시 누락된 ID만 초기화한다. 로드/저장에서는 자동 호출하지 않는다.
     // 이미 ID가 있거나 템플릿 객체이면 false이며 기존 ID는 변경하지 않는다.
     bool InitializeBlockIdentity();

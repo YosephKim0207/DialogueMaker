@@ -32,6 +32,7 @@ public:
 	virtual EDialogueType GetDialogueNodeType() const override;
 	
 private:
-	class UDialogueBranchNodeInfoBase* DialogueBranchNodeInfo;
+	UPROPERTY()
+	TObjectPtr<class UDialogueBranchNodeInfoBase> DialogueBranchNodeInfo;
 	
 };
