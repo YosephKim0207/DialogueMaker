@@ -25,6 +25,10 @@ bool UDialogueRestoreController::Restore(const FDialogueCheckpointSnapshot& Snap
 		return false;
 	}
 	Loader->EndSession();
+	if (CandidateLoader)
+	{
+		CandidateLoader->EndSession();
+	}
 	Source = Checked;
 	SourceGraph = nullptr;
 	bReplacement = false;

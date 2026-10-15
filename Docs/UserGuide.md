@@ -65,6 +65,8 @@
 
 - [42. 안정 선택 ID와 하위 폴더 지역화](#42-안정-선택-id와-하위-폴더-지역화)
 
+- [43. 샘플 게임 호스트로 선정과 저장 연결](#43-샘플-게임-호스트로-선정과-저장-연결)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -959,3 +961,27 @@ DialogueKit의 기존 대화 이력·PlayerProgress·Quest Subsystem은 초기�
 하위 폴더 번역은 AssetManager의 `DialogueLocalization` PrimaryAsset 등록 경로로 검색한다. 기본 `/Game/DialogueLocalization`은 recursive scan/cook 대상이다. 커스텀 생성 경로를 쓰는 게임은 AssetManager에 해당 경로를 등록하고 cook에 포함해야 한다. 등록되지 않은 경우 기존 루트 경로 조회를 시도하고 번역 누락 시 원문을 반환한다. 같은 Graph·문화권의 번역 에셋을 중복 생성하지 않는다.
 
 검증: `DialogueKit.Localization`은 언어 목록과 CSV→DataAsset→런타임 조회, 하위 폴더, 핀 변경, 구형 CSV를 검사한다. 이는 실제 패키지 UI의 번역 표시 관찰을 대신하지 않는다.
+
+## 43. 샘플 게임 호스트로 선정과 저장 연결
+
+`Source/DialogueMaker/DialogueSampleHost.h`의 `UDialogueSampleHost`는 게임 모듈의 컴파일 가능한 연결 예제다. 플러그인에 게임 시스템을 넣거나 기존 BeginDialogue UI를 자동 교체하지 않는다. GameInstance 등에서 UPROPERTY로 보유하고 상태·효과·저장·보정 제공자를 먼저 준비한다.
+
+```cpp
+Host = NewObject<UDialogueSampleHost>(GameInstance);
+bReady = Host->Initialize(DialogueSubsystem, StateProvider, EffectProvider,
+    SaveProvider, SaveQueue, CorrectionProvider, DiagnosticRouter);
+// OnStarted 구독은 요청보다 먼저 한다. 이미 로드된 에셋은 동기 완료할 수 있다.
+Host->RequestDialogue(TargetTag, StoryDefinition, RestoredStoryProgress);
+```
+
+Initialize 실패 시 시작하지 않는다. RequestDialogue/RequestCandidates의 유효 GUID는 요청 접수이며 실행 성공은 `OnStarted(bool, ErrorCode)`로 확인한다. 로드 대기 중 최신 요청으로 교체하고, 표시/효과/저장 접수 중 재진입은 거부한다. 게임은 연타·이동·상호작용 정책을 입력 계층에서 추가한다. 기본 공통 인사는 `GetLoader()->CommonGreetingBlock`으로 지정한다. `StartDialogueBlockForTarget(Block, RequestTarget)`은 인사 에셋에 대상이 없더라도 실제 요청 대상을 저장한다. 기존 `StartDialogueBlock(Block)`은 에셋의 대상 사용을 유지한다.
+
+호스트는 실행 성공 뒤에 노출을 기록하고 정상 End에만 후보 소진을 기록한다. 첫 자동 효과의 캡처가 실패하면 같은 요청을 보존한다. 이 샘플에서는 **Host의 RetryCapture**를 호출해 접수와 노출/완료 기록을 함께 재개한다. 디스크 실패는 `SaveQueue->RetryFailedWrite()`로 재시도한다. 사용자 안내와 Sentry 전송은 결과/진단 구독자가 담당한다.
+
+게임 저장 조율자가 동일 합본의 게임 상태를 먼저 복원한 뒤 `RestoreDialogue(Snapshot, ReplacementMap)`을 호출한다. 최종 결과는 `GetRestoreController()->OnRestored`다. 복원 시작은 늦은 신규 후보를 무효화한다. 대기 중 쓰기/미접수 캡처가 있으면 복원은 거부된다. `EndConversation()`은 실행·화면·세션 순회를 닫지만 미완료 저장 재개점을 폐기하지 않는다. 다음 신규 시작은 거부되므로 해당 대화를 복원하거나 게임의 명시적 사망/새게임 초기화 흐름을 사용한다. Runner callback 내부의 종료는 false이므로 UI에서 다음 프레임에 종료 요청을 처리한다.
+
+`ShowPresentation(LocalPlayerController)`은 기본 대화 위젯과 별도 저장 표시 위젯을 명시적으로 생성/바인딩한다. 입력 모드·포커스·게임 이동 정책은 게임이 정한다. EndConversation 뒤에도 저장 표시는 유지된다. 레벨 이동/플레이어 교체에서는 호스트와 위젯 수명을 게임에서 다시 구성한다. 커스텀 UI는 같은 Subsystem 이벤트에 연결하면 된다.
+
+샘플 `UDialogueSampleSaveCoordinator`는 예제 상태/효과 원장과 대화 snapshot을 저장한다. **Chapter·Scene, 퀘스트 본체 등 실제 게임 전체 상태를 저장하는 제품 저장 시스템이 아니다.** 게임 개발자는 같은 캡처 호출 안에서 진행도와 게임 상태를 합본에 넣고 함께 복원해야 한다. 호스트는 복원된 `FDialogueStoryProgress`를 요청 때 받아 필터링한다. 기존 샘플 저장 형식을 임의로 바꾸지는 않았다. Prototype2 통합은 별도 작업이다.
+
+검증은 `DialogueKit.Integration`: Subsystem 선택/효과·합본·재개, 공통 인사 대상, 종료와 재시도, 초기 자동 효과의 중복 방지, 복원 시 지연 후보 취소를 검사한다. 실제 디스크/프로세스 및 패키지 실행은 별도 검증 결과를 따른다.
