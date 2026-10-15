@@ -26,6 +26,8 @@
 
 - [20. Block 로드 전 대상과 조건 필터](#20-block-로드-전-대상과-조건-필터)
 
+- [21. 우선순위 선정과 대화 세션 순회](#21-우선순위-선정과-대화-세션-순회)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -573,3 +575,17 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 `DialogueKit.Selection.Metadata`는 값 왕복·대상 정확 일치·신규 노출 중단·소속 없음·기존 조건 재작성 검사를, `UnloadedRegistry`는 Saved 아래 고유 패키지의 실제 저장·언로드 후 Registry 조회와 무로딩 평가를 검사합니다.
 
 패키징 후 별도로 `Invoke-UE.ps1 -Action Test -TestFilter ProjectCook.DialogueRegistry`를 실행하면 실제 cooked Registry의 메타데이터와 PrimaryAssetId 보존을 확인합니다. 기존 샘플의 미설정 Block ID/대상 조건이 올바른 신규 콘텐츠라는 뜻은 아닙니다. 후보 추첨·게임 실행 연결과 구버전 복원 검증은 별도 항목입니다.
+
+## 21. 우선순위 선정과 대화 세션 순회
+
+게임은 `UDialogueCandidateSelector::BeginSession(Target)`으로 장소/NPC 대화 세션을 시작하고, 명시적인 시작/Refresh 요청에서만 `Select(Candidates, Story, Progress, Provider, Router)`를 호출합니다. `FDialogueBlockCandidate`는 SoftObjectPath와 Registry 메타데이터를 담습니다. 함수는 에셋을 로드하지 않습니다.
+
+선정 순서는 적격 최우선 Block → 미완료 일반 Block의 최고 우선순위 → 기본 대화입니다. 최우선/일반의 같은 우선순위는 균등 추첨합니다. 실제 실행/표시에 성공하면 `RecordExposed(BlockReference)`, 정상 End에서만 `RecordCompleted(BlockReference)`를 호출합니다. 로딩 취소·실행 실패는 완료로 기록하지 않습니다.
+
+일반 대화는 세션 내 정상 완료 목록과 직전 노출을 제외합니다. 모든 일반 후보가 소진되면 기본 대화로 넘어갑니다. 기본 대화는 현재 적격 목록을 한 번씩 완료하면 새 순회를 시작하며, 다른 후보가 있으면 직전 기본 대화의 연속 노출을 피합니다. 최우선 대화는 완료해도 조건이 남으면 다시 후보가 됩니다. 일회성 제한은 게임이 저장하는 조건으로 처리합니다.
+
+해당 장소/NPC와의 대화 상황이 끝날 때 `EndSession()`을 호출합니다. 일반/기본 소진과 직전 노출만 초기화하며 누적 열람이나 게임 저장을 변경하지 않습니다. 같은 대상의 `BeginSession`은 현재 세션을 유지하고 다른 대상은 새 세션으로 전환합니다. 테스트/게임 난수 제어가 필요하면 `SetRandomSeed`를 사용합니다.
+
+결과의 `bSelected`와 `ErrorCode`를 확인합니다. 같은 대상에서 활성 Block ID가 중복되면 `InvalidOrAmbiguousBlockCatalog`, 적격 후보가 없으면 `NoEligibleDialogueBlock`입니다. 공통 인사 로드와 실제 실행 연결은 로더가 담당하는 후속 기능입니다. 전역 버전 카탈로그 검증은 별도 S4 복원 항목입니다.
+
+시나리오 작가는 20절의 기본·최우선·우선순위·진입 조건을 설정합니다. 세션 완료 여부는 에셋에 저장하지 않습니다. `DialogueKit.Selection.PriorityAndSession`은 일반 소진, 하위 우선순위, 기본 순회, 최우선 반복/동률, 중단 후 직전 제외, 세션 초기화를 검증합니다.
