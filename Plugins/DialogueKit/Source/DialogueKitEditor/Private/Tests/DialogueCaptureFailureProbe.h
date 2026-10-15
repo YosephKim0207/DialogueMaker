@@ -11,8 +11,10 @@ class UDialogueCaptureFailureProbe : public UDialogueSampleSaveCoordinator
 public:
 	bool bFailNext = true;
 	bool bReady = true;
+	TFunction<void()> OnReady;
 	virtual bool CanCaptureDialogueCheckpoint_Implementation() const override
 	{
+		if (OnReady) OnReady();
 		return bReady && Super::CanCaptureDialogueCheckpoint_Implementation();
 	}
 	virtual FDialogueCheckpointAcceptance CaptureDialogueCheckpoint_Implementation(const FDialogueCheckpointSnapshot& Snapshot) override

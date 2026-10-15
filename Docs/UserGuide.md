@@ -38,6 +38,8 @@
 
 - [27. 명시적 버전 교체와 게임 보정](#27-명시적-버전-교체와-게임-보정)
 
+- [28. 실제 재시작과 버전 cook 검증](#28-실제-재시작과-버전-cook-검증)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -723,3 +725,18 @@ SelectiveRollback의 `RequiredPassedLine`은 선택 사항이다. 지정하면 �
 게임 상태 초기화 정책은 게임이 소유한다. `Controller->ResetStoryAndSave(false)`는 누적 열람을 보존하고 활성 복원 위치/실행 증거/세션 후보를 초기화해 같은 조율자에 저장한다. true는 누적 이력도 지운다. 제공자가 캡처 불가이면 대화 캐시는 변경하지 않는다. 초기화 뒤 접수 실패면 같은 초기화 자료가 pending으로 남으므로 `Session->RetryCapture()`한다. 등록한 후보 로더와 복원 로더의 늦은 완료는 무효화된다. 다음 후보 선정은 별도 Start/Refresh 호출로 Active 신규 버전을 사용한다. 등록하지 않은 외부 로더는 게임이 `EndSession()`해야 한다.
 
 테스트: `DialogueKit.Restore.SelectiveReplacement`, `VersionRangeRules`. 샘플 Sentry 전송과 실제 연출 화면 검증을 이 테스트가 대신하지 않는다.
+
+## 28. 실제 재시작과 버전 cook 검증
+
+개발자는 에디터를 정상 종료한 뒤 프로젝트 루트 PowerShell에서 실행한다.
+
+```powershell
+.\Scripts\AI\Invoke-UE.ps1 -Action Build
+.\Scripts\AI\Invoke-DialogueRestoreValidation.ps1 -IncludePackage
+```
+
+`IncludePackage`를 생략하면 실제 두 UE 프로세스의 쓰기/복원만 검증한다. Write 프로세스가 선택 효과·재개 위치를 비동기로 저장한 뒤 종료하고, 다른 PID의 Read 프로세스가 합본을 복원한다. 원본 RestoreOnly 버전의 정확한 다음 Line, 보상 중복 없음, 열람 유지, 사망 초기화 후 Active 신버전 선정과 이전 후보 요청 취소를 검사한다. 패키징 포함 실행은 `ProjectCook.DialogueRegistry`와 `ProjectCook.DialogueVersions`를 추가 실행해 실제 cooked Registry의 Block ID/버전/신규 사용 상태를 확인한다.
+
+결과는 `Saved/AI/RestoreValidation/<GUID>/result.json`과 각 Invoke-UE/Package 실행 폴더에 기록한다. 테스트가 만든 `/Game/DialogueValidation/<GUID>` 에셋은 Git ignore이며 이번 package의 `-CookDir`로만 명시 포함한다. 일반 배포 시 해당 폴더를 추가 cook하거나 참조하지 않는다. 전용 `DialogueRestart_<GUID>` 슬롯·에셋·manifest는 증거로 남고 자동 삭제하지 않는다. 기존 게임 슬롯/샘플 에셋은 수정하지 않는다. 이 검증용 바이너리는 Git에 올리지 않고 생성 코드·문서·스크립트를 관리한다.
+
+두 내부 저장 슬롯은 중단에 대비한 구현 세부사항이다. 플레이어에게 과거 세이브 선택 UI를 제공하지 않는다. 패키지 생성/Registry 검사가 실제 패키지 실행·이미지·음성·입력 검증을 뜻하지 않는다. 실제 화면과 저장 표시 이미지 연결은 S6, 전체 게임·출시 업데이트·강제 종료 회귀와 배포 실행은 S7에서 수행한다.

@@ -27,3 +27,6 @@ Saved/
 *.xcworkspace
 *.sln
 *.sln.DotSettings.user
+
+# Generated only by explicit S4 restart/cook validation; never default shipping content.
+/Content/DialogueValidation/

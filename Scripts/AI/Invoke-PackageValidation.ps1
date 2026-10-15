@@ -3,7 +3,8 @@ param(
     [string]$EngineRoot = 'C:\Program Files\Epic Games\UE_5.4',
     [ValidateSet('Check', 'Package')][string]$Action = 'Check',
     [ValidateRange(1, 240)][int]$TimeoutMinutes = 30,
-    [ValidatePattern('^/[A-Za-z0-9_/]+$')][string]$Map = '/DialogueKit/Sample/Maps/NewWorld'
+    [ValidatePattern('^/[A-Za-z0-9_/]+$')][string]$Map = '/DialogueKit/Sample/Maps/NewWorld',
+    [ValidatePattern('^[a-fA-F0-9]{32}$')][string]$DialogueValidationId
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -34,6 +35,12 @@ try {
             '-platform=Win64', '-clientconfig=Development', '-build', '-cook', '-stage', '-pak', '-package', '-archive',
             "-map=$Map", "-archivedirectory=$Archive", "-stagingdirectory=$Staging",
             '-AdditionalCookerOptions=-ini:Engine:[/Script/Sentry.SentrySettings]:InitAutomatically=False')
+        # 명시한 검증 fixture만 추가 cook한다. 기존 프로젝트 설정은 변경하지 않는다.
+        if ($DialogueValidationId) {
+            $Fixture = Join-Path $ProjectRoot ("Content/DialogueValidation/" + $DialogueValidationId)
+            if (-not (Test-Path -LiteralPath $Fixture -PathType Container)) { throw 'Missing dialogue validation fixture.' }
+            $Arguments += "-CookDir=$Fixture"
+        }
         # cmd.exe에 전달하는 값은 고정 인자와 검증된 경로로 제한한다.
         foreach ($Value in (@($RunUAT, $Log) + $Arguments)) {
             if ($Value -match '["&|<>^%!]') { throw 'Unsupported shell character in package path/argument.' }

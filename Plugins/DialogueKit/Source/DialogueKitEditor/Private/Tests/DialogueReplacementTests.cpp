@@ -142,10 +142,14 @@ bool FDialogueReplacementTest::RunTest(const FString& Parameters)
 	auto* Controller = NewObject<UDialogueRestoreController>();
 	Controller->Initialize(Session, Game, nullptr);
 	const FDialogueResumePosition BeforeReset = Session->GetCheckpointState()->GetResumeAnchor();
+	bool bReadyReentryRejected = false;
+	ReplacementSave->OnReady = [&]() { bReadyReentryRejected = Session->ResetStory(true) == false; };
 	ReplacementSave->bReady = false;
 	TestFalse(TEXT("Reset refuses unready save"), Controller->ResetStoryAndSave(true));
 	TestEqual(TEXT("Failed reset preserves active block"), Session->GetCheckpointState()->GetResumeAnchor().Block.BlockId, BeforeReset.Block.BlockId);
 	TestTrue(TEXT("Failed new game preserves reads"), Session->GetCheckpointState()->HasReadLine(Block->GetBlockId(), Line->NodeGuid, 1));
+	TestTrue(TEXT("Save readiness cannot reenter reset"), bReadyReentryRejected);
+	ReplacementSave->OnReady = nullptr;
 	ReplacementSave->bReady = true;
 	Session->GetRunner()->CancelBlock();
 	FDialogueCheckpointSnapshot Missing = Source;
