@@ -83,3 +83,30 @@ bool UDialogueMetadataLibrary::IsEligible(const FDialogueBlockMetadata& Metadata
 	Context.Block = Metadata.Block;
 	return UDialogueConditionLibrary::EvaluateConditions(Metadata.EntryConditions, StateProvider, false, Context, Router).bPassed;
 }
+
+// 출시된 복원 전용/소속 없는 콘텐츠도 식별하며 신규 자격은 평가하지 않는다.
+bool FDialogueBlockMetadata::ReadIdentity(const FAssetData& Asset, FDialogueBlockReference& OutReference)
+{
+	FString Id;
+	FString Version;
+	const bool bHasId = Asset.GetTagValue(FName(TEXT("DialogueKit.BlockId")), Id);
+	const bool bHasVersion = Asset.GetTagValue(FName(TEXT("DialogueKit.ContentVersion")), Version);
+	if (bHasId || bHasVersion)
+	{
+		FDialogueBlockReference Reference;
+		if (bHasId == false || bHasVersion == false || FGuid::ParseExact(Id, EGuidFormats::Digits, Reference.BlockId) == false ||
+			LexTryParseString(Reference.ContentVersion, *Version) == false || Reference.IsValid() == false) return false;
+		OutReference = Reference;
+		return true;
+	}
+	// 이전 MetadataV1 에셋은 재저장 전까지 기존 식별자 표현을 지원한다.
+	FString Value;
+	if (Asset.GetTagValue(RegistryKey(), Value) == false || Value.IsEmpty()) return false;
+	FDialogueBlockMetadata Parsed;
+	Parsed.MetadataVersion = 0;
+	FStringOutputDevice Errors;
+	const TCHAR* End = StaticStruct()->ImportText(*Value, &Parsed, nullptr, PPF_None, &Errors, TEXT("DialogueRestoreIdentity"));
+	if (End == nullptr || *End != 0 || Errors.IsEmpty() == false || Parsed.MetadataVersion != 1 || Parsed.Block.IsValid() == false) return false;
+	OutReference = Parsed.Block;
+	return true;
+}

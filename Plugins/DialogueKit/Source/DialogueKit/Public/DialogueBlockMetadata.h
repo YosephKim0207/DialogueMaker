@@ -42,6 +42,8 @@ struct DIALOGUEKIT_API FDialogueBlockMetadata
 	bool IsValid() const;
 	FString ToRegistryValue() const;
 	static bool FromRegistryValue(const FString& Value, FDialogueBlockMetadata& OutMetadata);
+	// 복원은 신규 대상/소속 조건과 무관하게 정확 콘텐츠 식별자만 읽는다.
+	static bool ReadIdentity(const FAssetData& Asset, FDialogueBlockReference& OutReference);
 	static bool ReadAsset(const FAssetData& Asset, FDialogueBlockMetadata& OutMetadata);
 	static FName RegistryKey();
 	static FName TargetRegistryKey();

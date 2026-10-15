@@ -51,6 +51,7 @@ FGuid UDialogueBlockLoader::BeginRequest(UDialogueDiagnosticRouter* Router)
 	LastResult.RequestId = Generation;
 	Selected = FDialogueBlockCandidate();
 	bGreeting = false;
+	bRestoring = false;
 	bPending = true;
 	if (Selector == nullptr)
 	{
@@ -255,13 +256,72 @@ void UDialogueBlockLoader::EndSession()
 // 공통 인사와 실패/취소는 일반 후보 소진으로 기록하지 않는다.
 bool UDialogueBlockLoader::RecordBlockCompleted(FGuid RequestId, FDialogueBlockReference Block)
 {
-	return RequestId == Generation && RequestId == LastResult.RequestId && Selector && bGreeting == false && LastResult.bLoaded && LastResult.Block &&
+	return RequestId == Generation && RequestId == LastResult.RequestId && Selector && bGreeting == false && bRestoring == false && LastResult.bLoaded && LastResult.Block &&
 		Block == LastResult.Block->GetBlockReference() && Selector->RecordCompleted(Block);
 }
 
 // 로드 취소나 실행 실패는 직전 노출로 처리하지 않는다.
 bool UDialogueBlockLoader::RecordBlockExposed(FGuid RequestId, FDialogueBlockReference Block)
 {
-	return RequestId == Generation && RequestId == LastResult.RequestId && Selector && bGreeting == false && LastResult.bLoaded && LastResult.Block &&
+	return RequestId == Generation && RequestId == LastResult.RequestId && Selector && bGreeting == false && bRestoring == false && LastResult.bLoaded && LastResult.Block &&
 		Block == LastResult.Block->GetBlockReference() && Selector->RecordExposed(Block);
+}
+
+// 전체 경량 색인에서 정확한 ID/버전 하나를 찾는다. 중복을 임의 선택하지 않는다.
+bool UDialogueBlockLoader::FindExactReference(FDialogueBlockReference Reference, FSoftObjectPath& OutPath, FName& OutError)
+{
+	OutPath.Reset();
+	OutError = TEXT("InvalidRestoreReference");
+	if (Reference.IsValid() == false) return false;
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UDialogueGraph::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+	TArray<FAssetData> Assets;
+	FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().GetAssets(Filter, Assets);
+	FSoftObjectPath Found;
+	for (const FAssetData& Asset : Assets)
+	{
+		FDialogueBlockReference Candidate;
+		if (FDialogueBlockMetadata::ReadIdentity(Asset, Candidate) && Candidate == Reference)
+		{
+			if (Found.IsValid())
+			{
+				OutError = TEXT("AmbiguousRestoreReference");
+				return false;
+			}
+			Found = Asset.GetSoftObjectPath();
+		}
+	}
+	if (Found.IsValid() == false)
+	{
+		OutError = TEXT("RestoreBlockNotFound");
+		return false;
+	}
+	OutPath = Found;
+	OutError = NAME_None;
+	return true;
+}
+
+// 찾기 실패는 일반 후보/인사로 대체하지 않고 기존 저장을 유지한다.
+FGuid UDialogueBlockLoader::RequestExactReference(FDialogueBlockReference Reference, UDialogueDiagnosticRouter* Router)
+{
+	const FGuid Request = BeginRequest(Router);
+	bRestoring = true;
+	Selected.Metadata.Block = Reference;
+	FSoftObjectPath Path;
+	FName Error;
+	if (FindExactReference(Reference, Path, Error) == false) FailRequest(Request, Error);
+	else StartLoad(Request, Path);
+	return Request;
+}
+
+// 명시적 대상은 복원 전용이어도 허용하며 잘못된 대상 객체는 완료 검사에서 거부한다.
+FGuid UDialogueBlockLoader::RequestExactPath(TSoftObjectPtr<UDialogueGraph> Block, FDialogueBlockReference Reference, UDialogueDiagnosticRouter* Router)
+{
+	const FGuid Request = BeginRequest(Router);
+	bRestoring = true;
+	Selected.Metadata.Block = Reference;
+	if (Block.IsNull() || Reference.IsValid() == false) FailRequest(Request, TEXT("InvalidRestoreReference"));
+	else StartLoad(Request, Block.ToSoftObjectPath());
+	return Request;
 }

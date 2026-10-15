@@ -44,6 +44,8 @@ void UDialogueGraph::GetAssetRegistryTags(FAssetRegistryTagsContext Context) con
 	UE_LOG(LogDialogueGraph, Display, TEXT("UDialogueGraph::GetAssetRegistryTags : Enter"));
 
 	Super::GetAssetRegistryTags(Context);
+	Context.AddTag(FAssetRegistryTag(TEXT("DialogueKit.BlockId"), BlockId.ToString(EGuidFormats::Digits), FAssetRegistryTag::TT_Hidden));
+	Context.AddTag(FAssetRegistryTag(TEXT("DialogueKit.ContentVersion"), FString::FromInt(ContentVersion), FAssetRegistryTag::TT_Hidden));
 	Context.AddTag(FAssetRegistryTag(FDialogueBlockMetadata::RegistryKey(), GetSelectionMetadata().ToRegistryValue(), FAssetRegistryTag::TT_Hidden));
 	Context.AddTag(FAssetRegistryTag(FDialogueBlockMetadata::TargetRegistryKey(), DialogueTarget.ToString(), FAssetRegistryTag::TT_Hidden));
 
@@ -99,3 +101,15 @@ FDialogueBlockMetadata UDialogueGraph::GetSelectionMetadata() const
 	Metadata.Priority = DialoguePriorityWeight;
 	return Metadata;
 }
+
+#if WITH_EDITOR
+// 새 버전 복제본에 원본의 안정 ID를 부여하며 일반 복제는 새 ID를 계속 사용한다.
+bool UDialogueGraph::InitializeContentVersion(const UDialogueGraph* Source, int32 NewVersion)
+{
+	if (IsValid(Source) == false || Source == this || Source->GetBlockReference().IsValid() == false || NewVersion <= Source->ContentVersion) return false;
+	Modify();
+	BlockId = Source->BlockId;
+	ContentVersion = NewVersion;
+	return true;
+}
+#endif

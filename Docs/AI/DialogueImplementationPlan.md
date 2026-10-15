@@ -506,3 +506,6 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 
 - S3 실행 세션 연결: feature/dialogue-checkpoint-session에서 Prepare/Run 분리, same-run resume, Line 방문/통과 선기록, 단일 캡처 경계, 접수 실패 자료/큐 예약 보존, 샘플 재시도, End 실제 저장 ack, Subsystem 연결 구현. 공개 API/오류 책임은 UserGuide 25절.
 - 검증: Build 20261015_145907_e782ccbe, 전체 DialogueKit 39개 통과/오류0 (20261015_150009_4c1fa116). 최초 fixture 태그/핀 오류는 수정 후 재검증했다. Sol Medium 지적 큐 교체/임의 entry 공개 문제 수정. S4 정확 버전·교체와 최종 실파일 프로세스 재시작/cook는 후속 작업이다.
+
+- S4 정확 복원: 독립 Registry BlockId/ContentVersion 태그(이전 MetadataV1 fallback), 정확 조회/복원 전용 로드, 중복/누락 오류 및 후보 이력 분리. Editor 새 버전 작성은 별도 에셋에만 private friend 경로로 ID를 지정하며 원본/기존 목적지는 보존한다.
+- 검증: Build 150642_f515ce24, 전체40개 Error0 150716_5aa4c5ad. Sol Medium 권고 독립 식별자 태그, private 버전 helper, 실패 OutPath 초기화 반영. 사용법 UserGuide 26절. 실제 cook 버전 보존은 마지막 통합 검증에서 진행한다.
