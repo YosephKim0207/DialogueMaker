@@ -31,7 +31,8 @@ public class DialogueKitEditor : ModuleRules
                         "AssetDefinition",
                         "Projects",
                         "ToolMenus",
-                        "DesktopPlatform"
+                        "DesktopPlatform",
+                        "UMG"
                 });
 		
 		// Uncomment if you are using Slate UI
