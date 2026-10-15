@@ -44,6 +44,8 @@ void UDialogueGraph::GetAssetRegistryTags(FAssetRegistryTagsContext Context) con
 	UE_LOG(LogDialogueGraph, Display, TEXT("UDialogueGraph::GetAssetRegistryTags : Enter"));
 
 	Super::GetAssetRegistryTags(Context);
+	Context.AddTag(FAssetRegistryTag(FDialogueBlockMetadata::RegistryKey(), GetSelectionMetadata().ToRegistryValue(), FAssetRegistryTag::TT_Hidden));
+	Context.AddTag(FAssetRegistryTag(FDialogueBlockMetadata::TargetRegistryKey(), DialogueTarget.ToString(), FAssetRegistryTag::TT_Hidden));
 
 	Context.AddTag(FAssetRegistryTag(*FString::Printf(TEXT("%s"), *GameplayTags::Required_All_Tags.GetTag().ToString()),RequiredAllTags.ToString(), FAssetRegistryTag::TT_Hidden));
 	Context.AddTag(FAssetRegistryTag(*FString::Printf(TEXT("%s"), *GameplayTags::Required_Any_Tags.GetTag().ToString()), RequiredAnyTags.ToString(), FAssetRegistryTag::TT_Hidden));
@@ -80,4 +82,20 @@ void UDialogueGraph::PostDuplicate(EDuplicateMode::Type DuplicateMode)
         BlockId = FGuid::NewGuid();
         ContentVersion = 1;
     }
+}
+
+// Block 원본의 값만 복사하며 ID 생성이나 게임 상태 조회는 하지 않는다.
+FDialogueBlockMetadata UDialogueGraph::GetSelectionMetadata() const
+{
+	FDialogueBlockMetadata Metadata;
+	Metadata.bRequiresManualRewrite = RequiredAllTags.IsEmpty() == false || RequiredAnyTags.IsEmpty() == false || BlockedAnyTags.IsEmpty() == false;
+	Metadata.Block = GetBlockReference();
+	Metadata.TargetTag = DialogueTarget;
+	Metadata.StoryScope = StoryScope;
+	Metadata.EntryConditions = EntryConditions;
+	Metadata.Availability = Availability;
+	Metadata.bDefault = bDefaultBlock;
+	Metadata.bTopPriority = bTopPriorityBlock;
+	Metadata.Priority = DialoguePriorityWeight;
+	return Metadata;
 }

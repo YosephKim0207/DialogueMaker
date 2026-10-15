@@ -24,6 +24,8 @@
 
 - [19. 게임 소유 FIFO와 비동기 합본 저장 샘플](#19-게임-소유-fifo와-비동기-합본-저장-샘플)
 
+- [20. Block 로드 전 대상과 조건 필터](#20-block-로드-전-대상과-조건-필터)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -545,3 +547,29 @@ C++에서는 `OnWriteRequestedNative.Bind...`, Blueprint에서는 `OnWriteReques
 ### 검증 범위
 
 `DialogueKit.Checkpoints.ImmutableFIFO`는 불변 자료·실패 후 대기·재시도·오래된 완료·즉시 완료를 검사합니다. `AsyncCombinedFile`은 고유 슬롯의 실제 비동기 저장, 새 객체 복원, 미저장 상태 배제, 원장 재전달, 손상된 다른 슬롯에서의 이전 저장 보존을 검사합니다. 프로세스 강제 종료·재실행과 Runner 재개 연결은 별도 S3 검증 대상입니다.
+
+## 20. Block 로드 전 대상과 조건 필터
+
+### 작가 설정
+
+Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 대상 GameplayTag 하나를 설정합니다. NPC 대화는 NPC 태그, 장소 대화는 MAP 태그처럼 게임이 등록한 태그를 사용합니다. 화자 설정과는 별개이며 하위 태그를 자동 포함하지 않습니다.
+
+`Story Scope`에서 Chapter/Scene 소속 또는 `Unrestricted`를 설정합니다. `Unassigned`는 신규 후보에서 제외됩니다. `Entry Conditions`에는 기존 Tag/Value/Count 조건을 등록합니다. `Default Block`과 `Top Priority Block`은 동시에 사용할 수 없습니다. 숫자 우선순위는 기존 `Dialogue Priority Weight` 필드를 사용합니다.
+
+`Availability=RestoreOnly`는 신규 후보에서 제외하기 위한 표시입니다. 기존 버전의 실제 저장 복원 연결은 후속 S4 작업입니다. 기존 에셋의 `Required All Tags`, `Required Any Tags`, `Blocked Any Tags`가 남아 있으면 신규 후보 자료는 유효하지 않은 것으로 취급합니다. 프로토타입 에셋은 확정된 방침에 따라 수동 재작성하고 새 Entry Conditions의 의미를 확인한 뒤 기존 조건을 정리합니다. 자동 조건 변환은 하지 않습니다.
+
+태그 루트별 선택 UI·스토리보드 관리 UI는 S5 대상이며 이 항목에서는 기본 Details 필드를 제공합니다.
+
+### 개발자 사용법과 확장
+
+`UDialogueGraph::GetSelectionMetadata()`는 에셋 원본에서 메타데이터를 만듭니다. 저장/cook 시 `GetAssetRegistryTags()`가 `DialogueKit.MetadataV1`과 `DialogueKit.Target`을 기록합니다. `FDialogueBlockMetadata::ReadAsset(FAssetData, OutMetadata)`는 Registry만 읽고 `GetAsset()`/`TryLoad()`를 호출하지 않습니다.
+
+읽은 자료는 `UDialogueMetadataLibrary::IsEligible(Metadata, Target, StoryDefinition, StoryProgress, StateProvider, Router)`로 검사합니다. 게임이 현재 진행도와 상태 제공자를 전달합니다. 대상 정확 일치·신규 노출 허용·소속을 확인한 뒤 기존 조건 평가 계약을 적용합니다. 상태 조회 오류의 True 대체와 진단은 기존 공통 계약을 따릅니다. 이 API는 신규 시작/Refresh 전용이며 활성 체크포인트 복원에 적용하지 않습니다.
+
+게임별 아이템/능력치/태그 이름과 현재 값은 Provider에서 확장합니다. Registry에는 조건 정의만 들어 있고 플레이어 현재 값은 들어 있지 않습니다. `int64` 수량은 UE 구조체 텍스트로 보존합니다. 메타데이터 읽기 실패 시 출력값은 바꾸지 않으며 실패를 무조건 적격으로 취급하지 않습니다.
+
+### 검증
+
+`DialogueKit.Selection.Metadata`는 값 왕복·대상 정확 일치·신규 노출 중단·소속 없음·기존 조건 재작성 검사를, `UnloadedRegistry`는 Saved 아래 고유 패키지의 실제 저장·언로드 후 Registry 조회와 무로딩 평가를 검사합니다.
+
+패키징 후 별도로 `Invoke-UE.ps1 -Action Test -TestFilter ProjectCook.DialogueRegistry`를 실행하면 실제 cooked Registry의 메타데이터와 PrimaryAssetId 보존을 확인합니다. 기존 샘플의 미설정 Block ID/대상 조건이 올바른 신규 콘텐츠라는 뜻은 아닙니다. 후보 추첨·게임 실행 연결과 구버전 복원 검증은 별도 항목입니다.
