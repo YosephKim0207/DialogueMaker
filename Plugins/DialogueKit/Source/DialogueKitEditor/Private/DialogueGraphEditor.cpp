@@ -4,6 +4,7 @@
 #include "EdGraphNode_Comment.h"
 #include "DialogueCommentNode.h"
 #include "DialogueGraphCodec.h"
+#include "DialogueGraphValidation.h"
 
 #include "DesktopPlatformModule.h"
 #include "DialogueBranchEdGraphNode.h"
@@ -82,6 +83,7 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     SetCurrentMode(TEXT("DialogueGraphEditorMode"));
 
     UpdateEditorGraphFromWorkingAsset();
+    FDialogueGraphValidation::RegisterWorkingGraph(WorkingAsset, WorkingGraph);
 }
 
 void FDialogueGraphEditor::SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorkingGraphUI)
@@ -159,7 +161,11 @@ class UDialogueEdGraphNodeBase* FDialogueGraphEditor::GetSelectedNode(const FGra
 void FDialogueGraphEditor::OnClose()
 {
     GEditor->UnregisterForUndo(this);
-    UpdateWorkingAssetFromGraph();
+    if (FDialogueGraphValidation::CanSave(FDialogueGraphValidation::Inspect(WorkingGraph)))
+    {
+        UpdateWorkingAssetFromGraph();
+    }
+    FDialogueGraphValidation::UnregisterWorkingGraph(WorkingAsset);
     WorkingAsset->SetPreSaveListener(nullptr);
 
     FAssetEditorToolkit::OnClose();
@@ -193,9 +199,12 @@ void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
     {
         FMenuBuilder Menu(true, GraphEditorCommands);
         Menu.AddMenuEntry(FDialogueGraphEditorCommands::Get().Search);
+        Menu.AddMenuEntry(FText::FromString(TEXT("그래프 검사")), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &FDialogueGraphEditor::CheckGraph)));
         return Menu.MakeWidget();
     }), FText::FromString(TEXT("DialogueMaker")), FText::FromString(TEXT("대화 제작 도구")), FSlateIcon());
     ToolbarBuilder.AddToolBarButton(FDialogueGraphEditorCommands::Get().DuplicateNodes);
+    ToolbarBuilder.AddToolBarButton(FUIAction(FExecuteAction::CreateSP(this, &FDialogueGraphEditor::CheckGraph)), NAME_None,
+        FText::FromString(TEXT("그래프 검사")), FText::FromString(TEXT("현재 Graph의 연결과 조건을 검사합니다.")), FSlateIcon());
     ToolbarBuilder.AddToolBarButton(
         FDialogueGraphEditorCommands::Get().ConvertToCSV,
         NAME_None,
@@ -453,6 +462,7 @@ void FDialogueGraphEditor::AddReferencedObjects(FReferenceCollector& Collector)
 // 변환 실패를 성공 저장처럼 보이지 않게 하고 원래 에셋을 보존한다.
 void FDialogueGraphEditor::SaveAsset_Execute()
 {
+    if (ConfirmGraphSave(true) == false) return;
     FString Error;
     if (bCanCommitWorkingGraph == false || FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, Error) == false)
     {
@@ -465,6 +475,7 @@ void FDialogueGraphEditor::SaveAsset_Execute()
 // 다른 이름 저장에도 같은 기본 구조 검사를 적용한다.
 void FDialogueGraphEditor::SaveAssetAs_Execute()
 {
+    if (ConfirmGraphSave(true) == false) return;
     FString Error;
     if (bCanCommitWorkingGraph == false || FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, Error) == false)
     {

@@ -21,6 +21,8 @@ public:
 	void DuplicateSelectedNodes();
 	TSharedRef<SWidget> CreateSearchPanel();
 	void ShowSearch();
+	void CheckGraph();
+	bool ConfirmGraphSave(bool bSaving);
 	void RunSearch();
 	void FocusNode(TWeakObjectPtr<UEdGraphNode> Node, FGuid ChoiceId = FGuid());
 	void SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorkingGraphUI);

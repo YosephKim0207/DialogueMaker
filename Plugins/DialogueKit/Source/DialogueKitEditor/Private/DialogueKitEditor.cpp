@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DialogueKitEditor.h"
+#include "DialogueGraphValidation.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DesktopPlatformModule.h"
@@ -183,6 +184,7 @@ IMPLEMENT_MODULE(FDialogueKitEditorModule, DialogueKitEditor);
 // 모듈 시작 시 스타일/커맨드 등록과 함께 상단 메뉴 확장을 등록한다.
 void FDialogueKitEditorModule::StartupModule()
 {
+	FDialogueGraphValidation::Startup();
 	StyleSet = MakeShareable(new FSlateStyleSet(TEXT("DialogueKitEditorStyle")));
 	// 아이콘이 들어 있는 'AssetIcon' 폴더 Root 지정
 	const FString IconRoot = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Resources/Texture/AssetIcon"));
@@ -222,6 +224,7 @@ void FDialogueKitEditorModule::StartupModule()
 // 모듈 종료 시 등록한 메뉴/스타일/커맨드를 정리한다.
 void FDialogueKitEditorModule::ShutdownModule()
 {
+	FDialogueGraphValidation::Shutdown();
 	if (FPropertyEditorModule* PropertyEditor = FModuleManager::GetModulePtr<FPropertyEditorModule>(TEXT("PropertyEditor")))
 	{
 		PropertyEditor->UnregisterCustomClassLayout(TEXT("DialogueLineNodeInfo"));
