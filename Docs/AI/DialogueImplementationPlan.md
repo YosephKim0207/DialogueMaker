@@ -556,3 +556,5 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - S5 경유점/주석: editor-only 배치 DTO, 선 더블클릭 경유점, 실행 연결 평탄화, 주석 제목/설명/색상/크기/이동 모드, Undo/Redo 화면 갱신. Branch NodeInfo GC 참조 보완. Build 162349_0687e120 및 최종 Editor 4개(162421_5fbf3dac) 통과/Error 0. 전체 45개(161710_1141c480) 회귀 통과 후 주석 설명/파일 검증을 보완했다. 파일 테스트의 마운트 조기 해제 실패는 수명 수정 후 통과. 실제 GUI/cook 미검증.
 
 - S5 복제 완료: Graph Ctrl+D/툴바, 선택 내부 연결만 복제, Node/Pin/Choice 새 ID, 열람 버전 초기화, Start 제외, 손상/미지원 구조 사전 거부. Build 162844_94e18067, Editor 5개(162754_59626998), 최종 Duplicate 1개(162945_468e044c) 통과/Error 0. 독립 검토의 legacy 선택 ID/열람 초기화/지원 클래스 방어 반영. 실제 키보드 포커스 미검증.
+
+- S5 검색 완료: Ctrl+F/DialogueMaker 메뉴·하단 세 입력칸·Enter/버튼, 화자+본문 AND/Choice 단독, 혼합·빈값·0건 안내, weak 노드 이동 및 ChoiceID 기반 현 항목 강조. Build 163155_a1cddf98 및 최종 UI 빌드 성공; Search 1개(163219_c96e52d8) 통과/Error 0. 독립 검토의 Enter 누락 반영. 실제 Slate 클릭·강조는 GUI 미검증.
