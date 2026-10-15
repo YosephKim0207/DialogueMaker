@@ -234,8 +234,9 @@ bool UDialogueCheckpointSession::ReplaceLoadedBlock(UDialogueGraph* Target, cons
 // 사전 확인 후 초기화한 자료를 즉시 캡처하며 실패 자료도 재시도 가능하게 유지한다.
 bool UDialogueCheckpointSession::ResetStoryAndSave(bool bNewGame)
 {
-	if (CanOperate() == false || Runner->IsProcessing() || Ready() == false) return false;
+	if (CanOperate() == false || Runner->IsProcessing()) return false;
 	TGuardValue<bool> Guard(bBusy, true);
+	if (Ready() == false) return false;
 	if (Runner->CancelBlock() == false) return false;
 	State->ResetStory(bNewGame);
 	ActiveBlock = nullptr;
