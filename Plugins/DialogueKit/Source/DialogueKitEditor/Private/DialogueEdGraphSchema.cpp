@@ -2,6 +2,7 @@
 
 #include "DialogueEdGraphSchema.h"
 #include "DialogueFlowEdGraphNode.h"
+#include "DialogueLineAuthoring.h"
 #include "DialogueChoiceEdGraphNode.h"
 #include "DialogueStateChangeEdGraphNode.h"
 #include "ScopedTransaction.h"
@@ -50,7 +51,7 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 	TSharedPtr<FNewNodeAction> NewNodeAction = MakeShareable(new FNewNodeAction(
 		UDialogueFlowEdGraphNode::StaticClass(),
 		FText::FromString("Nodes"),
-		FText::FromString("Line"),
+		NSLOCTEXT("DialogueKit", "CreateLine", "Line 생성"),
 		FText::FromString("Add Line."),
 		0));
 
@@ -71,6 +72,19 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 	ContextMenuBuilder.AddAction(MakeShareable(new FNewNodeAction(UDialogueChoiceEdGraphNode::StaticClass(), FText::FromString(TEXT("Nodes")), FText::FromString(TEXT("Choice")), FText::FromString(TEXT("Add Choice")), 0)));
 	ContextMenuBuilder.AddAction(MakeShareable(new FNewNodeAction(UDialogueStateChangeEdGraphNode::StaticClass(), FText::FromString(TEXT("Nodes")), NSLOCTEXT("DialogueKit", "StateChangeNode", "상태 변경"), FText::FromString(TEXT("StateChange")), 0)));
 	ContextMenuBuilder.AddAction(NewNodeAction);
+	if (ContextMenuBuilder.FromPin && ContextMenuBuilder.FromPin->Direction == EGPD_Output)
+	{
+		if (FDialogueLineAuthoring::FindNearestLines(ContextMenuBuilder.FromPin).IsEmpty())
+		{
+			ContextMenuBuilder.AddAction(MakeShared<FEdGraphSchemaAction_Dummy>(FText::FromString(TEXT("Nodes")),
+				NSLOCTEXT("DialogueKit", "NoSourceLine", "연속된 화자의 Line 생성 — 사용 불가: 앞선 Line 없음"),
+				NSLOCTEXT("DialogueKit", "NoSourceLineTip", "역방향 연결에서 원본 Line을 찾을 수 없습니다."), 0));
+		}
+		else
+		{
+			ContextMenuBuilder.AddAction(MakeShared<FContinueLineAction>());
+		}
+	}
 	ContextMenuBuilder.AddAction(NewEndNodeAction);
 	ContextMenuBuilder.AddAction(BranchNodeAction);
 }
@@ -91,11 +105,14 @@ void UDialogueEdGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
 // Dialogue Graph Node 정보 초기화
 UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
-	if (ParentGraph == nullptr || ClassTemplate == nullptr)
+	if (ParentGraph == nullptr || ParentGraph->bEditable == false || ParentGraph->GetSchema() == nullptr || ClassTemplate == nullptr ||
+		(FromPin && (FromPin->Direction != EGPD_Output || FromPin->GetOwningNode() == nullptr ||
+			ParentGraph->Nodes.Contains(FromPin->GetOwningNode()) == false ||
+			FromPin->GetOwningNode()->Pins.Contains(FromPin) == false || FromPin->GetOwningNode()->GetGraph() != ParentGraph)))
 	{
 		return nullptr;
 	}
-	const FScopedTransaction Transaction(FText::FromString(TEXT("Create Dialogue Node")));
+	FScopedTransaction Transaction(FText::FromString(TEXT("Create Dialogue Node")));
 	ParentGraph->Modify();
 	UDialogueEdGraphNodeBase* Result = NewObject<UDialogueEdGraphNodeBase>(ParentGraph, ClassTemplate, NAME_None, RF_Transactional);
 	Result->CreateNewGuid();
@@ -106,16 +123,18 @@ UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* 
 	UEdGraphPin* InputPin = Result->CreateDefaultInputPin();
 	Result->CreateDefaultOutputPin();
 	
+	ParentGraph->AddNode(Result, true, bSelectNewNode);
 	if (FromPin != nullptr)
 	{
 		if (FromPin->Direction != EGPD_Output || ParentGraph->GetSchema()->TryCreateConnection(FromPin, InputPin) == false)
 		{
+			Result->DestroyNode();
+			Transaction.Cancel();
 			return nullptr;
 		}
 	}
 
 	ParentGraph->Modify();
-	ParentGraph->AddNode(Result, true, bSelectNewNode);
 	ParentGraph->NotifyGraphChanged();
 	ParentGraph->MarkPackageDirty();
 

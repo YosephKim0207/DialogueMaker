@@ -40,7 +40,11 @@ static bool HasValidPayload(EDialogueType Type, UDialogueNodeInfoBase* Info, int
 	case EDialogueType::LineNode:
 	{
 		const UDialogueLineNodeInfo* Line = Cast<UDialogueLineNodeInfo>(Info);
-		return Line && Line->GetReadVersion() > 0 && Line->GetDialogueChoices().IsEmpty() && Outputs == 1;
+		return Line && Line->GetReadVersion() > 0 && Line->GetDialogueChoices().IsEmpty() && Outputs == 1 &&
+			FMath::IsFinite(Line->SecondsPerCharacter) && FMath::IsFinite(Line->LineDuration) &&
+			Line->SecondsPerCharacter >= 0.0f && Line->LineDuration >= 0.0f &&
+			(Line->SecondsPerCharacter == 0.0f || Line->LineDuration == 0.0f) &&
+			FMath::IsFinite(Line->PortraitOffset.X) && FMath::IsFinite(Line->PortraitOffset.Y);
 	}
 	case EDialogueType::ChoiceNode:
 	{

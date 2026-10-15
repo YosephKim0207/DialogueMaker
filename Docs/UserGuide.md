@@ -42,6 +42,8 @@
 
 - [29. 노드 색상과 우클릭 삭제](#29-노드-색상과-우클릭-삭제)
 
+- [30. 연속 화자와 Line 저작 설정](#30-연속-화자와-line-저작-설정)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -754,3 +756,22 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 개발자 확장: Flow 계열 노드의 `GetNodeTitleColor()`를 override하면 전용 핀 위젯도 같은 색을 사용한다. 저장된 PinSubCategory 변경은 필요 없다. 에디터 명령에서 `CanDeleteFromGraph()`로 확인하고 `DeleteFromGraph()`를 호출하면 연결 정리/transaction을 공유한다. 이 낮은 수준 함수 자체는 확인창을 띄우지 않으며 메뉴가 확인 UI를 담당한다. Runtime/게임 API는 변경하지 않았다.
 
 검증은 `DialogueKit.Editor.NodeDeleteUndo`의 메뉴 구분·읽기전용 거부·링크 제거·Undo/Redo·Graph export와 관련 Graph 회귀를 사용한다. 실제 GUI에서 색감·확인창 클릭을 관찰한 결과와 비시각 자동화 결과는 구분한다.
+
+
+## 30. 연속 화자와 Line 저작 설정
+
+### 작가의 작업 순서
+
+1. Line/Branch/Choice의 출력 핀을 빈 공간으로 끌어 놓습니다. `Line 생성`은 기본값으로 만들고 `연속된 화자의 Line 생성`은 가장 가까운 앞선 Line의 표현 설정을 가져옵니다.
+2. 같은 거리의 원본이 여럿이면 검색 가능한 원본 선택창에서 화자·본문·이미지·표정·위치·방향·시간을 확인하고 항목을 누릅니다. 창을 닫으면 생성하지 않습니다. 앞선 Line이 없으면 사용 불가 이유가 메뉴에 표시되고 생성되지 않습니다.
+3. 복사 항목은 화자, 이미지, 표정, 위치, 방향, 글자당/전체 출력 시간입니다. 본문·액션·효과·열람 기록은 복사하지 않습니다. 기존 출력 연결이 있으면 새 연결로 교체하며 기존 목적 노드는 보존합니다. Undo 한 번으로 생성과 연결 교체를 되돌립니다.
+4. Line Details에서 `Seconds Per Character` 또는 `Line Duration`을 바꾸면 반대 항목은 0으로 변경됩니다. 두 항목 기본값은 0(즉시 출력)입니다. 툴바 `출력 시간 일괄 변경`에서 현재 Block의 모든 Line에 적용할 수 있습니다. 일괄 편집도 Undo 한 번으로 복구합니다.
+5. 본문 수정 후 기존 플레이어에게 미열람으로 처리하려면 Line Details의 `미열람 갱신`을 누릅니다. Node ID는 유지하고 ReadVersion만 증가합니다. 본문 편집 자체는 열람 버전을 변경하지 않습니다.
+
+### 개발자 연동과 확장
+
+- `UDialogueLineNodeInfo::SetTextTiming(bool bWholeLine, float Seconds)`는 두 모드 중 하나만 설정합니다. 음수/비정상 수는 0으로 정규화합니다. 편집 일괄 API `FDialogueLineAuthoring::ApplyTiming`은 잘못된 입력이나 읽기 전용 Graph에 false를 반환합니다.
+- `CopyContinuationDefaultsFrom`은 표현 설정 전용 복사 함수입니다. 향후 새 표현 설정을 추가할 때 이 whitelist와 테스트를 함께 확장하고 게임 효과/이력을 복사하지 않습니다.
+- `FDialogueLineAuthoring::FindNearestLines`와 `CreateContinuation`은 Editor 전용입니다. 실행 중 게임 상태를 변경하는 API가 아닙니다.
+- `PortraitImage`가 비어 있으면 기존 화자/표정 조회를 사용하는 계약입니다. 실제 순차 출력·이미지 적용·음성 중단 소비처는 S6에서 연결합니다. S5는 저작값과 저장 왕복을 제공합니다.
+- 자동화 `DialogueKit.Editor.LineAuthoring`은 상속·새 ID·연결 교체·Undo·일괄 시간·왕복을 검사합니다. 실제 팝업 클릭/레이아웃은 GUI 도구 부재로 별도 확인이 필요합니다.

@@ -77,3 +77,11 @@ bool UDialogueNodeInfo::AdvanceReadVersion()
 	++ReadVersion;
 	return true;
 }
+
+// 동일 화자 연속 입력에서 허용된 기존 표현 필드만 복사한다.
+void UDialogueNodeInfo::CopySpeakerPresentationFrom(const UDialogueNodeInfo& Source)
+{
+	SpeakerID = Source.SpeakerID;
+	PortraitData.EmoteType = Source.PortraitData.EmoteType;
+	PortraitData.SidePosition = Source.PortraitData.SidePosition;
+}
