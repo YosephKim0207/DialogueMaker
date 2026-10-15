@@ -28,6 +28,8 @@
 
 - [21. 우선순위 선정과 대화 세션 순회](#21-우선순위-선정과-대화-세션-순회)
 
+- [22. 최신 요청 기준 비동기 Block 로드](#22-최신-요청-기준-비동기-block-로드)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -589,3 +591,32 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 결과의 `bSelected`와 `ErrorCode`를 확인합니다. 같은 대상에서 활성 Block ID가 중복되면 `InvalidOrAmbiguousBlockCatalog`, 적격 후보가 없으면 `NoEligibleDialogueBlock`입니다. 공통 인사 로드와 실제 실행 연결은 로더가 담당하는 후속 기능입니다. 전역 버전 카탈로그 검증은 별도 S4 복원 항목입니다.
 
 시나리오 작가는 20절의 기본·최우선·우선순위·진입 조건을 설정합니다. 세션 완료 여부는 에셋에 저장하지 않습니다. `DialogueKit.Selection.PriorityAndSession`은 일반 소진, 하위 우선순위, 기본 순회, 최우선 반복/동률, 중단 후 직전 제외, 세션 초기화를 검증합니다.
+
+## 22. 최신 요청 기준 비동기 Block 로드
+
+### 게임 개발자 호출 순서
+
+`UDialogueBlockLoader`를 게임 소유 UObject의 `UPROPERTY`로 보유합니다. 게임 스레드에서 사용하며, 기존 `BeginDialogue(Speaker)` 경로를 자동 교체하지 않습니다. 새 대상 기반 경로에서는 다음과 같이 연결합니다.
+
+1. 호출 전에 `OnLoadCompleted`(Blueprint) 또는 `OnLoadCompletedNative`(C++)에 완료 처리를 연결합니다. 즉시 완료도 가능하므로 호출 반환 후 이벤트를 연결하지 않습니다.
+2. 게임이 정한 대화 시작 또는 Refresh 시점에 `RequestFromRegistry(Target, StoryDefinition, CurrentProgress, StateProvider, DiagnosticRouter)`를 호출합니다. 반환값은 요청 식별자이며 성공 여부가 아닙니다.
+3. 결과 이벤트의 `IsCurrentRequest(Result.RequestId)`와 `Result.bLoaded`를 검사합니다. 실패 시 `ErrorCode`로 게임이 후속 흐름을 결정합니다. 예를 들어 `MissingCommonGreetingBlock`이면 콘텐츠 설정을 수정해야 합니다. 플러그인은 게임용 팝업을 강제로 띄우지 않습니다.
+4. 성공한 `Result.Block`을 `UDialogueSubsystem::StartDialogueBlock`에 전달합니다. 실행 전 `ConfigureBlockProviders`로 게임 제공자를 연결해야 합니다. 실행/표시가 성공하면 `RecordBlockExposed(Result.RequestId, BlockReference)`를 호출합니다.
+5. 해당 실행의 정상 End에서만 `RecordBlockCompleted(원래 RequestId, BlockReference)`를 호출합니다. 중단·선정·로드만으로 완료 처리하지 않습니다. 같은 Block이라도 이전 요청 ID의 완료는 거부합니다.
+6. 대화 상황을 종료할 때 게임의 실행/UI 종료와 함께 `EndSession()`을 호출합니다. 로더의 세션 종료는 이미 실행 중인 Runner나 게임 UI를 대신 종료하지 않습니다.
+
+로드 중 새 요청은 이전 요청을 무효화하고 자신이 소유한 로드 핸들만 취소합니다. 같은 에셋을 다른 시스템이 사용하더라도 전역 unload하지 않습니다. `CancelPending()`은 로드/선정만 취소하고 세션 완료 이력은 유지합니다. 조건은 요청 순간 평가하며 로드 완료 때 다시 평가하지 않습니다. 게임은 연타·이동·대화 입력 제한을 자체 정책으로 제어해야 합니다.
+
+이벤트 처리 중 새 요청을 시작할 수 있습니다. 이전 결과로 UI/실행을 변경하기 직전에 `IsCurrentRequest`를 검사하십시오. Native 구독자가 새 요청을 시작한 경우 이전 결과의 Blueprint 이벤트는 생략됩니다. 게임 연동은 한 이벤트 경로를 정본으로 사용하고, 여러 Native 구독자를 사용하면 각 구독자가 요청 ID를 검사해야 합니다.
+
+### 공통 인사 에셋 설정
+
+에디터의 `Project Settings → DialogueKit Settings → Fallback → Common Greeting Block` 에셋 선택기에서 개발자가 만든 공통 인사 Block을 지정합니다. 설정 검색에서 `Common Greeting Block`으로 찾을 수도 있습니다. 새 로더는 이 설정을 기본값으로 사용하며, 게임이 로더 인스턴스의 `CommonGreetingBlock`을 명시적으로 교체할 수 있습니다. 설정 변경 후 이미 생성된 로더에는 다시 지정해야 합니다.
+
+적격 일반/기본 후보가 없을 때만 공통 인사를 시도합니다. 공통 인사는 정상 Block ID를 가진 `Active` 에셋이어야 하며, 일반 후보의 대상/진입 조건을 다시 적용하지 않는 최종 fallback입니다. 기본 대화 누락 진단을 제작사 로그 전송에 연결하고 출시 전 수정하십시오. 공통 인사 파일을 자동 생성하지 않습니다. 프로젝트 AssetManager/cook 설정에 해당 콘텐츠가 포함되어야 합니다.
+
+### 확장과 검증 범위
+
+게임의 별도 카탈로그는 `RequestCandidates`에 같은 메타데이터를 제공합니다. C++ 커스텀 스트리밍은 `LoadOverride`와 `CompleteRequest(RequestId, Block)`을 사용합니다. 예상 에셋 경로와 Block ID·버전이 일치해야 합니다. 에셋 이름/경로 변경 후 오래된 색인은 재생성해야 합니다. 오류·성공 반환에 따른 UI/재시도 정책은 게임 책임입니다.
+
+`DialogueKit.Loading`은 이전 완료 무시, 취소, 최신 실패, 즉시 완료, 요청 시점 조건 고정, 공통 인사, 조건 진단 재진입을 검사합니다. `DialogueKit.Selection.UnloadedRegistry`는 임시 에셋을 실제 언로드한 뒤 Registry 평가와 비동기 로드, 같은 에셋의 다른 핸들 취소, 이미 로드된 에셋 재요청을 검사합니다. 저장 위치 복원·구버전 매핑·스토리 초기화와 Subsystem의 자동 세션 연결은 아직 후속 S3/S4 항목입니다.
