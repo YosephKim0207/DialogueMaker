@@ -38,7 +38,8 @@ bool FDialogueEffectBatch::IsValid() const
 bool FDialogueEffectBatch::HasSamePayload(const FDialogueEffectBatch& Other) const
 {
 	return Context.ExecutionId == Other.Context.ExecutionId && Context.Block == Other.Context.Block &&
-		Context.NodeGuid == Other.Context.NodeGuid && Effects == Other.Effects;
+		Context.NodeGuid == Other.Context.NodeGuid && Context.BlockRunId == Other.Context.BlockRunId &&
+		ChoiceId == Other.ChoiceId && Effects == Other.Effects;
 }
 
 // 미구현 제공자를 성공으로 간주하지 않는다.

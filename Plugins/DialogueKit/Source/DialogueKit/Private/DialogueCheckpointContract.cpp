@@ -23,7 +23,7 @@ bool FDialogueResumePosition::IsValid() const
 bool FDialogueCheckpointSnapshot::Validate(FName& OutErrorCode) const
 {
 	OutErrorCode = TEXT("InvalidCheckpointSnapshot");
-	if (SchemaVersion != 1)
+	if (SchemaVersion != 1 && SchemaVersion != 2)
 	{
 		OutErrorCode = TEXT("UnsupportedCheckpointSchema");
 		return false;
@@ -63,6 +63,81 @@ bool FDialogueCheckpointSnapshot::Validate(FName& OutErrorCode) const
 	{
 		OutErrorCode = TEXT("InvalidCheckpointTrigger");
 		return false;
+	}
+	if (SchemaVersion == 1 && (PendingChoices.IsEmpty() == false || RunEvidence.bComplete || RunEvidence.LastPassedLine.IsValid() ||
+		RunEvidence.PassedLines.IsEmpty() == false || RunEvidence.Effects.IsEmpty() == false || AppliedCorrections.IsEmpty() == false))
+	{
+		OutErrorCode = TEXT("UnexpectedLegacyEvidence");
+		return false;
+	}
+	TSet<FGuid> Occurrences;
+	for (const FDialogueChoiceRecord& Choice : PendingChoices)
+	{
+		if (Choice.OccurrenceId.IsValid() == false || Occurrences.Contains(Choice.OccurrenceId) ||
+			Choice.Block.IsValid() == false || Choice.BlockRunId.IsValid() == false ||
+			Choice.NodeGuid.IsValid() == false || Choice.ChoiceId.IsValid() == false)
+		{
+			OutErrorCode = TEXT("InvalidChoiceRecord");
+			return false;
+		}
+		Occurrences.Add(Choice.OccurrenceId);
+	}
+	if (SchemaVersion == 2 && Trigger.Reason == EDialogueCheckpointReason::Choice &&
+		PendingChoices.ContainsByPredicate([&](const FDialogueChoiceRecord& Choice)
+		{
+			return Choice.Block == Resume.Block && Choice.BlockRunId == Resume.BlockRunId &&
+				Choice.NodeGuid == Trigger.OriginNodeGuid && Choice.ChoiceId == Trigger.ChoiceId && Choice.ExecutionId == Trigger.ExecutionId;
+		}) == false)
+	{
+		OutErrorCode = TEXT("MissingTriggerChoiceRecord");
+		return false;
+	}
+	TSet<FGuid> Lines;
+	for (FGuid Line : RunEvidence.PassedLines)
+	{
+		if (Line.IsValid() == false || Lines.Contains(Line))
+		{
+			OutErrorCode = TEXT("InvalidPassedLineEvidence");
+			return false;
+		}
+		Lines.Add(Line);
+	}
+	if (RunEvidence.LastPassedLine.IsValid() && Lines.Contains(RunEvidence.LastPassedLine) == false)
+	{
+		OutErrorCode = TEXT("InvalidLastPassedLine");
+		return false;
+	}
+	TSet<FGuid> Executions;
+	for (const FDialogueEffectEvidence& Effect : RunEvidence.Effects)
+	{
+		if (Effect.ExecutionId.IsValid() == false || Effect.NodeGuid.IsValid() == false || Executions.Contains(Effect.ExecutionId) ||
+			(Effect.LineGuid.IsValid() && Lines.Contains(Effect.LineGuid) == false))
+		{
+			OutErrorCode = TEXT("InvalidEffectEvidence");
+			return false;
+		}
+		Executions.Add(Effect.ExecutionId);
+	}
+	if (SchemaVersion == 2 && Trigger.bHasEffects && RunEvidence.Effects.ContainsByPredicate([&](const FDialogueEffectEvidence& Effect)
+		{ return Effect.ExecutionId == Trigger.ExecutionId && Effect.NodeGuid == Trigger.OriginNodeGuid && Effect.ChoiceId == Trigger.ChoiceId; }) == false)
+	{
+		OutErrorCode = TEXT("MissingTriggerEffectEvidence");
+		return false;
+	}
+	if (Resume.Kind == EDialogueResumeKind::None && (RunEvidence.bComplete || Lines.IsEmpty() == false || Executions.IsEmpty() == false || PendingChoices.IsEmpty() == false))
+	{
+		OutErrorCode = TEXT("EvidenceWithoutActiveRun");
+		return false;
+	}
+	TSet<FGuid> Corrections;
+	for (FGuid Correction : AppliedCorrections)
+	{
+		if (Correction.IsValid() == false || Corrections.Contains(Correction))
+		{
+			OutErrorCode = TEXT("InvalidCorrectionHistory");
+			return false;
+		}
+		Corrections.Add(Correction);
 	}
 	TSet<FGuid> BlockIds;
 	for (const FDialogueBlockReadRecord& BlockRecord : FullReadHistory)
@@ -156,4 +231,44 @@ bool UDialogueCheckpointLibrary::MatchesCompletion(const FDialogueCheckpointRequ
 	return PendingRequest.Validate(ErrorCode) && Completion.RequestId == PendingRequest.RequestId &&
 		Completion.QueueGenerationId == PendingRequest.QueueGenerationId && Completion.Sequence == PendingRequest.Sequence &&
 		(Completion.bSaved ? Completion.ErrorCode.IsNone() : Completion.ErrorCode.IsNone() == false);
+}
+
+// 기존 버전의 마지막 선택/효과만 옮긴다. 과거 통과 목록이나 지급 이력을 만들어내지 않는다.
+bool FDialogueCheckpointSnapshot::UpgradeToLatest(FDialogueCheckpointSnapshot& OutSnapshot, FName& OutErrorCode) const
+{
+	if (Validate(OutErrorCode) == false)
+	{
+		return false;
+	}
+	FDialogueCheckpointSnapshot Converted = *this;
+	if (SchemaVersion == 1)
+	{
+		Converted.SchemaVersion = 2;
+		Converted.RunEvidence.bComplete = false;
+		if (Trigger.Reason == EDialogueCheckpointReason::Choice)
+		{
+			FDialogueChoiceRecord Choice;
+			Choice.OccurrenceId = CheckpointId;
+			Choice.Block = Resume.Block;
+			Choice.BlockRunId = Resume.BlockRunId;
+			Choice.NodeGuid = Trigger.OriginNodeGuid;
+			Choice.ChoiceId = Trigger.ChoiceId;
+			Choice.ExecutionId = Trigger.ExecutionId;
+			Converted.PendingChoices.Add(Choice);
+		}
+		if (Trigger.bHasEffects)
+		{
+			FDialogueEffectEvidence Effect;
+			Effect.ExecutionId = Trigger.ExecutionId;
+			Effect.NodeGuid = Trigger.OriginNodeGuid;
+			Effect.ChoiceId = Trigger.ChoiceId;
+			Converted.RunEvidence.Effects.Add(Effect);
+		}
+	}
+	if (Converted.Validate(OutErrorCode) == false)
+	{
+		return false;
+	}
+	OutSnapshot = MoveTemp(Converted);
+	return true;
 }
