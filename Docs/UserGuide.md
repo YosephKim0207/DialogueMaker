@@ -22,6 +22,8 @@
 
 - [18. 효과 상태와 실행 원장 복원](#18-효과-상태와-실행-원장-복원)
 
+- [19. 게임 소유 FIFO와 비동기 합본 저장 샘플](#19-게임-소유-fifo와-비동기-합본-저장-샘플)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -512,3 +514,34 @@ if (!Provider->RestoreEffectSnapshot(Frozen, Error))
 이 자료형의 현재 검증은 메모리 직렬화 왕복입니다. 디스크 파일·비동기 FIFO·대화 위치 합본 복원은 S3 후속 항목입니다. 커스텀 `ArIsSaveGame` 필터를 사용하는 게임은 중첩 필드 직렬화 정책을 별도로 구성해야 합니다. 에디터 작가용 UI는 추가하지 않습니다.
 
 `DialogueKit.Checkpoints.EffectSnapshot`은 스냅샷 독립성, 직렬화 후 중복 지급 방지, 정상 반복, 손상 자료 거부와 실패 무변경을 검사합니다.
+
+## 19. 게임 소유 FIFO와 비동기 합본 저장 샘플
+
+### 게임 개발자 연동
+
+게임 공통 저장 조율자가 `UDialogueSaveQueue`를 소유합니다. `InitializeQueue(NewGuid)`로 세대를 만들고, 게임 상태·실행 원장·대화 스냅샷을 같은 시점에 캡처한 뒤 `Enqueue(Request, GamePayload)`를 호출합니다. 큐는 두 자료를 값 복사합니다. Request의 Sequence는 세대 안에서 증가시켜야 하며 RequestId와 CheckpointId를 재사용하지 않습니다.
+
+C++에서는 `OnWriteRequestedNative.Bind...`, Blueprint에서는 `OnWriteRequested` 중 한 경로에 **저장기 하나만** 연결합니다. 요청을 받은 저장기는 합본을 비동기로 기록하고 `CompleteWrite(Completion)`에 원래 RequestId·QueueGenerationId·Sequence와 성공 여부를 전달합니다. 성공은 ErrorCode 없음, 실패는 오류 코드를 요구합니다. 두 경로 연결 또는 연결 누락은 자료를 보존한 실패로 처리합니다.
+
+실패 head가 있으면 후속 항목은 대기합니다. `RetryFailedWrite()`는 같은 자료·순서·CheckpointId를 유지하고 RequestId만 새로 발급합니다. 저장 완료 이벤트 안에서 즉시 재시도하지 말고 이벤트 반환 후 게임의 재시도 흐름에서 호출합니다. 성공은 해당 head만 제거합니다. 정상 반복 선택은 새 논리 스냅샷으로 요청합니다.
+
+`OnSaveStateChanged(bWriting, bFailed)`는 저장 이미지/실패 안내용입니다. 대화 진행을 기다리게 하지 않습니다. `OnWriteCompleted`로 성공·실패를 처리하며 `DiagnosticRouter`를 게임의 Sentry 등 전송 경계에 연결할 수 있습니다. 종료 요청은 `GetPendingCount()==0`을 확인하고, 실패 시 재시도·종료 취소·미저장 종료를 게임이 구분합니다. 큐 재초기화는 대기 항목이 없을 때 새 세대로만 가능합니다. 세대별 중복 ID 집합은 해당 세대가 끝날 때 정리합니다.
+
+### 플러그인 단독 샘플
+
+`UDialogueSampleSaveCoordinator`와 `UDialogueSampleEffectProvider`를 GameInstance 등에서 보유합니다.
+
+1. `Initialize("MyDialogueSample_", Provider, Error)`를 호출합니다. 이 이름의 내부 슬롯 두 개는 샘플 전용으로 사용합니다.
+2. `GetSaveQueue()->GetGeneration()`을 Request의 세대로 사용합니다.
+3. 효과 성공 직후 `IDialogueCheckpointProvider::Execute_RequestDialogueCheckpoint(Coordinator, Request)`를 호출합니다. 샘플은 상태/원장을 즉시 복사하고 큐에 접수합니다.
+4. 대화는 계속 진행합니다. 실패하면 큐의 `RetryFailedWrite()`를 게임 UI/정책에서 호출합니다.
+5. 큐가 비어 있을 때 `RestoreLatest(OutSnapshot, Error)`로 게임 상태를 복원하고, 반환된 대화 스냅샷을 대화 재개 경로에 전달합니다. 현재 기능만으로 Runner 위치를 자동 복원하지는 않습니다.
+6. 저장 종료 시 먼저 큐를 비우고 `Shutdown()`을 호출합니다. 같은 슬롯 이름을 두 조율자가 동시에 소유할 수 없습니다.
+
+샘플은 UE `AsyncSaveGameToSlot`을 사용합니다. CRC로 감싼 합본을 두 내부 슬롯에 번갈아 기록하고, 온전한 최신 Revision 하나만 읽습니다. 새 슬롯이 손상되면 직전 온전한 저장을 사용합니다. 사용자용 Multi Save/Load는 제공하지 않습니다. CRC는 파일 편집 방지 인증이 아니며 전원 손실·하드웨어 오류의 완전한 복구를 보장하지 않습니다. 디스크 완료 전 강제 종료하면 미저장 결과를 잃을 수 있습니다.
+
+실제 게임은 샘플을 게임 전체 저장과 병행하지 말고 공통 조율자에 계약을 통합해야 합니다. 샘플의 GamePayload는 게임별 공개 저장 자료로 교체할 수 있습니다. 큐/조율자는 게임 스레드에서 사용합니다. 시나리오 작가용 UI 추가는 없습니다.
+
+### 검증 범위
+
+`DialogueKit.Checkpoints.ImmutableFIFO`는 불변 자료·실패 후 대기·재시도·오래된 완료·즉시 완료를 검사합니다. `AsyncCombinedFile`은 고유 슬롯의 실제 비동기 저장, 새 객체 복원, 미저장 상태 배제, 원장 재전달, 손상된 다른 슬롯에서의 이전 저장 보존을 검사합니다. 프로세스 강제 종료·재실행과 Runner 재개 연결은 별도 S3 검증 대상입니다.
