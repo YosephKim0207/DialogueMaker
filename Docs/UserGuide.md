@@ -20,6 +20,8 @@
 - [16. 상태 변경 노드와 게임 효과 경계](#16-상태-변경-노드와-게임-효과-경계)
 - [17. End 완료·Subsystem 및 UI 연동](#17-end-완료subsystem-및-ui-연동)
 
+- [18. 효과 상태와 실행 원장 복원](#18-효과-상태와-실행-원장-복원)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -485,3 +487,28 @@ End 노드 Details의 `bSaveOnEnd` 기본값은 false입니다. 활성화하면 
 기존 CSV 내보내기는 Line 문구와 독립 Choice의 문구를 NodeGuid·PinId 키로 내보냅니다. 변환 실패 시 이전 Graph를 새 결과로 내보내지 않습니다. StateChange·Branch·End는 번역할 문구가 없는 제어 노드이므로 CSV 대상이 아닙니다. Subsystem 표시 브리지는 기존 Localization 조회를 사용하며 Runner 단독 사용 시에는 원문을 반환합니다.
 
 S2는 표시 자료와 Blueprint 동적 이벤트 바인딩까지 검증한 단계입니다. 기존 바이너리 샘플 Widget의 화면 배치·초상화 연출·입력·음향·단독 PIE 도구는 S6에서 완성/관찰합니다. 새 API가 Widget을 자동 생성하거나 게임 입력 모드를 변경하지는 않습니다.
+
+## 18. 효과 상태와 실행 원장 복원
+
+### 개발자 사용법
+
+`UDialogueSampleEffectProvider::CaptureEffectSnapshot()`은 항목 정의, 현재 상태, 실행 요청과 결과 원장을 값 복사합니다. 효과 성공 직후 후속 변경 전에 호출하고 대화 체크포인트와 같은 게임 저장 단위에 보관합니다. 호출 자체는 파일을 저장하지 않습니다.
+
+```cpp
+const FDialogueSampleEffectSnapshot Frozen = Provider->CaptureEffectSnapshot();
+FName Error;
+if (!Provider->RestoreEffectSnapshot(Frozen, Error))
+{
+    // Error를 기록하고 게임의 복원 실패 흐름으로 처리합니다.
+}
+```
+
+`RestoreEffectSnapshot`은 버전·키 중복·수치·원장 대응·성공 효과의 상태 존재를 검사한 뒤 전체 상태를 교체합니다. 실패하면 기존 상태와 원장을 유지합니다. 성공해도 효과를 재실행하지 않습니다. 같은 ExecutionId는 저장된 결과를 반환하며 새 ExecutionId의 정상 반복은 허용합니다.
+
+### 확장과 제한
+
+실제 게임은 `IDialogueEffectProvider` 구현에서 게임 상태와 실행 원장을 함께 캡처·복원해야 합니다. 이 샘플은 인벤토리 원본을 대신하지 않습니다. 공개 API는 게임 스레드에서 사용합니다. 기존 메모리 샘플 API를 유지하며 별도 SchemaVersion 1 자료형을 추가했습니다.
+
+이 자료형의 현재 검증은 메모리 직렬화 왕복입니다. 디스크 파일·비동기 FIFO·대화 위치 합본 복원은 S3 후속 항목입니다. 커스텀 `ArIsSaveGame` 필터를 사용하는 게임은 중첩 필드 직렬화 정책을 별도로 구성해야 합니다. 에디터 작가용 UI는 추가하지 않습니다.
+
+`DialogueKit.Checkpoints.EffectSnapshot`은 스냅샷 독립성, 직렬화 후 중복 지급 방지, 정상 반복, 손상 자료 거부와 실패 무변경을 검사합니다.

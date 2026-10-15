@@ -107,3 +107,84 @@ FDialogueEffectResult UDialogueSampleEffectProvider::ApplyDialogueEffects_Implem
 	Results.Add(ExecutionId, Result);
 	return Result;
 }
+
+// 자료 손상과 알 수 없는 버전을 상태 교체 전에 거부한다.
+bool FDialogueSampleEffectSnapshot::Validate(FName& OutError) const
+{
+	OutError = TEXT("InvalidEffectSnapshot");
+	if (SchemaVersion != 1 || Requests.Num() != Results.Num())
+	{
+		return false;
+	}
+	TSet<FDialogueStateKey> Keys;
+	for (const FDialogueStateDefinition& Definition : Definitions)
+	{
+		if (Definition.Key.IsValid() == false || Keys.Contains(Definition.Key))
+		{
+			return false;
+		}
+		Keys.Add(Definition.Key);
+	}
+	TSet<FDialogueStateKey> StateKeys;
+	for (const FDialogueSampleState& State : States)
+	{
+		if (Keys.Contains(State.Key) == false || StateKeys.Contains(State.Key) ||
+			(State.Key.Kind == EDialogueStateKind::Value && FMath::IsFinite(State.Value) == false) ||
+			(State.Key.Kind == EDialogueStateKind::Count && State.Count < 0))
+		{
+			return false;
+		}
+		StateKeys.Add(State.Key);
+	}
+	for (const TPair<FGuid, FDialogueEffectBatch>& Entry : Requests)
+	{
+		const FDialogueEffectResult* Result = Results.Find(Entry.Key);
+		if (Entry.Value.IsValid() == false || Entry.Key != Entry.Value.Context.ExecutionId || Result == nullptr)
+		{
+			return false;
+		}
+		if ((Result->Status != EDialogueEffectStatus::Applied && Result->Status != EDialogueEffectStatus::Failed) ||
+			(Result->IsSuccess() ? Result->ErrorCode.IsNone() == false : Result->ErrorCode.IsNone()))
+		{
+			return false;
+		}
+		if (Result->IsSuccess())
+		{
+			for (const FDialogueEffect& Effect : Entry.Value.Effects)
+			{
+				if (Keys.Contains(Effect.Key) == false || StateKeys.Contains(Effect.Key) == false)
+				{
+					return false;
+				}
+			}
+		}
+	}
+	OutError = NAME_None;
+	return true;
+}
+
+// 상태와 원장을 같은 호출에서 값 복사한다. 게임 스레드에서만 사용한다.
+FDialogueSampleEffectSnapshot UDialogueSampleEffectProvider::CaptureEffectSnapshot() const
+{
+	FDialogueSampleEffectSnapshot Snapshot;
+	Snapshot.Definitions = Definitions;
+	Snapshot.States = States;
+	Snapshot.Requests = Requests;
+	Snapshot.Results = Results;
+	return Snapshot;
+}
+
+// 모든 검사 이후에만 상태를 교체하여 복원 실패의 부분 적용을 막는다.
+bool UDialogueSampleEffectProvider::RestoreEffectSnapshot(const FDialogueSampleEffectSnapshot& Snapshot, FName& OutError)
+{
+	if (Snapshot.Validate(OutError) == false)
+	{
+		// 게임 개발자는 이 오류 반환 지점에 프로젝트 로그 전송을 연결할 수 있다.
+		return false;
+	}
+	Definitions = Snapshot.Definitions;
+	States = Snapshot.States;
+	Requests = Snapshot.Requests;
+	Results = Snapshot.Results;
+	return true;
+}
