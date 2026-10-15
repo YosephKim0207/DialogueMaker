@@ -19,10 +19,15 @@ void ATEST::BeginPlay()
 {
 	Super::BeginPlay();
 
+#if !UE_BUILD_SHIPPING
 	if (UDialogueSubsystem* DialogueSubsystem = UDialogueSubsystem::Get(this))
 	{
 		UDialogueGraph* DialogueGraph = TestDialogueGraph.LoadSynchronous();
-		DialogueSubsystem->PlayDialogueGraph(DialogueGraph);
+		if (IsValid(DialogueGraph))
+		{
+			DialogueSubsystem->PlayDialogueGraph(DialogueGraph);
+		}
 	}
+#endif
 }
 

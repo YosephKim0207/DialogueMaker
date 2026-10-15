@@ -2,12 +2,14 @@
 param(
     [string]$EngineRoot = 'C:\Program Files\Epic Games\UE_5.4',
     [ValidateSet('Check', 'Package')][string]$Action = 'Check',
+    [ValidateSet('Development', 'Shipping')][string]$Configuration = 'Development',
     [ValidateRange(1, 240)][int]$TimeoutMinutes = 30,
     [ValidatePattern('^/[A-Za-z0-9_/]+$')][string]$Map = '/DialogueKit/Sample/Maps/NewWorld',
     [ValidatePattern('^[a-fA-F0-9]{32}$')][string]$DialogueValidationId
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($Configuration -eq 'Shipping' -and $DialogueValidationId) { throw 'Development dialogue fixtures must not be included in Shipping.' }
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $ProjectFile = Join-Path $ProjectRoot 'DialogueMaker.uproject'
 $RunUAT = Join-Path $EngineRoot 'Engine/Build/BatchFiles/RunUAT.bat'
@@ -28,11 +30,11 @@ try {
     $Log = Join-Path $RunRoot 'Package.log'
     $Archive = Join-Path $RunRoot 'Archive'
     $Staging = Join-Path $RunRoot 'Staged'
-    $Result = [ordered]@{ Action = 'Package'; Outcome = 'Failed'; ExitCode = $null; FailureCategory = $null; Map = $Map; Log = $Log; Archive = $Archive; Staging = $Staging; Executables = @(); Containers = @(); Error = $null }
+    $Result = [ordered]@{ Action = 'Package'; Configuration = $Configuration; Outcome = 'Failed'; ExitCode = $null; FailureCategory = $null; Map = $Map; Log = $Log; Archive = $Archive; Staging = $Staging; Executables = @(); Containers = @(); Error = $null }
     try {
         # 실행마다 별도 출력 경로를 사용한다. 패키지 생성은 실행/화면 검증을 뜻하지 않는다.
         $Arguments = @('BuildCookRun', "-project=$ProjectFile", '-nop4', '-unattended', '-utf8output', '-installed',
-            '-platform=Win64', '-clientconfig=Development', '-build', '-cook', '-stage', '-pak', '-package', '-archive',
+            '-platform=Win64', "-clientconfig=$Configuration", '-build', '-cook', '-stage', '-pak', '-package', '-archive',
             "-map=$Map", "-archivedirectory=$Archive", "-stagingdirectory=$Staging",
             '-AdditionalCookerOptions=-ini:Engine:[/Script/Sentry.SentrySettings]:InitAutomatically=False')
         # 명시한 검증 fixture만 추가 cook한다. 기존 프로젝트 설정은 변경하지 않는다.

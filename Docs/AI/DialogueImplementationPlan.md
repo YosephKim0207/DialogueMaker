@@ -604,4 +604,8 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - PoC: packaged exe를 별도 출력/저장 경로로 실행해 정상 종료와 결과 파일을 확인한다. 기존 사용자 저장과 외부 Sentry 송신을 차단할 수 없으면 실행하지 않고 한계를 기록한다. NullRHI는 실제 화면/입력/음향 검증을 대신하지 않는다.
 - 발견: 번역 생성 하위 경로와 런타임 고정 경로 불일치, ChoiceId 대신 PinId 의존, common greeting의 요청 Target 손실, 복원과 후보 로드 경합. 샘플 합본에는 Chapter/Scene이 없으며 전체 게임 저장 책임에 대한 추가 설계 없이 저장 형식을 임의 변경하지 않는다.
 - 복구: 기능 브랜치 및 기준 SHA 보존, 통합은 --no-ff. 기능 전체는 해당 merge를 -m 1 revert, 부분 수정은 의존성을 확인하고 작은 커밋을 revert한다. 기존 파일/에셋 삭제나 이력 재작성은 하지 않는다.
-- 진행: 조사 완료, 구현 진행 중. 최종 증거/잔여 검증은 S7 보고서와 UserGuide에 기록한다.
+- 진행: 기술 구현·자동 검증 완료. 지역화 merge 7d6d056, 호스트 merge 4fec9fc, 배포 회귀는 chore/dialogue-release-regression에서 작은 커밋으로 완료했다. 사용법은 UserGuide 42~45절, 증거/실패 이력/복구는 Docs/Reports/S7-Implementation-2026-10-15.md를 따른다.
+- 최종 검증: Editor Build 193503_68412834, 전체 DialogueKit 59/59 193637_bd970acc, 실제 PIE 생명주기 1/1 193749_bd07cb82 모두 성공/Error 0. 별도 UE Write/Read 각 1개와 v1/v2 cooked Registry 2개 통과. Development 패키지 실제 Write→대기 큐 강제 종료→Read 3단계 PackageRun_20261015_193237_48841920 통과, 기존 프로젝트 저장 및 durable 파일 해시 불변.
+- Shipping: Package_20261015_193325_31d2eb35 빌드/cook/package 성공, ProjectShipping 1개 193547_8b3053f0 통과. Development 표식 3종이 Shipping exe에서 제외됨을 비교했다. Shipping 실제 실행은 미검증이다.
+- 추가 발견/수정: 실제 패키지의 빈 초상화 preload ensure 및 없는 handle 해제, Shipping에서 개발 전용 함수를 호출하던 ATEST를 방어했다. 기존 에셋 바이너리는 수정하지 않았다.
+- 남은 인수: S5 실제 GUI, S6/S7 화면·물리 입력·음향·실제 지역화 표시, Shipping 실행 및 제품 검토. 실제 게임 전체 상태 합본/출시 저장/Prototype2/Sentry는 별도 범위다. 따라서 S7 전체 Exit를 Verified로 올리지 않는다.

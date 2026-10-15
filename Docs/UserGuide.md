@@ -67,6 +67,9 @@
 
 - [43. 샘플 게임 호스트로 선정과 저장 연결](#43-샘플-게임-호스트로-선정과-저장-연결)
 
+- [44. 실제 패키지 저장과 강제 종료 복원 검사](#44-실제-패키지-저장과-강제-종료-복원-검사)
+- [45. 초상화 없는 기존 대화와 Shipping 샘플](#45-초상화-없는-기존-대화와-shipping-샘플)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -985,3 +988,38 @@ Initialize 실패 시 시작하지 않는다. RequestDialogue/RequestCandidates�
 샘플 `UDialogueSampleSaveCoordinator`는 예제 상태/효과 원장과 대화 snapshot을 저장한다. **Chapter·Scene, 퀘스트 본체 등 실제 게임 전체 상태를 저장하는 제품 저장 시스템이 아니다.** 게임 개발자는 같은 캡처 호출 안에서 진행도와 게임 상태를 합본에 넣고 함께 복원해야 한다. 호스트는 복원된 `FDialogueStoryProgress`를 요청 때 받아 필터링한다. 기존 샘플 저장 형식을 임의로 바꾸지는 않았다. Prototype2 통합은 별도 작업이다.
 
 검증은 `DialogueKit.Integration`: Subsystem 선택/효과·합본·재개, 공통 인사 대상, 종료와 재시도, 초기 자동 효과의 중복 방지, 복원 시 지연 후보 취소를 검사한다. 실제 디스크/프로세스 및 패키지 실행은 별도 검증 결과를 따른다.
+
+## 44. 실제 패키지 저장과 강제 종료 복원 검사
+
+개발자는 다음 순서로 실행한다. 모든 산출물은 Git에서 제외되는 `Saved/AI`의 새 폴더에 남기며 스크립트/테스트/본 안내서는 Git에 포함한다.
+
+```powershell
+# 고유 GUID의 보존 v1/활성 v2 fixture와 저장을 만든다.
+.\Scripts\AI\Invoke-DialogueRestoreValidation.ps1 -IncludePackage
+# 위 실행의 RestoreValidation/<GUID> 및 대응 Package_*/result.json을 사용한다.
+.\Scripts\AI\Invoke-PackagedDialogueValidation.ps1 `
+  -PackageResult "<대응 Development 패키지 result.json 절대 경로>" `
+  -DialogueValidationId "<위 fixture의 32자리 GUID>"
+```
+
+후자는 bootstrap이 아닌 실제 게임 exe를 세 번 실행한다. Write는 v1 선택 효과와 재개점을 실제 비동기 저장한다. Crash는 동일 저장을 호스트로 복원하고 추가 효과를 적용하되 디스크 writer 직전 큐를 보류한다. 대기 marker의 PID가 래퍼의 실행 PID와 같은 것을 확인한 뒤 그 프로세스만 강제 종료한다. Read는 마지막 저장의 수량 10, 동일 Block ID·v1·실행 ID·재개 노드, 효과 비중복을 검사하고 정상 End 이후 활성 v2 후보를 실행한다.
+
+`PackagedWriteCrashRestorePassed`는 세 단계와 기존 프로젝트 슬롯 해시 불변을 모두 통과했다는 뜻이다. 실행마다 절대 `userdir`를 지정해 저장·로그를 격리하며 Crash 전후 durable 파일 해시도 같아야 한다. 실패/timeout/로그 Error/결과 파일 없음은 실패다. 래퍼는 기존 사용자 프로세스를 종료하지 않는다. 검증 함수를 일반 게임 실행에서 호출할 필요는 없다. Game 모듈의 검증 경로는 명시적 GUID·phase·절대 userdir 인자가 있는 Development에서만 활성화되고 Shipping에서는 제외된다.
+
+이 검사는 **저장 큐가 대기 중인 실제 프로세스 종료**다. OS가 파일의 일부 바이트를 기록하는 순간의 전원 차단을 재현하지 않는다. 손상된 내부 슬롯의 fallback은 기존 저장 자동화 검사와 구분한다. NullRHI/nosound이므로 화면·실제 키/마우스·음향 청취를 검증하지 않는다.
+
+Shipping은 테스트 fixture를 지정하지 않고 별도로 패키징한다.
+
+```powershell
+.\Scripts\AI\Invoke-PackageValidation.ps1 -Action Package -Configuration Shipping
+# Shipping cook 직후, 다른 cook으로 덮기 전에 실행한다.
+.\Scripts\AI\Invoke-UE.ps1 -Action Test -TestFilter ProjectShipping -TimeoutMinutes 5
+```
+
+Shipping에 DialogueValidationId를 함께 주면 스크립트가 거부한다. ProjectShipping 검사는 현재 cooked Registry에서 테스트 에셋/태그가 없는지 확인하므로 직전 cook의 Configuration은 패키지 result.json으로 함께 확인한다. Shipping의 일반 실행/종료는 별도 검증이다. Development 자동 종료 인자나 `-ExecCmds`를 Shipping 정상 종료 검증으로 간주하지 않는다.
+
+## 45. 초상화 없는 기존 대화와 Shipping 샘플
+
+기존 `BeginDialogue`/개발용 `PlayDialogueGraph` 경로에서 필요한 초상화 에셋이 0개이면 사전 로드 없이 대화 UI를 생성한다. 별도 작가 설정은 필요 없다. 종료 시 preload handle이 없더라도 안전하게 처리한다. 존재하는 초상화의 정상 비동기 로드는 기존 경로를 유지한다.
+
+샘플 `ATEST` 액터의 직접 대화 실행은 Development 전용이며 Shipping에서는 실행하지 않는다. 테스트 Graph를 지정하지 않은 경우도 호출하지 않는다. 실제 게임은 샘플 액터의 테스트 동작에 의존하지 않고 공개 게임 호스트/Subsystem 진입점을 연결한다. 기존 테스트 에셋이나 샘플 맵 바이너리는 변경하지 않았다.
