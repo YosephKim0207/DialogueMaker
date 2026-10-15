@@ -262,10 +262,12 @@ void UDialogueBlockRunner::Report(FName Code, const FString& Handling)
 }
 
 // C++/Blueprint UI가 동일한 표시 데이터를 받는다.
-void UDialogueBlockRunner::Publish()
+void UDialogueBlockRunner::Publish(bool bChoicesOnly)
 {
-	OnPresentationChangedNative.Broadcast(Presentation);
-	OnPresentationChanged.Broadcast(Presentation);
+	FDialoguePresentation Event = Presentation;
+	Event.bChoicesOnlyUpdate = bChoicesOnly;
+	OnPresentationChangedNative.Broadcast(Event);
+	OnPresentationChanged.Broadcast(Event);
 }
 
 // 일반 선택지가 하나라도 통과하면 기본 선택지는 숨긴다.
@@ -334,7 +336,7 @@ bool UDialogueBlockRunner::SelectChoice(FGuid ChoiceId)
 			Complete(false);
 			return false;
 		}
-		Publish();
+		Publish(true);
 		return false;
 	}
 	const UDialogueChoiceNodeInfo* Info = CastChecked<UDialogueChoiceNodeInfo>(Node->NodeInfo);
@@ -480,10 +482,12 @@ bool UDialogueBlockRunner::CancelBlock()
 	{
 		return false;
 	}
+	TGuardValue<bool> Guard(bProcessing, true);
 	ActiveBlock = nullptr;
 	Nodes.Reset();
 	Presentation = FDialoguePresentation();
 	PreparedEntry.Invalidate();
+	Publish();
 	return true;
 }
 
@@ -497,4 +501,31 @@ bool UDialogueBlockRunner::ResumeBlock(UDialogueGraph* Block, const FDialogueRes
 bool UDialogueBlockRunner::PrepareBlock(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter)
 {
 	return PrepareAtNode(Block, NewStateProvider, NewEffectProvider, NewRouter, FGuid());
+}
+
+// 조건 갱신은 동일 Line의 표시 시간을 유지하며 자동 경로를 미리 실행하지 않는다.
+bool UDialogueBlockRunner::RefreshChoices()
+{
+	if (bProcessing || (Presentation.State != EDialogueRunState::WaitingLine && Presentation.State != EDialogueRunState::WaitingChoice))
+	{
+		return false;
+	}
+	TGuardValue<bool> Guard(bProcessing, true);
+	if (Presentation.ChoiceNodeGuid.IsValid() == false)
+	{
+		return true;
+	}
+	TArray<FDialogueChoiceView> Choices;
+	if (GetChoiceViews(Nodes.FindRef(Presentation.ChoiceNodeGuid), Choices) == false)
+	{
+		return false;
+	}
+	Presentation.Choices = MoveTemp(Choices);
+	if (Presentation.State == EDialogueRunState::WaitingChoice && Presentation.Choices.IsEmpty())
+	{
+		Report(TEXT("NoAvailableChoice"), TEXT("CompleteNormally"));
+		return Complete(false);
+	}
+	Publish(true);
+	return true;
 }

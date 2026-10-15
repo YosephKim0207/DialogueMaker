@@ -43,6 +43,10 @@ struct DIALOGUEKIT_API FDialoguePresentation
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
 	FGuid LineNodeGuid;
 
+	// 선택 조건만 갱신하는 이벤트는 현재 텍스트/음향을 재시작하지 않는다.
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
+	bool bChoicesOnlyUpdate = false;
+
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Run")
 	TObjectPtr<UDialogueNodeInfo> Line;
 
@@ -138,6 +142,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
 	bool SelectChoice(FGuid ChoiceId);
 
+	// 게임 상태 변경 알림에서 명시적으로 호출한다. 효과/진행 없이 현재 Choice만 재평가한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
+	bool RefreshChoices();
+
 	// 마지막 표시 상태를 조회한다. 조회로 커서·효과·열람·저장을 변경하지 않는다.
 	UFUNCTION(BlueprintPure, Category = "DialogueKit|Run")
 	FDialoguePresentation GetPresentation() const { return Presentation; }
@@ -173,7 +181,7 @@ private:
 	// 게임의 외부 로그 전송은 Router 구독자로 연결한다.
 	void Report(FName Code, const FString& Handling);
 	// 동기 콜백의 재진입은 호출 측 처리 구간에서 차단한다.
-	void Publish();
+	void Publish(bool bChoicesOnly = false);
 
 	UPROPERTY()
 	TObjectPtr<UDialogueGraph> ActiveBlock;
