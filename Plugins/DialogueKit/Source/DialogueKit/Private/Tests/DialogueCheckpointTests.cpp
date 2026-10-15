@@ -68,7 +68,7 @@ bool FDialogueCheckpointValidationTest::RunTest(const FString& Parameters)
 	Request.Snapshot.Trigger = FDialogueCheckpointTrigger();
 	Request.Snapshot.Resume = FDialogueResumePosition();
 	TestTrue(TEXT("Game save with no active dialogue"), Request.Validate(Error));
-	Request.Snapshot.SchemaVersion = 2;
+	Request.Snapshot.SchemaVersion = 3;
 	TestFalse(TEXT("Unknown schema rejected"), Request.Validate(Error));
 	Request.Snapshot.SchemaVersion = 0;
 	TestFalse(TEXT("Zero schema rejected"), Request.Validate(Error));

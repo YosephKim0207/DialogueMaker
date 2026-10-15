@@ -97,6 +97,10 @@ public:
 	bool CanStartBlock() const;
 
 
+	// 실행별 저장 증거와 효과 원장을 같은 실행으로 연결한다.
+	UFUNCTION(BlueprintPure, Category = "DialogueKit|Run")
+	FGuid GetBlockRunId() const { return BlockRunId; }
+
 	// 현재 발화 이후로 진행한다. 실패는 정상 종료가 아니며 게임이 반환값/상태로 안내한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
 	bool AdvanceLine();
@@ -162,5 +166,6 @@ private:
 	// 다음 위치 검사가 끝난 뒤에만 효과를 요청하고 성공 경계를 게시한다.
 	bool ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueRuntimeNode* Next, const TArray<struct FDialogueEffect>& Effects, FGuid ChoiceId, bool bSaveRequested);
 
+	FGuid BlockRunId;
 	bool bProcessing = false;
 };

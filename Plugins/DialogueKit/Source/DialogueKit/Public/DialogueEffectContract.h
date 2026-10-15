@@ -57,6 +57,10 @@ struct DIALOGUEKIT_API FDialogueEffectBatch
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects")
 	TArray<FDialogueEffect> Effects;
 
+	// StateChange는 빈 값이며 Choice에서 발생한 효과는 원래 선택지 ID를 보존한다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects")
+	FGuid ChoiceId;
+
 	// 실행 ID와 비어 있지 않은 유효 효과 묶음을 요구한다.
 	bool IsValid() const;
 	// 추적용 SaveRequestId는 제외하고 발생 위치와 효과 순서를 비교한다.

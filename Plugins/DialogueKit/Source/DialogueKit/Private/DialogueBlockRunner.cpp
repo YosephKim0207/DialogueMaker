@@ -15,6 +15,7 @@ bool UDialogueBlockRunner::StartBlock(UDialogueGraph* Block, UObject* NewStatePr
 		return false;
 	}
 	TGuardValue<bool> Guard(bProcessing, true);
+	BlockRunId = FGuid::NewGuid();
 	ActiveBlock = Block;
 	StateProvider = NewStateProvider;
 	EffectProvider = NewEffectProvider;
@@ -336,6 +337,7 @@ bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueR
 	}
 	FDialogueExecutionBoundary Boundary;
 	Boundary.Context.Block = ActiveBlock->GetBlockReference();
+	Boundary.Context.BlockRunId = BlockRunId;
 	Boundary.Context.NodeGuid = Origin->NodeGuid;
 	Boundary.ChoiceId = ChoiceId;
 	Boundary.NextNodeGuid = Next->NodeGuid;
@@ -347,6 +349,7 @@ bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueR
 		FDialogueEffectBatch Batch;
 		Batch.Context = Boundary.Context;
 		Batch.Effects = Effects;
+		Batch.ChoiceId = ChoiceId;
 		const FDialogueEffectResult Result = UDialogueEffectLibrary::ApplyEffectBatch(Batch, EffectProvider, Router);
 		if (Result.IsSuccess() == false)
 		{
@@ -371,6 +374,7 @@ bool UDialogueBlockRunner::Complete(bool bSaveRequested)
 	Presentation.ChoiceNodeGuid.Invalidate();
 	FDialogueExecutionBoundary Boundary;
 	Boundary.Context.Block = ActiveBlock->GetBlockReference();
+	Boundary.Context.BlockRunId = BlockRunId;
 	Boundary.Context.NodeGuid = Presentation.NodeGuid;
 	Boundary.bBlockCompleted = true;
 	Boundary.bSaveRequested = bSaveRequested;

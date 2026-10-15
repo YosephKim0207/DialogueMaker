@@ -17,6 +17,18 @@ bool UDialogueSampleCombinedSave::Validate() const
 	{
 		return false;
 	}
+	for (const FDialogueEffectEvidence& Evidence : Request.Snapshot.RunEvidence.Effects)
+	{
+		const FDialogueEffectBatch* Batch = Game.Requests.Find(Evidence.ExecutionId);
+		const FDialogueEffectResult* Result = Game.Results.Find(Evidence.ExecutionId);
+		if (Batch == nullptr || Result == nullptr || Result->IsSuccess() == false ||
+			(Batch->Context.Block == Request.Snapshot.Resume.Block) == false || Batch->Context.NodeGuid != Evidence.NodeGuid ||
+			(Request.Snapshot.RunEvidence.bComplete && Batch->Context.BlockRunId != Request.Snapshot.Resume.BlockRunId) ||
+			(Request.Snapshot.RunEvidence.bComplete && Batch->ChoiceId != Evidence.ChoiceId))
+		{
+			return false;
+		}
+	}
 	const FDialogueCheckpointTrigger& Trigger = Request.Snapshot.Trigger;
 	if (Trigger.bHasEffects)
 	{

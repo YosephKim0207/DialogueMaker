@@ -109,6 +109,55 @@ struct DIALOGUEKIT_API FDialogueCheckpointTrigger
 
 };
 
+// 정상 반복 선택은 매번 고유한 발생 ID를 가지며 완료된 저장에 포함된 임시 기록만 정리한다.
+USTRUCT(BlueprintType)
+struct DIALOGUEKIT_API FDialogueChoiceRecord
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid OccurrenceId;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FDialogueBlockReference Block;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid BlockRunId;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid NodeGuid;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid ChoiceId;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid ExecutionId;
+};
+
+// 성공한 효과만 기록한다. Line은 연관 정보이며 실제 효과 발생 노드와 구분한다.
+USTRUCT(BlueprintType)
+struct DIALOGUEKIT_API FDialogueEffectEvidence
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid ExecutionId;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid NodeGuid;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid LineGuid;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid ChoiceId;
+};
+
+// 이 증거의 Block/실행은 Snapshot.Resume이다. 구 저장의 빈 증거를 미발생으로 추측하지 않는다.
+USTRUCT(BlueprintType)
+struct DIALOGUEKIT_API FDialogueRunEvidence
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	bool bComplete = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid LastPassedLine;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	TArray<FGuid> PassedLines;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	TArray<FDialogueEffectEvidence> Effects;
+};
+
 // 대화 상태의 전체 값 복사다. 게임 상태/효과 ledger는 게임이 같은 스냅샷에 함께 보존한다.
 USTRUCT(BlueprintType)
 struct DIALOGUEKIT_API FDialogueCheckpointSnapshot
@@ -116,6 +165,7 @@ struct DIALOGUEKIT_API FDialogueCheckpointSnapshot
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	// 기존 수동 계약 사용자의 기본값은 1을 유지하며 신규 상태기는 명시적으로 2를 캡처한다.
 	int32 SchemaVersion = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
@@ -130,6 +180,15 @@ struct DIALOGUEKIT_API FDialogueCheckpointSnapshot
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
 	TArray<FDialogueBlockReadRecord> FullReadHistory;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	TArray<FDialogueChoiceRecord> PendingChoices;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FDialogueRunEvidence RunEvidence;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	TArray<FGuid> AppliedCorrections;
+
+	// 입력을 보존하고 알려진 마지막 원인만 이전한다. Unknown 증거를 완전한 이력으로 만들지 않는다.
+	bool UpgradeToLatest(FDialogueCheckpointSnapshot& OutSnapshot, FName& OutErrorCode) const;
 	// 오류를 반환하며 입력을 보정하거나 ID를 자동 생성하지 않는다.
 	bool Validate(FName& OutErrorCode) const;
 };

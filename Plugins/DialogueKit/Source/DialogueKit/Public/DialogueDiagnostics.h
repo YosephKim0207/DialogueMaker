@@ -26,6 +26,10 @@ struct DIALOGUEKIT_API FDialogueDiagnosticContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Diagnostics")
 	FGuid ExecutionId;
 
+	// 동일 Block의 반복 실행을 구분한다. 구 저장은 빈 값으로 유지한다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Diagnostics")
+	FGuid BlockRunId;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Diagnostics")
 	FGuid SaveRequestId;
 };
