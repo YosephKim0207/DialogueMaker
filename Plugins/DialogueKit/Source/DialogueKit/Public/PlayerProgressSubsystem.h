@@ -34,6 +34,8 @@ public:
 	
 	void SaveProgress() const;
 private:
+	// 초기화 당시의 격리 상태를 유지하여 PIE 종료 중에도 파일에 접근하지 않는다.
+	bool bPreviewPersistenceBlocked = false;
 	bool LoadProgress();
 
 	const FString SaveSlot = TEXT("PlayerProgressSaveSlot");

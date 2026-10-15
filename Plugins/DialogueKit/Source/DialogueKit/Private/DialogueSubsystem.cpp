@@ -1,3 +1,4 @@
+#include "DialoguePreviewPolicy.h"
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
@@ -111,6 +112,7 @@ UDialogueSubsystem* UDialogueSubsystem::Get(const UObject* WorldContextObject)
 void UDialogueSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	bPreviewPersistenceBlocked = UDialoguePreviewPolicy::IsPreviewWorld(this);
 	LocalizedCurrentOngoingDialogueNodeInfo = nullptr;
 
 	if (LoadDialogueSaveData() == false)
@@ -1147,6 +1149,7 @@ void UDialogueSubsystem::SaveRelativeDatas() const
 
 bool UDialogueSubsystem::LoadDialogueSaveData()
 {
+	if (bPreviewPersistenceBlocked) return false;
 	DialogueHistorySaveData = Cast<UShownDialogueSaveData>(
 		UGameplayStatics::LoadGameFromSlot(ShownDialogueSaveSlot, DialogueHistorySaveIndex));
 	if (DialogueHistorySaveData)
@@ -1159,6 +1162,7 @@ bool UDialogueSubsystem::LoadDialogueSaveData()
 
 void UDialogueSubsystem::SaveDialogueSaveData() const
 {
+	if (bPreviewPersistenceBlocked) return;
 	// 진행 동안 노출된 Dialogue의 Guid들을 SaveData에 저장
 	if (CurrentDialogueGraph && DialogueHistorySaveData)
 	{
