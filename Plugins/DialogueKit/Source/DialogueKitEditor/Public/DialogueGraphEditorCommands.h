@@ -11,6 +11,7 @@ public:
 	virtual void RegisterCommands() override;
 
 public:
+	TSharedPtr<FUICommandInfo> DuplicateNodes;
 	TSharedPtr<FUICommandInfo> ConvertToCSV;
 	TSharedPtr<FUICommandInfo> ConvertCSVToDialogueLocalization;
 };

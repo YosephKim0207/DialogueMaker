@@ -17,6 +17,8 @@ public:
 	void InitEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, class UDialogueGraph* InGraph);
 	UDialogueGraph* GetWorkingAsset() const { return WorkingAsset; }
 	UEdGraph* GetWorkingGraph() const { return WorkingGraph; }
+	TSharedPtr<FUICommandList> GetGraphCommands() const { return GraphEditorCommands; }
+	void DuplicateSelectedNodes();
 	void SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorkingGraphUI);
 	void SetSelectedDetailView(TSharedPtr<IDetailsView> NewDetailsView);
 	void OnGraphSelectionChanged(const FGraphPanelSelectionSet& NewSelection);

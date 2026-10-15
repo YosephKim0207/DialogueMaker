@@ -24,7 +24,7 @@ TSharedRef<SWidget> DialoguePrimaryTabFactory::CreateTabBody(const FWorkflowTabS
 	GraphEvents.OnSelectionChanged.BindRaw(InApp.Get(), &FDialogueGraphEditor::OnGraphSelectionChanged);
 	
 	TSharedPtr<SGraphEditor> GraphEditor =
-		SNew(SGraphEditor).IsEditable(true).GraphEvents(GraphEvents).GraphToEdit(InApp->GetWorkingGraph());
+		SNew(SGraphEditor).IsEditable(true).AdditionalCommands(InApp->GetGraphCommands()).GraphEvents(GraphEvents).GraphToEdit(InApp->GetWorkingGraph());
 	InApp->SetWorkingGraphUI(GraphEditor);
 	
 	return SNew(SVerticalBox) + SVerticalBox::Slot().FillHeight(1.0f).HAlign(HAlign_Fill)

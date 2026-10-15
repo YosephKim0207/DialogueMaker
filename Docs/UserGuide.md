@@ -46,6 +46,8 @@
 
 - [31. 경유점과 영역 주석](#31-경유점과-영역-주석)
 
+- [32. 선택 노드 복제](#32-선택-노드-복제)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -787,3 +789,13 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 - 개발자는 `FDialogueGraphCodec::ExportGraph/ImportGraph`를 사용합니다. `UDialogueGraph::EditorLayout`은 편집 전용이며 경유점/주석·핀 연결만 저장합니다. 실행 본문은 `Graph`가 정본이고 런타임에는 경유점/주석이 없습니다. cook에서는 편집 전용 property가 제외됩니다.
 - 재열기 때 편집 경로의 최종 목적지와 실행 자료가 다르면 임의 수정하지 않고 false를 반환합니다. 새 노드 종류를 확장할 때 저장 변환과 입력 검증을 함께 추가해야 합니다.
 - `DialogueKit.Editor.LayoutRoundtrip`은 삽입 Undo/Redo·배치 왕복·순환 거부를, `LayoutFileRoundtrip`은 격리 파일 저장/언로드/재로드를 검사합니다. 실제 드래그·주석 그룹 이동의 화면 확인과 cooked 산출물 검사는 별도 검증 항목입니다.
+
+
+## 32. 선택 노드 복제
+
+- Graph에서 복제할 노드를 선택하고 **Ctrl+D** 또는 툴바 `복제`를 누릅니다. 선택 집합 안의 연결만 유지하며 외부 입력/출력 연결은 복사하지 않습니다. 단일 노드를 복제하면 연결 없이 새 노드만 만듭니다.
+- Start는 복제하지 않습니다. Line/Choice/Branch/StateChange/End·기존 Dialogue 노드·경유점·주석을 지원합니다. 새 노드는 약간 이동된 위치에 생성하고 선택합니다.
+- Node ID·Pin ID·Choice ID는 새로 발급합니다. 원본 본문·조건·표현 설정은 복사하지만 Line 열람 버전은 1, 구형 shown 값은 false로 시작합니다. 원본과 복제본의 편집은 독립적입니다.
+- Undo 한 번으로 전체 복제를 취소하고 Redo 한 번으로 동일한 새 ID와 내부 연결을 복원합니다.
+- 개발자용 `FDialogueGraphEditing::Duplicate(Graph, Selection)`은 Editor 전용이며 새 노드 배열을 반환합니다. 읽기 전용·지원하지 않는 구조·손상된 그래프에서는 빈 배열을 반환합니다. 복제 전에 구조 검증을 수행하므로 미완성 경유점은 먼저 연결해야 합니다.
+- 단축키는 Graph Editor 명령 목록에 연결했습니다. 실제 Details 텍스트 입력 포커스와의 충돌 여부는 GUI 검증 대상이며, 자동화는 생성/연결/ID/Undo/Redo를 검증합니다.

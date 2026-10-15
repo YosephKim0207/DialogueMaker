@@ -1,5 +1,6 @@
 #include "DialogueGraphEditor.h"
 #include "DialogueLineAuthoring.h"
+#include "DialogueGraphEditing.h"
 #include "EdGraphNode_Comment.h"
 #include "DialogueCommentNode.h"
 #include "DialogueGraphCodec.h"
@@ -52,6 +53,7 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     // Toolbar Button 초기화
     GraphEditorCommands = MakeShareable(new FUICommandList);
     const FDialogueGraphEditorCommands& Commands = FDialogueGraphEditorCommands::Get();
+    GraphEditorCommands->MapAction(Commands.DuplicateNodes, FExecuteAction::CreateSP(this, &FDialogueGraphEditor::DuplicateSelectedNodes));
     GraphEditorCommands->MapAction(
         Commands.ConvertToCSV,
         FExecuteAction::CreateSP(this, &FDialogueGraphEditor::OnConvertToCSVButtonClicked),
@@ -186,6 +188,7 @@ void FDialogueGraphEditor::OnWorkingAssetPreSave()
 void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
     ToolbarBuilder.BeginSection("DialogueFunctions");
+    ToolbarBuilder.AddToolBarButton(FDialogueGraphEditorCommands::Get().DuplicateNodes);
     ToolbarBuilder.AddToolBarButton(
         FDialogueGraphEditorCommands::Get().ConvertToCSV,
         NAME_None,
@@ -473,4 +476,14 @@ void FDialogueGraphEditor::PostUndo(bool bSuccess)
         WorkingGraphUI->NotifyGraphChanged();
         WorkingGraph->MarkPackageDirty();
     }
+}
+
+// 복제 결과만 선택하여 원본과 분리해 이동/편집할 수 있게 한다.
+void FDialogueGraphEditor::DuplicateSelectedNodes()
+{
+    if (WorkingGraphUI.IsValid() == false) return;
+    const TArray<UEdGraphNode*> Nodes = FDialogueGraphEditing::Duplicate(WorkingGraph, WorkingGraphUI->GetSelectedNodes());
+    if (Nodes.IsEmpty()) return;
+    WorkingGraphUI->ClearSelectionSet();
+    for (UEdGraphNode* Node : Nodes) WorkingGraphUI->SetNodeSelection(Node, true);
 }
