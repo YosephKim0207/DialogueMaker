@@ -558,3 +558,5 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - S5 복제 완료: Graph Ctrl+D/툴바, 선택 내부 연결만 복제, Node/Pin/Choice 새 ID, 열람 버전 초기화, Start 제외, 손상/미지원 구조 사전 거부. Build 162844_94e18067, Editor 5개(162754_59626998), 최종 Duplicate 1개(162945_468e044c) 통과/Error 0. 독립 검토의 legacy 선택 ID/열람 초기화/지원 클래스 방어 반영. 실제 키보드 포커스 미검증.
 
 - S5 검색 완료: Ctrl+F/DialogueMaker 메뉴·하단 세 입력칸·Enter/버튼, 화자+본문 AND/Choice 단독, 혼합·빈값·0건 안내, weak 노드 이동 및 ChoiceID 기반 현 항목 강조. Build 163155_a1cddf98 및 최종 UI 빌드 성공; Search 1개(163219_c96e52d8) 통과/Error 0. 독립 검토의 Enter 누락 반영. 실제 Slate 클릭·강조는 GUI 미검증.
+
+- S5 그래프 검사: 진단 스크롤 목록/노드 이동, 경고 저장 확인, 빈 Choice/구조 오류 저장 차단, Save All/AutoSave 사전 가드. 닫기 시 무효 그래프 반영 차단, 닫힌 에셋은 Runtime 직접 검사. Build 164841_f81dfcf2, 전체49개(163916_46d0aec6) 및 최종 Validation1개(164913_3f534727) 통과/Error0. 실제 모달/AutoSave GUI 미검증. 안내서34절.
