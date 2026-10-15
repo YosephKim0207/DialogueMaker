@@ -442,3 +442,12 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - metadata 시험 첫 실행의 Editor native tag 등록 신규 오류는 Runtime 등록 태그 조회로 수정했다. 효과 스냅샷 시험의 배열 self-alias assert는 값 복사 후 Add로 수정했다. 실패 증거와 기존 오류 허용 기준을 보존했다.
 - Sol Medium 검토와 Luna High 조사를 실제 위임했고 메인만 수정/빌드/Git을 수행했다. GameDirector 역할은 제공되지 않아 제품 검토는 Unavailable/Not reviewed다.
 - 각 일반 기능의 branch와 Subject/Description 커밋을 보존하고 비강제 push/--no-ff 통합했다. 복구는 의존 후속 기능부터 merge revert(-m 1), 이력 삭제나 사용자 변경 폐기 없이 수행한다.
+
+
+## 2026-10-15 초기화 오류 수정
+
+- 사용자 승인: 앞서 설명한 기본 초기값 적용. 화자 두 필드=TestNPC, 표정=None, 위치=Left, 아이템 종류=Consumable, Value=0. enum 순서/값과 기존 에셋은 변경하지 않는다.
+- feature 단위 `fix/dialogue-struct-defaults`에서 수정. 단순 기본값 지정이므로 독립 위임은 생략했다. 사용법은 UserGuide 23절, 자동화 허용 목록 제거와 Build 안내를 함께 갱신했다.
+- Build `20261015_133113_5ed12fbc` 성공. 전체 DialogueKit 테스트 `20261015_133134_232c2391` 35개 통과, LogErrorLines=0, StartupClean=true. 초기화 6종/중복12줄은 해소됐다. 기존 라이선스·EnhancedInput 빌드 경고는 별개다.
+- 이번 수정에서는 GUI/PIE·패키징·패키지 실행을 재검증하지 않았다. 이전 보고서의 초기화 오류 잔존 문구는 당시 기록이며 현재 결과는 이 절을 따른다.
+- 체크포인트 스키마 변경은 설명 요청만 있었으며 승인되지 않았다. 관련 코드/버전은 변경하지 않았다. S0~S2 완료, S3·S4 부분 완료/복원 승인 대기, S5~S7 미착수는 유지한다.

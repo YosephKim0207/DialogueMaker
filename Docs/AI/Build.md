@@ -42,7 +42,7 @@ NullRHI 실행은 렌더링/UMG 시각 검증에 사용할 수 없다. 화면·�
 .\Scripts\AI\Test-AutomationReport.ps1
 ```
 
-Test 프로세스 실행 이후 실패에도 result.json을 남긴다. Outcome, FailureCategory, ReportFailureCategory, 종료 코드와 테스트 수를 구분한다. 기존 구조체 초기화 오류 6종/최대12줄은 KnownBaselineDiagnostics로 분리하며 그 외 Error는 실패다. 알려진 오류를 수정할 때 판정 기준에서도 제거한다. 환경 검사나 기존 실행 프로세스로 인한 시작 전 거부는 콘솔 오류로 보고한다.
+Test 프로세스 실행 이후 실패에도 result.json을 남긴다. Outcome, FailureCategory, ReportFailureCategory, 종료 코드와 테스트 수를 구분한다. 2026-10-15 구조체 초기화 누락 6종을 수정하고 기존 최대12줄 허용 목록을 비웠다. 현재 모든 Error는 실패이며, 같은 초기화 오류의 재발도 허용하지 않는다. 과거 보고서의 KnownBaselineDiagnostics는 당시 결과다. 환경 검사나 기존 실행 프로세스로 인한 시작 전 거부는 콘솔 오류로 보고한다.
 
 개발자용 공개 실행 인자·결과 해석·확장 방법은 [사용자 안내서](../UserGuide.md)를 따른다. 샘플 슬롯은 테스트 실행별 GUID로 격리되며 실제 사용자 슬롯은 사용하지 않는다. 자동화 성공은 GUI/PIE/패키징 성공을 뜻하지 않는다.
 

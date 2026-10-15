@@ -28,13 +28,13 @@ struct FPortraitInitData
 	GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitInitData|Speaker")
-    ESpeakerID Speaker;
+    ESpeakerID Speaker = ESpeakerID::TestNPC;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitInitData|Emote")
-    EEmoteType EmoteType;
+    EEmoteType EmoteType = EEmoteType::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitInitData|Portrait")
-    EPortraitSide PortraitSide;
+    EPortraitSide PortraitSide = EPortraitSide::Left;
 };
 
 UCLASS(BlueprintType)

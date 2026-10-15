@@ -30,6 +30,8 @@
 
 - [22. 최신 요청 기준 비동기 Block 로드](#22-최신-요청-기준-비동기-block-로드)
 
+- [23. 구조체 기본값과 초기화 오류 검사](#23-구조체-기본값과-초기화-오류-검사)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -620,3 +622,11 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 게임의 별도 카탈로그는 `RequestCandidates`에 같은 메타데이터를 제공합니다. C++ 커스텀 스트리밍은 `LoadOverride`와 `CompleteRequest(RequestId, Block)`을 사용합니다. 예상 에셋 경로와 Block ID·버전이 일치해야 합니다. 에셋 이름/경로 변경 후 오래된 색인은 재생성해야 합니다. 오류·성공 반환에 따른 UI/재시도 정책은 게임 책임입니다.
 
 `DialogueKit.Loading`은 이전 완료 무시, 취소, 최신 실패, 즉시 완료, 요청 시점 조건 고정, 공통 인사, 조건 진단 재진입을 검사합니다. `DialogueKit.Selection.UnloadedRegistry`는 임시 에셋을 실제 언로드한 뒤 Registry 평가와 비동기 로드, 같은 에셋의 다른 핸들 취소, 이미 로드된 에셋 재요청을 검사합니다. 저장 위치 복원·구버전 매핑·스토리 초기화와 Subsystem의 자동 세션 연결은 아직 후속 S3/S4 항목입니다.
+
+## 23. 구조체 기본값과 초기화 오류 검사
+
+새로 생성한 `FPortraitInitData`의 기본값은 Speaker=`TestNPC`, EmoteType=`None`(Default), PortraitSide=`Left`입니다. `FPortraitActionData.ActionTargetSpeakerID`는 `TestNPC`, `FItemRow.ItemType`은 `Consumable`, `Value`는 `0`입니다. 기존 enum의 0 값 의미를 유지하고 명시적 C++ 초기값을 추가했습니다.
+
+작가는 기존 초상화/연출 Details 및 아이템 DataTable에서 필요한 화자·표정·위치·종류·수치를 지정합니다. 이미 에셋에 저장된 값을 일괄 덮어쓰거나 enum 순서를 변경하지 않습니다. 게임 개발자는 구조체 생성 후 필요한 필드를 대입할 수 있으며 별도 초기화 함수를 호출할 필요가 없습니다. `TestNPC`는 미지정 전용 값이 아니므로 실제 화자를 지정하십시오.
+
+`Invoke-UE.ps1`은 기존 6개 필드의 초기화 진단을 더 이상 허용 목록으로 분리하지 않습니다. 같은 오류가 재발하면 테스트 실패로 처리합니다. 테스트 결과의 `StartupClean`, `LogErrorLines`, `UnexpectedLogErrors`를 확인하십시오. 이 변경은 체크포인트 스키마나 Block 교체 정책을 변경하지 않습니다.

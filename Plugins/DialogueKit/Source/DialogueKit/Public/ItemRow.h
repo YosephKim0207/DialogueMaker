@@ -20,7 +20,7 @@ struct FItemRow : public FTableRowBase
     FName Id;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Type")
-    EItemType ItemType;
+    EItemType ItemType = EItemType::Consumable;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Display")
     FText DisplayName;
@@ -29,7 +29,7 @@ struct FItemRow : public FTableRowBase
     FText Desc;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Attributes")
-    int32 Value;
+    int32 Value = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FItemRow|Display")
     TSoftObjectPtr<UTexture2D> Icon;

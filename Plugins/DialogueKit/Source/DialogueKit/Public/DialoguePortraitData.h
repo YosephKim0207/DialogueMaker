@@ -29,7 +29,7 @@ struct FPortraitActionData
 	GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitActionData|Portrait")
-    ESpeakerID ActionTargetSpeakerID;
+    ESpeakerID ActionTargetSpeakerID = ESpeakerID::TestNPC;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FPortraitActionData|Portrait", meta = (ToolTip = "ActionType이 Move인 경우 Action 이후 변화하는 Portarit Image, \nActionType이 Emote인 경우 Portrait에 붙어서 연출되는 Emoji Type"))
     EEmoteType PortraitActionEmoteType = EEmoteType::None;
