@@ -64,6 +64,18 @@ bool FDialogueCheckpointSnapshot::Validate(FName& OutErrorCode) const
 		OutErrorCode = TEXT("InvalidCheckpointTrigger");
 		return false;
 	}
+	TSet<FGuid> Occurrences;
+	for (const FDialogueChoiceRecord& Choice : PendingChoices)
+	{
+		if (Choice.OccurrenceId.IsValid() == false || Occurrences.Contains(Choice.OccurrenceId) ||
+			Choice.Block.IsValid() == false || Choice.BlockRunId.IsValid() == false ||
+			Choice.NodeGuid.IsValid() == false || Choice.ChoiceId.IsValid() == false)
+		{
+			OutErrorCode = TEXT("InvalidChoiceRecord");
+			return false;
+		}
+		Occurrences.Add(Choice.OccurrenceId);
+	}
 	TSet<FGuid> BlockIds;
 	for (const FDialogueBlockReadRecord& BlockRecord : FullReadHistory)
 	{

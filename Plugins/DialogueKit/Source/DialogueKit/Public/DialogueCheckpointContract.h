@@ -109,6 +109,25 @@ struct DIALOGUEKIT_API FDialogueCheckpointTrigger
 
 };
 
+// 정상 반복 선택도 매번 새 OccurrenceId를 갖는다. End 저장 성공 후 포함분만 정리한다.
+USTRUCT(BlueprintType)
+struct DIALOGUEKIT_API FDialogueChoiceRecord
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid OccurrenceId;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FDialogueBlockReference Block;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid BlockRunId;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid NodeGuid;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid ChoiceId;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	FGuid ExecutionId;
+};
+
 // 대화 상태의 전체 값 복사다. 게임 상태/효과 ledger는 게임이 같은 스냅샷에 함께 보존한다.
 USTRUCT(BlueprintType)
 struct DIALOGUEKIT_API FDialogueCheckpointSnapshot
@@ -129,6 +148,9 @@ struct DIALOGUEKIT_API FDialogueCheckpointSnapshot
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
 	TArray<FDialogueBlockReadRecord> FullReadHistory;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "DialogueKit|Checkpoint")
+	TArray<FDialogueChoiceRecord> PendingChoices;
 
 	// 오류를 반환하며 입력을 보정하거나 ID를 자동 생성하지 않는다.
 	bool Validate(FName& OutErrorCode) const;
