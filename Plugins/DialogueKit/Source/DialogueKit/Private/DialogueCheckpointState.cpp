@@ -181,7 +181,7 @@ bool UDialogueCheckpointState::RestoreSnapshot(const FDialogueCheckpointSnapshot
 	}
 	Cached = MoveTemp(Converted);
 	// 복원 입력은 이미 디스크에 성공한 스냅샷이다. 완료된 저장의 임시 선택을 되살리지 않는다.
-	if (Cached.Resume.Kind == EDialogueResumeKind::BlockCompleted)
+	if (Cached.Resume.Kind == EDialogueResumeKind::BlockCompleted || Cached.Trigger.Reason == EDialogueCheckpointReason::Replacement)
 	{
 		Cached.PendingChoices.Reset();
 	}
@@ -194,7 +194,7 @@ bool UDialogueCheckpointState::RestoreSnapshot(const FDialogueCheckpointSnapshot
 void UDialogueCheckpointState::AcknowledgeSavedSnapshot(const FDialogueCheckpointSnapshot& Snapshot)
 {
 	FName Error;
-	if (Snapshot.Validate(Error) == false || Snapshot.Resume.Kind != EDialogueResumeKind::BlockCompleted)
+	if (Snapshot.Validate(Error) == false || (Snapshot.Resume.Kind != EDialogueResumeKind::BlockCompleted && Snapshot.Trigger.Reason != EDialogueCheckpointReason::Replacement))
 	{
 		return;
 	}
@@ -239,5 +239,15 @@ bool UDialogueCheckpointState::PassLine(FGuid NodeGuid)
 	}
 	Cached.RunEvidence.PassedLines.AddUnique(NodeGuid);
 	Cached.RunEvidence.LastPassedLine = NodeGuid;
+	return true;
+}
+
+// 보정 성공 후 캡처할 새 시작 자료를 설치한다. 임시 선택은 실제 저장 성공까지 유지한다.
+bool UDialogueCheckpointState::InstallReplacement(const FDialogueCheckpointSnapshot& Snapshot, FName& OutError)
+{
+	if (Snapshot.Validate(OutError) == false || Snapshot.Trigger.Reason != EDialogueCheckpointReason::Replacement) return false;
+	Cached = Snapshot;
+	PendingReads.Reset();
+	CurrentLine.Invalidate();
 	return true;
 }

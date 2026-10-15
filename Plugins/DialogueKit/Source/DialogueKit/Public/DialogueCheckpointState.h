@@ -28,6 +28,8 @@ public:
 	FDialogueCheckpointSnapshot CaptureGameSave();
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Checkpoint")
 	bool RestoreSnapshot(const FDialogueCheckpointSnapshot& Snapshot, FName& OutError);
+	// 교체 준비 자료는 아직 디스크 성공이 아니므로 임시 선택 정리를 유예한다.
+	bool InstallReplacement(const FDialogueCheckpointSnapshot& Snapshot, FName& OutError);
 	// 게임이 실제 저장 성공한 snapshot만 전달한다. 후속 선택 자료는 보존한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Checkpoint")
 	void AcknowledgeSavedSnapshot(const FDialogueCheckpointSnapshot& Snapshot);
