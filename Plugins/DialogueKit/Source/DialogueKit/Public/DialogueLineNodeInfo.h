@@ -23,6 +23,13 @@ public:
 	float SecondsPerCharacter = 0.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Line|Text", meta = (ClampMin = "0", Units = "s"))
 	float LineDuration = 0.0f;
+	// 각 Line의 재개 연출을 명시한다. 비어 있는 BGM은 무음이며 같은 소스는 연속 재생한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Line|Audio")
+	TSoftObjectPtr<class USoundBase> BackgroundMusic;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Line|Audio")
+	TSoftObjectPtr<class USoundBase> SoundEffect;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|Line|Audio")
+	TSoftObjectPtr<class USoundBase> Voice;
 	void SetTextTiming(bool bWholeLine, float Seconds);
 	void CopyContinuationDefaultsFrom(const UDialogueLineNodeInfo& Source);
 #if WITH_EDITOR

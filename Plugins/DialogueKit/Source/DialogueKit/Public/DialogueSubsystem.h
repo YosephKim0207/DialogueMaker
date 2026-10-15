@@ -67,7 +67,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
 	UDialogueBlockRunner* GetBlockRunner();
 
-	// 신규 UI는 고정 ChoiceId로 선택한다. legacy 인덱스 기반 호출도 아래에서 변환한다.
+	// 저수준 호환 API다. 표시 중 펼치기/입력 방어를 우회하므로 새 화면은 PresentationWidget Submit API를 사용한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
 	bool SelectBlockChoice(FGuid ChoiceId);
 
