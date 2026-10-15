@@ -78,3 +78,7 @@ Prototype2는 Git LFS를 사용한다. 에셋이 포인터로 남았으면 Windo
 ## 지침 출처
 OpenAI Docs 스킬로 [공식 AGENTS.md 문서](https://learn.chatgpt.com/docs/agent-configuration/agents-md)를 확인하고 프로젝트 지침에 실행 문서를 연결했다.
 참고 대화의 config.toml/외부 플러그인 예시를 그대로 설치하지 않았다. 현재 세션의 모델과 권한 설정을 유지한다.
+
+## S3/S4 실제 재시작 및 버전 배포 검사
+
+`Scripts/AI/Invoke-DialogueRestoreValidation.ps1 -IncludePackage`를 사용한다. 서로 다른 UE 프로세스에서 `ProjectCheckpoint.Write`, `ProjectCheckpoint.Read`를 순차 수행하고, 격리 신규 버전 에셋을 명시적으로 cook한 후 `ProjectCook` 두 검사를 실행한다. 실행별 GUID/manifest/result를 Saved/AI/RestoreValidation에 남긴다. 일반 DialogueKit 전체 테스트에 자동 포함되지 않으며 기존 데이터 정리도 하지 않는다. 사용법/보존 범위는 UserGuide 28절. `Invoke-PackageValidation`의 `DialogueValidationId`는 검증 fixture만 추가하는 선택 인자다.
