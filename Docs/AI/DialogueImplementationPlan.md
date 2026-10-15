@@ -560,3 +560,5 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - S5 검색 완료: Ctrl+F/DialogueMaker 메뉴·하단 세 입력칸·Enter/버튼, 화자+본문 AND/Choice 단독, 혼합·빈값·0건 안내, weak 노드 이동 및 ChoiceID 기반 현 항목 강조. Build 163155_a1cddf98 및 최종 UI 빌드 성공; Search 1개(163219_c96e52d8) 통과/Error 0. 독립 검토의 Enter 누락 반영. 실제 Slate 클릭·강조는 GUI 미검증.
 
 - S5 그래프 검사: 진단 스크롤 목록/노드 이동, 경고 저장 확인, 빈 Choice/구조 오류 저장 차단, Save All/AutoSave 사전 가드. 닫기 시 무효 그래프 반영 차단, 닫힌 에셋은 Runtime 직접 검사. Build 164841_f81dfcf2, 전체49개(163916_46d0aec6) 및 최종 Validation1개(164913_3f534727) 통과/Error0. 실제 모달/AutoSave GUI 미검증. 안내서34절.
+
+- S5 스토리보드: Chapter/Scene/Block 세 영역과 Details, 안정 ID 이동/삭제 보존, 다중 선택/두 확인/미출시 확인 삭제, 대상 태그 분류·게임 표시명 검색, 소속 드롭다운. Build 165832_a8dd8760; 전체50개(165723_c3315ab2), 최종 Editor9개(165937_4a642007) 통과/Error0. 격리 Saved/AI 에셋의 실제 선택 삭제와 비선택 파일 보존 검증. 최초 좁은 필터가 이름 접두사 테스트를 포함해 래퍼 UnexpectedTests였으며 Editor 범위 재실행 통과. 실제 팝업·화면 미검증. 안내서35절.
