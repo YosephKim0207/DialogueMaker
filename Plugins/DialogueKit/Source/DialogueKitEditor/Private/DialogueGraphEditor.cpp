@@ -53,6 +53,7 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
     // Toolbar Button 초기화
     GraphEditorCommands = MakeShareable(new FUICommandList);
     const FDialogueGraphEditorCommands& Commands = FDialogueGraphEditorCommands::Get();
+    GraphEditorCommands->MapAction(Commands.Search, FExecuteAction::CreateSP(this, &FDialogueGraphEditor::ShowSearch));
     GraphEditorCommands->MapAction(Commands.DuplicateNodes, FExecuteAction::CreateSP(this, &FDialogueGraphEditor::DuplicateSelectedNodes));
     GraphEditorCommands->MapAction(
         Commands.ConvertToCSV,
@@ -188,6 +189,12 @@ void FDialogueGraphEditor::OnWorkingAssetPreSave()
 void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
     ToolbarBuilder.BeginSection("DialogueFunctions");
+    ToolbarBuilder.AddComboButton(FUIAction(), FOnGetContent::CreateLambda([this]()
+    {
+        FMenuBuilder Menu(true, GraphEditorCommands);
+        Menu.AddMenuEntry(FDialogueGraphEditorCommands::Get().Search);
+        return Menu.MakeWidget();
+    }), FText::FromString(TEXT("DialogueMaker")), FText::FromString(TEXT("대화 제작 도구")), FSlateIcon());
     ToolbarBuilder.AddToolBarButton(FDialogueGraphEditorCommands::Get().DuplicateNodes);
     ToolbarBuilder.AddToolBarButton(
         FDialogueGraphEditorCommands::Get().ConvertToCSV,

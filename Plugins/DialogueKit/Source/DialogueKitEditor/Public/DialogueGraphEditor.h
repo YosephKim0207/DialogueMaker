@@ -19,6 +19,10 @@ public:
 	UEdGraph* GetWorkingGraph() const { return WorkingGraph; }
 	TSharedPtr<FUICommandList> GetGraphCommands() const { return GraphEditorCommands; }
 	void DuplicateSelectedNodes();
+	TSharedRef<SWidget> CreateSearchPanel();
+	void ShowSearch();
+	void RunSearch();
+	void FocusNode(TWeakObjectPtr<UEdGraphNode> Node, FGuid ChoiceId = FGuid());
 	void SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorkingGraphUI);
 	void SetSelectedDetailView(TSharedPtr<IDetailsView> NewDetailsView);
 	void OnGraphSelectionChanged(const FGraphPanelSelectionSet& NewSelection);
@@ -62,6 +66,11 @@ protected:
 	
 private:
 	bool bCanCommitWorkingGraph = false;
+	bool bSearchVisible = false;
+	TSharedPtr<class SEditableTextBox> SpeakerSearch;
+	TSharedPtr<class SEditableTextBox> TextSearch;
+	TSharedPtr<class SEditableTextBox> ChoiceSearch;
+	TSharedPtr<class SScrollBox> SearchResults;
 	TSharedPtr<SGraphEditor> GraphEditor;
 	TSharedPtr<IDetailsView> DetailsView;
 	
