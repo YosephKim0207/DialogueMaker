@@ -55,6 +55,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
 	bool StartDialogueBlock(UDialogueGraph* Block);
 
+	// 공통 인사도 실제 요청 대상의 체크포인트로 기록한다. 실패 후 안내는 게임이 담당한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
+	bool StartDialogueBlockForTarget(UDialogueGraph* Block, FGameplayTag RequestTarget);
+
 	// 게임의 저장 제공자를 신규 실행 경로에 연결한다. 기존 수동 저장 구독은 관찰 전용으로 변경한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
 	bool ConfigureCheckpointSession(UObject* SaveProvider, UDialogueSaveQueue* SaveQueue);

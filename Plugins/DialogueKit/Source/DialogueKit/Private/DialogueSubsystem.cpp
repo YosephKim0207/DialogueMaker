@@ -1204,6 +1204,12 @@ UDialogueBlockRunner* UDialogueSubsystem::GetBlockRunner()
 // 새 실행 경로는 legacy 초기화/Quest 처리/저장을 호출하지 않는다.
 bool UDialogueSubsystem::StartDialogueBlock(UDialogueGraph* Block)
 {
+	return StartDialogueBlockForTarget(Block, IsValid(Block) ? Block->DialogueTarget : FGameplayTag());
+}
+
+// 에셋 대상과 요청 대상을 구분하여 전역 공통 인사도 올바른 재개 대상에 연결한다.
+bool UDialogueSubsystem::StartDialogueBlockForTarget(UDialogueGraph* Block, FGameplayTag RequestTarget)
+{
 	UDialogueBlockRunner* Runner = GetBlockRunner();
 	if (Runner->CanStartBlock() == false)
 	{
@@ -1211,7 +1217,7 @@ bool UDialogueSubsystem::StartDialogueBlock(UDialogueGraph* Block)
 	}
 	bUsingBlockRunner = true;
 	CurrentDialogueGraph = Block;
-	return CheckpointSession ? (IsValid(Block) && CheckpointSession->StartBlock(Block, Block->DialogueTarget)) : Runner->StartBlock(Block, BlockStateProvider, BlockEffectProvider, BlockRouter);
+	return CheckpointSession ? (IsValid(Block) && CheckpointSession->StartBlock(Block, RequestTarget)) : Runner->StartBlock(Block, BlockStateProvider, BlockEffectProvider, BlockRouter);
 }
 
 // 새 UI는 표시 인덱스 대신 ChoiceId를 보존해 입력한다.
