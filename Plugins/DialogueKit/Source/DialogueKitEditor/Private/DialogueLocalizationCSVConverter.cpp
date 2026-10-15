@@ -339,11 +339,11 @@ FString FDialogueLocalizationCSVConverter::BuildDialogueGraphCSVFromAsset(const 
 	}
 
 	FString OutCSV;
-	AppendCSVRow(OutCSV, {TEXT("NodeGuid"), TEXT("PinId"), TEXT("Key"), TEXT("Value")});
+	AppendCSVRow(OutCSV, {TEXT("NodeGuid"), TEXT("PinId"), TEXT("Key"), TEXT("Value"), TEXT("ChoiceId")});
 
-	const auto AddRecord = [&OutCSV](const FString& NodeGuid, const FString& PinId, const FString& Key, const FString& Value)
+	const auto AddRecord = [&OutCSV](const FString& NodeGuid, const FString& PinId, const FString& Key, const FString& Value, const FString& ChoiceId = FString())
 	{
-		AppendCSVRow(OutCSV, {NodeGuid, PinId, Key, Value});
+		AppendCSVRow(OutCSV, {NodeGuid, PinId, Key, Value, ChoiceId});
 	};
 
 	AddRecord(TEXT(""), TEXT(""), TEXT("PrimaryAssetId"), InDialogueGraph->GetPrimaryAssetId().ToString());
@@ -368,7 +368,7 @@ FString FDialogueLocalizationCSVConverter::BuildDialogueGraphCSVFromAsset(const 
 				{
 					if (Pin && Pin->ChoiceId == Option.ChoiceId)
 					{
-						AddRecord(GuidToString(RuntimeNode->NodeGuid), GuidToString(Pin->PinId), TEXT("ResponseText"), Option.Text.ToString());
+						AddRecord(GuidToString(RuntimeNode->NodeGuid), GuidToString(Pin->PinId), TEXT("ResponseText"), Option.Text.ToString(), GuidToString(Option.ChoiceId));
 						break;
 					}
 				}
@@ -422,6 +422,7 @@ bool FDialogueLocalizationCSVConverter::ConvertCSVToDialogueLocalizationDataAsse
 	int32 PinIdColumn = INDEX_NONE;
 	int32 KeyColumn = INDEX_NONE;
 	int32 ValueColumn = INDEX_NONE;
+	int32 ChoiceIdColumn = INDEX_NONE;
 
 	for (int32 HeaderIndex = 0; HeaderIndex < Header.Num(); ++HeaderIndex)
 	{
@@ -433,6 +434,10 @@ bool FDialogueLocalizationCSVConverter::ConvertCSVToDialogueLocalizationDataAsse
 		else if (NormalizedHeader == TEXT("pinid"))
 		{
 			PinIdColumn = HeaderIndex;
+		}
+		else if (NormalizedHeader == TEXT("choiceid"))
+		{
+			ChoiceIdColumn = HeaderIndex;
 		}
 		else if (NormalizedHeader == TEXT("key"))
 		{
@@ -491,6 +496,11 @@ bool FDialogueLocalizationCSVConverter::ConvertCSVToDialogueLocalizationDataAsse
 
 		if (Key == TEXT("responsetext"))
 		{
+			const FString ChoiceIdValue = GetCSVValueAt(Row, ChoiceIdColumn).TrimStartAndEnd();
+			if (!ChoiceIdValue.IsEmpty() && !FGuid::Parse(ChoiceIdValue, NewEntry.ChoiceId))
+			{
+				return Fail(OutErrorMessage, FString::Printf(TEXT("ChoiceId 파싱 실패\nCSV: %s\n값: %s"), *CSVFilePath, *ChoiceIdValue));
+			}
 			if (!FGuid::Parse(GetCSVValueAt(Row, PinIdColumn).TrimStartAndEnd(), NewEntry.PinId))
 			{
 				return Fail(OutErrorMessage, FString::Printf(TEXT("PinId 파싱 실패\nCSV: %s\n값: %s"), *CSVFilePath, *GetCSVValueAt(Row, PinIdColumn)));

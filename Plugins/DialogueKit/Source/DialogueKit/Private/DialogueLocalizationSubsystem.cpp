@@ -3,6 +3,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Engine/AssetManager.h"
 
 // 서브시스템 초기화 시 엔진의 현재 언어 코드를 읽어 기본 문화권 값을 설정한다.
 void UDialogueLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -32,6 +33,7 @@ void UDialogueLocalizationSubsystem::Initialize(FSubsystemCollectionBase& Collec
 		}
 	}
 
+	CurrentCultureCode = FDialogueLocalizationUtility::NormalizeCultureCode(CurrentCultureCode);
 	UE_LOG(LogTemp, Display, TEXT("DialogueLocalizationSubsystem::Initialize - %s"), *CurrentCultureCode);
 }
 
@@ -44,12 +46,12 @@ bool UDialogueLocalizationSubsystem::SetCurrentLanguage(ELanguage NewLanguage)
 // 대사 로컬라이제이션용 문화권 코드만 교체하고 캐시를 초기화한다.
 bool UDialogueLocalizationSubsystem::SetCurrentCultureCode(const FString& NewCultureCode)
 {
-	if (NewCultureCode.IsEmpty())
+	if (NewCultureCode.TrimStartAndEnd().IsEmpty())
 	{
 		return false;
 	}
 
-	CurrentCultureCode = NewCultureCode;
+	CurrentCultureCode = FDialogueLocalizationUtility::NormalizeCultureCode(NewCultureCode);
 	ClearLocalizationCache();
 
 	UE_LOG(LogTemp, Display, TEXT("DialogueLocalizationSubsystem::SetCurrentCultureCode - %s"), *CurrentCultureCode);
@@ -135,6 +137,23 @@ FText UDialogueLocalizationSubsystem::ResolveResponseText(const FPrimaryAssetId&
 	return FallbackText;
 }
 
+// 안정적인 선택 ID 조회를 우선하고 기존 핀 기반 에셋도 계속 지원한다.
+FText UDialogueLocalizationSubsystem::ResolveChoiceText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FGuid& ChoiceId, const FGuid& PinId, const FText& FallbackText)
+{
+	if (ChoiceId.IsValid() && EnsureLocalizationLoaded(DialogueGraphPrimaryAssetId))
+	{
+		FDialogueLocalizationLookupKey LookupKey;
+		LookupKey.NodeGuid = NodeGuid;
+		LookupKey.PinId = ChoiceId;
+		LookupKey.Key = TEXT("ChoiceText");
+		if (const FText* Text = LocalizedCacheByGraph.FindChecked(DialogueGraphPrimaryAssetId).LocalizedTexts.Find(LookupKey))
+		{
+			return *Text;
+		}
+	}
+	return ResolveResponseText(DialogueGraphPrimaryAssetId, NodeGuid, PinId, FallbackText);
+}
+
 // 임의 문자열을 에셋/패키지 이름으로 안전하게 사용할 수 있는 형태로 정규화한다.
 FString UDialogueLocalizationSubsystem::SanitizeForObjectName(const FString& Input)
 {
@@ -180,9 +199,13 @@ bool UDialogueLocalizationSubsystem::EnsureLocalizationLoaded(const FPrimaryAsse
 	UE_LOG(LogTemp, Display, TEXT("DialogueLocalizationSubsystem::EnsureLocalizationLoaded : Pass Cache Check"));
 
 	FDialogueLocalizationCacheEntry NewEntry;
-	const FString ObjectPath = BuildLocalizationObjectPath(DialogueGraphPrimaryAssetId);
+	// AssetManager의 등록 경로는 CSV 배치 변환의 하위 폴더도 보존한다.
+	const FString AssetName = FString::Printf(TEXT("DL_%s_%s"), *SanitizeForObjectName(DialogueGraphPrimaryAssetId.PrimaryAssetName.ToString()), *SanitizeForObjectName(CurrentCultureCode));
+	const FSoftObjectPath RegisteredPath = UAssetManager::Get().GetPrimaryAssetPath(FPrimaryAssetId(TEXT("DialogueLocalization"), FName(*AssetName)));
+	const FString ObjectPath = RegisteredPath.IsValid() ? RegisteredPath.ToString() : BuildLocalizationObjectPath(DialogueGraphPrimaryAssetId);
 	UDialogueLocalizationDataAsset* LocalizationAsset = LoadObject<UDialogueLocalizationDataAsset>(nullptr, *ObjectPath);
-	if (LocalizationAsset == nullptr || LocalizationAsset->TargetDialoguePrimaryAssetId != DialogueGraphPrimaryAssetId)
+	if (LocalizationAsset == nullptr || LocalizationAsset->TargetDialoguePrimaryAssetId != DialogueGraphPrimaryAssetId
+		|| !FDialogueLocalizationUtility::NormalizeCultureCode(LocalizationAsset->CultureName).Equals(CurrentCultureCode, ESearchCase::IgnoreCase))
 	{
 		// 에셋 누락/불일치 케이스를 음수 캐시로 저장해 반복 로드를 방지한다.
 		NewEntry.bMissing = true;
@@ -202,6 +225,12 @@ bool UDialogueLocalizationSubsystem::EnsureLocalizationLoaded(const FPrimaryAsse
 		LookupKey.PinId = Entry.PinId;
 		LookupKey.Key = Entry.Key;
 		NewEntry.LocalizedTexts.FindOrAdd(LookupKey) = Entry.Value;
+		if (Entry.ChoiceId.IsValid() && Entry.Key == TEXT("ResponseText"))
+		{
+			LookupKey.PinId = Entry.ChoiceId;
+			LookupKey.Key = TEXT("ChoiceText");
+			NewEntry.LocalizedTexts.FindOrAdd(LookupKey) = Entry.Value;
+		}
 	}
 
 	TouchCacheEntry(NewEntry);

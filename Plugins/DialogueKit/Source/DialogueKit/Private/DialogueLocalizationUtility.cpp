@@ -97,3 +97,25 @@ const TCHAR* FDialogueLocalizationUtility::GetDialogueLanguageConfigKey()
 	return TEXT("DialogueCultureOverride");
 }
 
+
+// 언어 전용 코드와 구분자를 정규화하되 번체 등 명시적인 문화권을 임의 변환하지 않는다.
+FString FDialogueLocalizationUtility::NormalizeCultureCode(const FString& CultureCode)
+{
+	const FString Normalized = CultureCode.TrimStartAndEnd().Replace(TEXT("_"), TEXT("-"));
+	TArray<FDialogueLanguageMapping> Mappings;
+	GetSupportedLanguageMappings(Mappings);
+	for (const FDialogueLanguageMapping& Mapping : Mappings)
+	{
+		if (Normalized.Equals(Mapping.CultureCode, ESearchCase::IgnoreCase))
+		{
+			return Mapping.CultureCode;
+		}
+		FString Language;
+		FString Region;
+		if (Mapping.CultureCode.Split(TEXT("-"), &Language, &Region) && Normalized.Equals(Language, ESearchCase::IgnoreCase))
+		{
+			return Mapping.CultureCode;
+		}
+	}
+	return Normalized;
+}
