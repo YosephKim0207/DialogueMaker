@@ -1254,7 +1254,7 @@ void UDialogueSubsystem::HandleBlockPresentation(const FDialoguePresentation& Ne
 					{
 						if (Pin && Pin->ChoiceId == View.ChoiceId)
 						{
-							View.Text = Localization->ResolveResponseText(AssetId, Node->NodeGuid, Pin->PinId, View.Text);
+							View.Text = Localization->ResolveChoiceText(AssetId, Node->NodeGuid, View.ChoiceId, Pin->PinId, View.Text);
 							break;
 						}
 					}

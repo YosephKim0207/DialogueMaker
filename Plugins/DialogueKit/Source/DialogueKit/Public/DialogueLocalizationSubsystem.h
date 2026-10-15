@@ -52,6 +52,8 @@ public:
 	void ClearLocalizationCache();
 
 	FText ResolveDialogueText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FText& FallbackText);
+	// ChoiceId를 우선 조회하고 구형 PinId 번역으로 대체한다.
+	FText ResolveChoiceText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FGuid& ChoiceId, const FGuid& PinId, const FText& FallbackText);
 	FText ResolveResponseText(const FPrimaryAssetId& DialogueGraphPrimaryAssetId, const FGuid& NodeGuid, const FGuid& PinId, const FText& FallbackText);
 
 private:

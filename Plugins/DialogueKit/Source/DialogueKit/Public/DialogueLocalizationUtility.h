@@ -32,6 +32,9 @@ public:
 	// 언어 enum 값을 Unreal 문화권 코드 문자열로 변환한다.
 	static FString ToCultureCode(ELanguage Language);
 
+	// 언어만 지정된 코드만 지원 문화권으로 정규화한다. 명시적인 지역 코드는 보존한다.
+	static FString NormalizeCultureCode(const FString& CultureCode);
+
 	// ELanguage 기준의 지원 언어/문화권 매핑 목록을 반환한다.
 	static void GetSupportedLanguageMappings(TArray<FDialogueLanguageMapping>& OutMappings);
 

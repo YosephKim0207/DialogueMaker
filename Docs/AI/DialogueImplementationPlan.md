@@ -592,3 +592,16 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - 검토 반영: Choice 재빌드 초기화, 고정 기본 화면의 Blueprint 상속 제한/명시적 재바인딩, 입력 포커스 제공, queued 취소, delegate 없는 실패 회수, 닫기 거부와 Workflow 기본 호출, 잠긴 핀의 Schema 변경 방어. 조건 조회 오류의 True 대체는 합의된 공통 정책을 유지하고 로그/문서로 설명한다.
 - 범위: 기존 에셋·게임 저장 스키마·Prototype2는 수정하지 않았다. 사용자 UI는 공개 표시 계약으로 연동하며 기존 WidgetClass를 자동 대체하지 않는다. S7은 미착수다.
 - 사용법: Docs/UserGuide.md 37~41절. 검증/실패 이력·변경 파일·복구 기준은 Docs/Reports/S6-Implementation-2026-10-15.md를 따른다.
+
+## S7 실행 기록 — 2026-10-15
+
+- 기준: Codex_Develop `a767e4e`, Windows Git 작업 트리 깨끗함. S6 전체 56개 및 PIE 생명주기 1개 통과. 실제 화면/음향 관찰은 미검증.
+- 승인 범위: BP-115의 기존 소비처/지역화 호환, 샘플 게임 연동 및 배포 검증. Prototype2와 실제 사용자 에셋/저장은 수정하지 않는다. GameDirector 역할 미노출로 제품 검토는 미실행이다.
+- 조사: Sol Medium 두 명이 지역화와 저장/선정 연결을, Luna High가 배포 검증 수단을 독립 검토했다.
+- 구현 순서: (1) feature/dialogue-localization-compat: 하위 폴더 번역 검색, Choice 안정 ID와 기존 PinId 호환, 문화권 및 CSV 왕복 회귀. (2) 기능별 샘플 통합: 요청 Target 전달, 복원 시 후보 취소, 공개 API를 연결한 샘플 호스트와 통합 회귀. (3) chore/dialogue-release-regression: 격리 패키지 실행 수단, 재시작/배포/Shipping 검증과 증거 취합. 각 기능을 작은 한국어 구현/검증 커밋 후 통합한다.
+- 호환성: 기존 지역화 CSV 4열과 PinId 에셋을 계속 읽는다. 신규 ChoiceId 열/필드는 선택적으로 확장하며 기존 키 조회를 유지한다. 기존 StartDialogueBlock 및 저장 스키마 1/2 독자를 유지한다. 게임 저장 형식의 추가 변경이 필요하면 별도 확인하며 플러그인에 게임 책임을 옮기지 않는다.
+- 검증: Scripts/AI/Invoke-UE.ps1 Build → 관련 테스트 → 전체 DialogueKit, 별도 ProjectPreview.BlockPIELifecycle 및 Invoke-DialogueRestoreValidation.ps1. 실제 실행은 기존 패키지에서 안전한 종료/고유 로그 PoC 후 새 래퍼로 확인한다. 실행 불가/보고서 없음/0개 테스트는 통과가 아니다.
+- PoC: packaged exe를 별도 출력/저장 경로로 실행해 정상 종료와 결과 파일을 확인한다. 기존 사용자 저장과 외부 Sentry 송신을 차단할 수 없으면 실행하지 않고 한계를 기록한다. NullRHI는 실제 화면/입력/음향 검증을 대신하지 않는다.
+- 발견: 번역 생성 하위 경로와 런타임 고정 경로 불일치, ChoiceId 대신 PinId 의존, common greeting의 요청 Target 손실, 복원과 후보 로드 경합. 샘플 합본에는 Chapter/Scene이 없으며 전체 게임 저장 책임에 대한 추가 설계 없이 저장 형식을 임의 변경하지 않는다.
+- 복구: 기능 브랜치 및 기준 SHA 보존, 통합은 --no-ff. 기능 전체는 해당 merge를 -m 1 revert, 부분 수정은 의존성을 확인하고 작은 커밋을 revert한다. 기존 파일/에셋 삭제나 이력 재작성은 하지 않는다.
+- 진행: 조사 완료, 구현 진행 중. 최종 증거/잔여 검증은 S7 보고서와 UserGuide에 기록한다.

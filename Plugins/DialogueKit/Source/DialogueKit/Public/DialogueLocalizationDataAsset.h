@@ -14,6 +14,10 @@ struct DIALOGUEKIT_API FDialogueLocalizationEntry
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueLocalization")
 	FGuid PinId;
 
+	// 신규 선택지는 편집 핀이 재생성되어도 유지되는 의미 ID로 번역한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueLocalization")
+	FGuid ChoiceId;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueLocalization")
 	FName Key;
 
