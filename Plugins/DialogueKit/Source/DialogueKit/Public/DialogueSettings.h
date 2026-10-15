@@ -43,6 +43,10 @@ public:
     void ApplyKitAssetToAssetManager() const;
 
 public:
+	// 개발자가 직접 만든 공통 인사 Block을 에셋 브라우저에서 지정한다.
+	UPROPERTY(Config, EditAnywhere, Category = "DialogueKit|DialogueSettings|Fallback")
+	TSoftObjectPtr<class UDialogueGraph> CommonGreetingBlock;
+
     UPROPERTY(Config, EditAnywhere, Category = "DialogueKit|DialogueSettings|UI")
     TSoftClassPtr<UUserWidget> DialogueWidgetClass;
 

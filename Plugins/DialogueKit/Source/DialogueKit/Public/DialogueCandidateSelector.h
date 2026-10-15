@@ -37,6 +37,8 @@ public:
 	bool BeginSession(FGameplayTag Target);
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Selection")
 	void EndSession();
+	// 진행 중인 선택 평가만 무효화하고 세션 완료 이력은 유지한다.
+	void CancelSelection();
 	// 게임이 명시적으로 시작/Refresh할 때만 호출한다. 이 함수는 에셋을 로드하지 않는다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Selection")
 	FDialogueSelectionResult Select(const TArray<FDialogueBlockCandidate>& Candidates,
@@ -61,6 +63,7 @@ private:
 	TSet<FGuid> CompletedOrdinary;
 	TSet<FGuid> CompletedDefaults;
 	FGuid PreviousBlock;
+	FGuid SelectionToken;
 	FRandomStream Random;
 	bool bHasSelection = false;
 };
