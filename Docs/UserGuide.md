@@ -34,6 +34,7 @@
 
 - [24. 누적 열람과 실행별 저장 증거](#24-누적-열람과-실행별-저장-증거)
 - [25. 게임 저장 세션과 실행 재개](#25-게임-저장-세션과-실행-재개)
+- [26. 정확 콘텐츠 버전 복원과 버전 작성](#26-정확-콘텐츠-버전-복원과-버전-작성)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -670,3 +671,15 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 `OnExecutionBoundary`는 단일 세션 기록 이후의 관찰 이벤트입니다. 여기서 같은 저장을 다시 제출하지 않습니다. 접수 실패한 경계는 방송되지 않으며 재시도도 원 경계를 재방송하지 않습니다. 복구 UI는 `RetryCapture` 결과와 표시 이벤트를 사용합니다. 저장 성공 정리는 Queue의 실제 성공 Snapshot에만 적용됩니다. 게임 자체 큐라면 `AcknowledgeSaved`를 성공 시 호출합니다.
 
 작가는 기존 Choice의 SaveOnSelection과 End의 SaveOnEnd를 사용합니다. 효과가 있으면 저장 경계가 필수이며, End 저장을 끄면 완료/열람은 캐시에만 남습니다. 이 절은 실행/저장 연동이며 별도 에디터 화면은 추가하지 않습니다.
+
+## 26. 정확 콘텐츠 버전 복원과 버전 작성
+
+게임은 최신 합본 Snapshot의 `Resume.Block`을 `UDialogueBlockLoader::RequestExactReference`에 전달합니다. 호출 전 완료 이벤트를 연결하고 결과의 요청 ID와 `bLoaded`를 확인한 뒤, 동일 Snapshot으로 CheckpointSession 또는 Subsystem의 Resume 함수를 호출합니다. 현재 GameplayTag·레벨·아이템 조건은 다시 검사하지 않습니다. 소속 없음/RestoreOnly 상태여도 정확 참조를 복원할 수 있으며 내부 Branch·Choice는 실행 시 정상 평가합니다.
+
+`FindExactReference`는 로드 없이 Registry에서 ID와 콘텐츠 버전을 찾는 C++ 확장점입니다. 다른 버전을 대신 선택하지 않습니다. 누락은 `RestoreBlockNotFound`, 중복은 `AmbiguousRestoreReference`로 반환합니다. 실패 시 일반 후보나 공통 인사로 대체하지 않습니다. 게임이 별도 카탈로그 또는 명시적 매핑에서 경로를 확보했다면 `RequestExactPath(SoftBlock, ExactReference, Router)`를 사용합니다. 완료 객체의 경로와 정확 참조도 대조합니다. 복원 요청은 신규 후보 소진으로 기록하지 않습니다.
+
+출시한 Graph를 구조적으로 바꿀 때는 Editor 모듈의 `UDialogueVersionLibrary::CreateContentVersion(Source, PackageName, AssetName, NewVersion, OutError)`로 별도 에셋을 만듭니다. 예: `/Game/Dialogue/QuestA_V2`, `QuestA_V2`, 버전 2. 동일 Block ID와 Node ID를 보존한 복제본을 만들고 콘텐츠 버전만 올립니다. 기존 목적지나 중복 버전에는 쓰지 않습니다. 저장은 자동 수행하지 않습니다. 이 함수는 Editor Blueprint/C++ 도구에서 호출할 수 있으며 Content Browser 전용 메뉴는 아직 추가하지 않았습니다.
+
+작가는 새 버전을 편집·저장하고, 구 에셋 Details의 Availability를 RestoreOnly로 설정·저장합니다. 원본은 함수가 자동 변경하지 않습니다. 일반 에셋 Duplicate는 기존대로 새 Block ID를 만드는 기능입니다. 새 버전 작성과 혼동하지 마십시오. 두 버전이 모두 Active이면 신규 후보 선정은 모호한 동일 ID로 거부할 수 있으므로 구 버전을 명시적으로 신규 노출 중단해야 합니다.
+
+지원하는 구버전과 이미지/음향 의존 리소스를 실제 cook에 포함해야 합니다. 프로젝트 AssetManager의 해당 DialogueGraph scan 경로와 AlwaysCook 설정 또는 프로젝트의 명시적 cook 포함 정책을 사용하십시오. Git 보관만으로는 실행 중 복원되지 않습니다. 자동 테스트는 버전별 조회, RestoreOnly 로드, 소속/대상 없는 복원, 중복·누락·목적지 충돌을 검사합니다. 명시적 대체/게임 보정은 다음 기능입니다.
