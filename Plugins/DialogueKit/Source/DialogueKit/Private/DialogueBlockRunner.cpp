@@ -10,11 +10,18 @@
 // 명시적으로 전달된 Block을 검사하여 Start에서 실행한다.
 bool UDialogueBlockRunner::StartBlock(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter)
 {
+	return PrepareBlock(Block, NewStateProvider, NewEffectProvider, NewRouter) && RunPreparedBlock();
+}
+
+// 준비 단계는 게임 상태 변경/대사 표시 없이 그래프와 재개 노드를 검사한다.
+bool UDialogueBlockRunner::PrepareAtNode(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter, FGuid EntryNode)
+{
 	if (CanStartBlock() == false)
 	{
 		return false;
 	}
 	TGuardValue<bool> Guard(bProcessing, true);
+	bPreparedCompleted = false;
 	BlockRunId = FGuid::NewGuid();
 	ActiveBlock = Block;
 	StateProvider = NewStateProvider;
@@ -56,7 +63,17 @@ bool UDialogueBlockRunner::StartBlock(UDialogueGraph* Block, UObject* NewStatePr
 			Start = Node;
 		}
 	}
-	return Start ? Pump(Start) : Fail(TEXT("MissingStartNode"));
+	if (Start == nullptr)
+	{
+		return Fail(TEXT("MissingStartNode"));
+	}
+	if (EntryNode.IsValid() && Nodes.Contains(EntryNode) == false)
+	{
+		return Fail(TEXT("ResumeNodeNotFound"));
+	}
+	PreparedEntry = EntryNode.IsValid() ? EntryNode : Start->NodeGuid;
+	Presentation.State = EDialogueRunState::Prepared;
+	return true;
 }
 
 // 목적지 객체와 저장된 목적지 ID가 일치하는 연결만 반환한다.
@@ -105,6 +122,10 @@ bool UDialogueBlockRunner::Pump(UDialogueRuntimeNode* Node)
 			if (Info == nullptr || Info->GetReadVersion() < 1 || Info->GetDialogueChoices().IsEmpty() == false || Node->OutputPins.Num() != 1)
 			{
 				return Fail(TEXT("InvalidLine"));
+			}
+			if (LineVisited.IsBound() && LineVisited.Execute(Node->NodeGuid, Info->GetReadVersion()) == false)
+			{
+				return Fail(TEXT("LineVisitRejected"));
 			}
 			Presentation.Line = DuplicateObject<UDialogueLineNodeInfo>(Info, this);
 			Presentation.LineNodeGuid = Node->NodeGuid;
@@ -198,7 +219,10 @@ bool UDialogueBlockRunner::AdvanceLine()
 		return false;
 	}
 	TGuardValue<bool> Guard(bProcessing, true);
-	return Pump(ResolveOutput(Nodes.FindRef(Presentation.NodeGuid), 0));
+	UDialogueRuntimeNode* Next = ResolveOutput(Nodes.FindRef(Presentation.NodeGuid), 0);
+	if (Next == nullptr) return Fail(TEXT("InvalidConnection"));
+	if (LinePassed.IsBound() && LinePassed.Execute(Presentation.LineNodeGuid) == false) return Fail(TEXT("LinePassRejected"));
+	return Pump(Next);
 }
 
 // 미리보기는 다음 노드의 타입만 읽는다.
@@ -316,6 +340,11 @@ bool UDialogueBlockRunner::SelectChoice(FGuid ChoiceId)
 	const UDialogueChoiceNodeInfo* Info = CastChecked<UDialogueChoiceNodeInfo>(Node->NodeInfo);
 	const int32 Index = Info->Options.IndexOfByPredicate([ChoiceId](const FDialogueOption& Option) { return Option.ChoiceId == ChoiceId; });
 	UDialogueRuntimeNode* Next = ResolveOutput(Node, Index);
+	if (Next == nullptr) return Fail(TEXT("InvalidConnection"));
+	if (Presentation.State == EDialogueRunState::WaitingLine && LinePassed.IsBound() && LinePassed.Execute(Presentation.LineNodeGuid) == false)
+	{
+		return Fail(TEXT("LinePassRejected"));
+	}
 	if (ApplyEffects(Node, Next, Info->Options[Index].Effects, ChoiceId, Info->bSaveOnSelection) == false)
 	{
 		return false;
@@ -343,6 +372,10 @@ bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueR
 	Boundary.NextNodeGuid = Next->NodeGuid;
 	Boundary.bHasEffects = Effects.IsEmpty() == false;
 	Boundary.bSaveRequested = bSaveRequested || Boundary.bHasEffects;
+	if (Boundary.bSaveRequested && CheckpointCapture.IsBound() && (CheckpointReady.IsBound() == false || CheckpointReady.Execute() == false))
+	{
+		return Fail(TEXT("CheckpointUnavailable"));
+	}
 	if (Boundary.bHasEffects)
 	{
 		Boundary.Context.ExecutionId = FGuid::NewGuid();
@@ -358,6 +391,10 @@ bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueR
 		}
 	}
 	// 후속 노드가 상태를 변경하기 전에 게임이 불변 스냅샷을 확보해야 한다.
+	if (CheckpointCapture.IsBound() && CheckpointCapture.Execute(Boundary) == false)
+	{
+		return Fail(TEXT("CheckpointCaptureFailed"));
+	}
 	OnExecutionBoundaryNative.Broadcast(Boundary);
 	OnExecutionBoundary.Broadcast(Boundary);
 	return true;
@@ -366,6 +403,10 @@ bool UDialogueBlockRunner::ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueR
 // 완료는 저장 성공과 다르다. 게임은 완료 이력/종료 상태를 캐시에 반영한 뒤 선택적으로 저장한다.
 bool UDialogueBlockRunner::Complete(bool bSaveRequested)
 {
+	if (bSaveRequested && CheckpointCapture.IsBound() && (CheckpointReady.IsBound() == false || CheckpointReady.Execute() == false))
+	{
+		return Fail(TEXT("CheckpointUnavailable"));
+	}
 	Presentation.State = EDialogueRunState::Completed;
 	Presentation.Line = nullptr;
 	Presentation.LineNodeGuid.Invalidate();
@@ -378,6 +419,10 @@ bool UDialogueBlockRunner::Complete(bool bSaveRequested)
 	Boundary.Context.NodeGuid = Presentation.NodeGuid;
 	Boundary.bBlockCompleted = true;
 	Boundary.bSaveRequested = bSaveRequested;
+	if (CheckpointCapture.IsBound() && CheckpointCapture.Execute(Boundary) == false)
+	{
+		return Fail(TEXT("CheckpointCaptureFailed"));
+	}
 	OnExecutionBoundaryNative.Broadcast(Boundary);
 	OnExecutionBoundary.Broadcast(Boundary);
 	Publish();
@@ -388,4 +433,68 @@ bool UDialogueBlockRunner::Complete(bool bSaveRequested)
 bool UDialogueBlockRunner::CanStartBlock() const
 {
 	return bProcessing == false && (Presentation.State == EDialogueRunState::Idle || Presentation.State == EDialogueRunState::Completed || Presentation.State == EDialogueRunState::Failed);
+}
+
+// 준비된 노드부터 실행한다. 준비 후 캡처와 게임 보정은 호출자가 완료해야 한다.
+bool UDialogueBlockRunner::RunPreparedBlock()
+{
+	if (bProcessing || Presentation.State != EDialogueRunState::Prepared)
+	{
+		return false;
+	}
+	TGuardValue<bool> Guard(bProcessing, true);
+	if (bPreparedCompleted)
+	{
+		Presentation.State = EDialogueRunState::Completed;
+		Publish();
+		return true;
+	}
+	return Pump(Nodes.FindRef(PreparedEntry));
+}
+
+// 활성 저장은 후보 조건을 재평가하지 않고 같은 ID와 콘텐츠 버전으로 복원한다.
+bool UDialogueBlockRunner::PrepareResume(UDialogueGraph* Block, const FDialogueResumePosition& Position, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter)
+{
+	if (Position.IsValid() == false || IsValid(Block) == false || (Position.Block == Block->GetBlockReference()) == false ||
+		Position.Kind == EDialogueResumeKind::None)
+	{
+		return false;
+	}
+	if (PrepareAtNode(Block, NewStateProvider, NewEffectProvider, NewRouter, Position.NodeGuid) == false)
+	{
+		return false;
+	}
+	if (Position.Kind == EDialogueResumeKind::BeforeNode && Nodes.FindRef(Position.NodeGuid)->DialogueNodeType == EDialogueType::StartNode)
+	{
+		return Fail(TEXT("InvalidResumeNode"));
+	}
+	BlockRunId = Position.BlockRunId;
+	bPreparedCompleted = Position.Kind == EDialogueResumeKind::BlockCompleted;
+	return true;
+}
+
+// 명시적 세션 종료는 그래프 실행만 취소하고 저장 큐와 누적 이력을 건드리지 않는다.
+bool UDialogueBlockRunner::CancelBlock()
+{
+	if (bProcessing)
+	{
+		return false;
+	}
+	ActiveBlock = nullptr;
+	Nodes.Reset();
+	Presentation = FDialoguePresentation();
+	PreparedEntry.Invalidate();
+	return true;
+}
+
+// 검증된 위치 준비 이후에만 실행한다.
+bool UDialogueBlockRunner::ResumeBlock(UDialogueGraph* Block, const FDialogueResumePosition& Position, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter)
+{
+	return PrepareResume(Block, Position, NewStateProvider, NewEffectProvider, NewRouter) && RunPreparedBlock();
+}
+
+// 신규 실행 준비의 진입점은 Start로 고정한다.
+bool UDialogueBlockRunner::PrepareBlock(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter)
+{
+	return PrepareAtNode(Block, NewStateProvider, NewEffectProvider, NewRouter, FGuid());
 }

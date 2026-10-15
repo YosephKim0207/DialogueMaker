@@ -4,6 +4,7 @@
 #include "DialogueGraph.h"
 #include "DialogueNodeInfo.h"
 #include "DialogueDiagnostics.h"
+#include "DialogueCheckpointContract.h"
 #include "DialogueBlockRunner.generated.h"
 
 UENUM(BlueprintType)
@@ -14,7 +15,8 @@ enum class EDialogueRunState : uint8
 	WaitingLine,
 	WaitingChoice,
 	Completed,
-	Failed
+	Failed,
+	Prepared
 };
 
 USTRUCT(BlueprintType)
@@ -92,12 +94,39 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
 	bool StartBlock(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter);
 
+	// 검증/준비와 실행을 분리한다. 교체 저장은 준비 이후 첫 효과 전에 캡처할 수 있다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
+	bool PrepareBlock(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter);
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
+	bool RunPreparedBlock();
+	// 정확한 Block/버전의 저장 위치에서만 재개하며 기존 효과를 다시 적용하지 않는다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
+	bool ResumeBlock(UDialogueGraph* Block, const FDialogueResumePosition& Position, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter);
+	// 게임의 명시적 종료/초기화에서 실행 상태를 해제한다. 저장은 별도 게임 책임이다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Run")
+	bool CancelBlock();
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FCheckpointCapture, const FDialogueExecutionBoundary&);
+	// 저장 연동 세션이 사용하는 단일 경계다. 접수 실패하면 후속 실행을 중단한다.
+	FCheckpointCapture CheckpointCapture;
+	DECLARE_DELEGATE_RetVal(bool, FCheckpointReady);
+	FCheckpointReady CheckpointReady;
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FLineVisit, FGuid, int32);
+	FLineVisit LineVisited;
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FLinePass, FGuid);
+	FLinePass LinePassed;
+	// 복원 준비는 저장 실행 ID를 유지하고 후보 조건을 재평가하지 않는다.
+	bool PrepareResume(UDialogueGraph* Block, const FDialogueResumePosition& Position, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter);
+
 	// 콜백 중 재진입까지 포함하여 새 시작 가능 여부를 조회한다.
 	UFUNCTION(BlueprintPure, Category = "DialogueKit|Run")
 	bool CanStartBlock() const;
 
 
 	// 실행별 저장 증거와 효과 원장을 같은 실행으로 연결한다.
+	UFUNCTION(BlueprintPure, Category = "DialogueKit|Run")
+	bool IsProcessing() const { return bProcessing; }
+
 	UFUNCTION(BlueprintPure, Category = "DialogueKit|Run")
 	FGuid GetBlockRunId() const { return BlockRunId; }
 
@@ -130,6 +159,7 @@ public:
 	FDialogueExecutionBoundaryNative OnExecutionBoundaryNative;
 
 private:
+	bool PrepareAtNode(UDialogueGraph* Block, UObject* NewStateProvider, UObject* NewEffectProvider, UDialogueDiagnosticRouter* NewRouter, FGuid EntryNode);
 	// 연결의 방향/소유/단일 목적지를 검사하고 실패 시 nullptr를 반환한다.
 	UDialogueRuntimeNode* ResolveOutput(const UDialogueRuntimeNode* Node, int32 Index) const;
 	// 자동 제어 노드를 통과하고 입력 대기 또는 종료 상태를 게시한다.
@@ -167,5 +197,7 @@ private:
 	bool ApplyEffects(UDialogueRuntimeNode* Origin, UDialogueRuntimeNode* Next, const TArray<struct FDialogueEffect>& Effects, FGuid ChoiceId, bool bSaveRequested);
 
 	FGuid BlockRunId;
+	FGuid PreparedEntry;
+	bool bPreparedCompleted = false;
 	bool bProcessing = false;
 };
