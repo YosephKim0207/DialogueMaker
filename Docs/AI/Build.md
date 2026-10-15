@@ -82,3 +82,9 @@ OpenAI Docs 스킬로 [공식 AGENTS.md 문서](https://learn.chatgpt.com/docs/a
 ## S3/S4 실제 재시작 및 버전 배포 검사
 
 `Scripts/AI/Invoke-DialogueRestoreValidation.ps1 -IncludePackage`를 사용한다. 서로 다른 UE 프로세스에서 `ProjectCheckpoint.Write`, `ProjectCheckpoint.Read`를 순차 수행하고, 격리 신규 버전 에셋을 명시적으로 cook한 후 `ProjectCook` 두 검사를 실행한다. 실행별 GUID/manifest/result를 Saved/AI/RestoreValidation에 남긴다. 일반 DialogueKit 전체 테스트에 자동 포함되지 않으며 기존 데이터 정리도 하지 않는다. 사용법/보존 범위는 UserGuide 28절. `Invoke-PackageValidation`의 `DialogueValidationId`는 검증 fixture만 추가하는 선택 인자다.
+
+## S7 패키지 실행과 Shipping 분리
+
+`Invoke-DialogueRestoreValidation.ps1 -IncludePackage`의 GUID와 대응 Development `Package_*/result.json`을 `Invoke-PackagedDialogueValidation.ps1 -PackageResult <절대 경로> -DialogueValidationId <GUID>`에 전달한다. 고유 userdir로 실제 exe의 Write→저장 대기 강제 종료→Read를 실행한다. marker/종료 코드/로그 오류/저장 해시를 함께 판정한다. 자세한 한계와 호출 순서는 UserGuide 44절을 따른다.
+
+`Invoke-PackageValidation.ps1 -Action Package -Configuration Shipping` 뒤 `Invoke-UE.ps1 -Action Test -TestFilter ProjectShipping`을 실행해 현재 cooked Registry의 개발 fixture/태그 제외를 확인한다. Shipping 패키징과 실제 실행은 구분한다. 개발용 명령 harness는 Shipping에 포함하지 않는다.
