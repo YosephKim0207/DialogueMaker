@@ -1,4 +1,5 @@
 #include "DialogueGraphEditor.h"
+#include "DialogueLineAuthoring.h"
 #include "DialogueGraphCodec.h"
 
 #include "DesktopPlatformModule.h"
@@ -189,6 +190,11 @@ void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
         LOCTEXT("ConvertCSVToDialogueLocalization_Tooltip", "Convert CSV to DialogueLocalization DataAsset"),
         FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import")
         );
+    ToolbarBuilder.AddToolBarButton(FUIAction(FExecuteAction::CreateLambda([this]()
+    {
+        FDialogueLineAuthoring::ShowTimingDialog(WorkingGraph);
+    })), NAME_None, FText::FromString(TEXT("출력 시간 일괄 변경")),
+        FText::FromString(TEXT("현재 Block의 모든 Line 출력 시간을 변경합니다.")), FSlateIcon());
     ToolbarBuilder.EndSection();
 }
 

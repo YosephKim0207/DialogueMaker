@@ -21,6 +21,7 @@ public class DialogueKitEditor : ModuleRules
                         "AssetTools",
                         "Slate",
                         "SlateCore",
+                        "InputCore",
                         "GraphEditor",
                         "BlueprintGraph",
                         "PropertyEditor",

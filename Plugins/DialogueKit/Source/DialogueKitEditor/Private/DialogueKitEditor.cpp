@@ -6,6 +6,8 @@
 #include "DesktopPlatformModule.h"
 #include "DialogueGraph.h"
 #include "DialogueFlowEdGraphNode.h"
+#include "DialogueLineDetails.h"
+#include "PropertyEditorModule.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueLocalizationCSVConverter.h"
 #include "DialogueLocalizationSubsystem.h"
@@ -208,6 +210,7 @@ void FDialogueKitEditorModule::StartupModule()
 	PinFactory = MakeShareable(new FDialoguePinFactory);
 	FEdGraphUtilities::RegisterVisualPinFactory(PinFactory);
 	FDialogueGraphEditorCommands::Register();
+	FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor")).RegisterCustomClassLayout(TEXT("DialogueLineNodeInfo"), FOnGetDetailCustomizationInstance::CreateStatic(&FDialogueLineDetails::MakeInstance));
 	LoadDialogueLanguageOverrideFromConfig();
 
 	if (UToolMenus::IsToolMenuUIEnabled())
@@ -219,6 +222,10 @@ void FDialogueKitEditorModule::StartupModule()
 // 모듈 종료 시 등록한 메뉴/스타일/커맨드를 정리한다.
 void FDialogueKitEditorModule::ShutdownModule()
 {
+	if (FPropertyEditorModule* PropertyEditor = FModuleManager::GetModulePtr<FPropertyEditorModule>(TEXT("PropertyEditor")))
+	{
+		PropertyEditor->UnregisterCustomClassLayout(TEXT("DialogueLineNodeInfo"));
+	}
 	if (UToolMenus::IsToolMenuUIEnabled())
 	{
 		UToolMenus::UnRegisterStartupCallback(this);

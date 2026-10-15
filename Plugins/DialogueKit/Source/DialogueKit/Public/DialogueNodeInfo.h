@@ -53,6 +53,8 @@ public:
 
 	// 명시적인 미열람 갱신에서만 호출한다. 최대값에서는 false로 실패하고 상태를 유지한다.
 	bool AdvanceReadVersion();
+	// 연속 발화의 초기값만 복사한다. 본문/액션/퀘스트/열람 기록은 복사하지 않는다.
+	void CopySpeakerPresentationFrom(const UDialogueNodeInfo& Source);
 
 	bool IsDialogueAlreadyShown() const;
 	void SetShownCondition(const bool NewCondition);
