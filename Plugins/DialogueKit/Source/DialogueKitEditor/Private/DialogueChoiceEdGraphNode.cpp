@@ -77,3 +77,9 @@ void UDialogueChoiceEdGraphNode::OnPropertiesChanged()
 	Pins = MoveTemp(Ordered);
 	GetGraph()->NotifyGraphChanged();
 }
+
+// 노드와 입출력 핀에 같은 역할 색상을 사용한다.
+FLinearColor UDialogueChoiceEdGraphNode::GetNodeTitleColor() const
+{
+	return FLinearColor(0.65f, 0.2f, 0.85f);
+}

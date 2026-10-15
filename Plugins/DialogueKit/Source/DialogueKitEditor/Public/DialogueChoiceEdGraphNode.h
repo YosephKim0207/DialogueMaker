@@ -9,6 +9,7 @@ class DIALOGUEKITEDITOR_API UDialogueChoiceEdGraphNode : public UDialogueFlowEdG
 {
 	GENERATED_BODY()
 public:
+	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual EDialogueType GetDialogueNodeType() const override { return EDialogueType::ChoiceNode; }
 	virtual void InitNodeInfo(UObject* Outer) override;

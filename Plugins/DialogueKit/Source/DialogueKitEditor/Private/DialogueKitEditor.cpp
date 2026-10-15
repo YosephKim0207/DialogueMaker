@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DesktopPlatformModule.h"
 #include "DialogueGraph.h"
+#include "DialogueFlowEdGraphNode.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueLocalizationCSVConverter.h"
 #include "DialogueLocalizationSubsystem.h"
@@ -128,11 +129,36 @@ protected:
 	};
 };
 
+// 새 실행 노드의 빈 핀 테두리와 연결된 핀 채움을 노드 색상에 맞춘다.
+class SDialogueFlowGraphPin : public SGraphPin
+{
+public:
+	SLATE_BEGIN_ARGS(SDialogueFlowGraphPin) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
+	{
+		SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
+	}
+
+protected:
+	virtual FSlateColor GetPinColor() const override
+	{
+		const UEdGraphNode* Node = GraphPinObj ? GraphPinObj->GetOwningNode() : nullptr;
+		return Node ? FSlateColor(Node->GetNodeTitleColor()) : SGraphPin::GetPinColor();
+	}
+};
+
 struct FDialoguePinFactory : FGraphPanelPinFactory
 {
 	virtual ~FDialoguePinFactory() {};
 	virtual TSharedPtr<SGraphPin> CreatePin(UEdGraphPin* Pin) const override
 	{
+		// 소유 클래스로 판정하므로 기존 저장 핀의 subcategory를 변경하지 않는다.
+		if (Pin && Cast<UDialogueFlowEdGraphNode>(Pin->GetOwningNode()))
+		{
+			return SNew(SDialogueFlowGraphPin, Pin);
+		}
 		if (FName(TEXT("DialoguePin")) == Pin->PinType.PinSubCategory)
 		{
 			return SNew(SDialogueGraphPin, Pin);

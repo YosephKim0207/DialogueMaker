@@ -13,6 +13,10 @@ class DIALOGUEKITEDITOR_API UDialogueFlowEdGraphNode : public UDialogueEdGraphNo
 public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
+	// 에디터 삭제 명령용이다. 확인 UI는 호출자가 처리하며 링크/Undo 기록을 함께 변경한다.
+	bool DeleteFromGraph();
+	bool CanDeleteFromGraph() const;
 	virtual UEdGraphPin* CreateCustomPin(EEdGraphPinDirection Direction, FName Name) override;
 	virtual UEdGraphPin* CreateDefaultInputPin() override;
 	virtual void CreateDefaultOutputPin() override;

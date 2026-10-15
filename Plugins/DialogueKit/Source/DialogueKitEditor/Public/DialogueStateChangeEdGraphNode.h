@@ -9,6 +9,7 @@ class DIALOGUEKITEDITOR_API UDialogueStateChangeEdGraphNode : public UDialogueFl
 {
 	GENERATED_BODY()
 public:
+	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual EDialogueType GetDialogueNodeType() const override { return EDialogueType::StateChangeNode; }
 	virtual void InitNodeInfo(UObject* Outer) override;

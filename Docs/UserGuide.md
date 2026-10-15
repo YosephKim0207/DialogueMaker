@@ -40,6 +40,8 @@
 
 - [28. 실제 재시작과 버전 cook 검증](#28-실제-재시작과-버전-cook-검증)
 
+- [29. 노드 색상과 우클릭 삭제](#29-노드-색상과-우클릭-삭제)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -740,3 +742,15 @@ SelectiveRollback의 `RequiredPassedLine`은 선택 사항이다. 지정하면 �
 결과는 `Saved/AI/RestoreValidation/<GUID>/result.json`과 각 Invoke-UE/Package 실행 폴더에 기록한다. 테스트가 만든 `/Game/DialogueValidation/<GUID>` 에셋은 Git ignore이며 이번 package의 `-CookDir`로만 명시 포함한다. 일반 배포 시 해당 폴더를 추가 cook하거나 참조하지 않는다. 전용 `DialogueRestart_<GUID>` 슬롯·에셋·manifest는 증거로 남고 자동 삭제하지 않는다. 기존 게임 슬롯/샘플 에셋은 수정하지 않는다. 이 검증용 바이너리는 Git에 올리지 않고 생성 코드·문서·스크립트를 관리한다.
 
 두 내부 저장 슬롯은 중단에 대비한 구현 세부사항이다. 플레이어에게 과거 세이브 선택 UI를 제공하지 않는다. 패키지 생성/Registry 검사가 실제 패키지 실행·이미지·음성·입력 검증을 뜻하지 않는다. 실제 화면과 저장 표시 이미지 연결은 S6, 전체 게임·출시 업데이트·강제 종료 회귀와 배포 실행은 S7에서 수행한다.
+
+## 29. 노드 색상과 우클릭 삭제
+
+Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateChange)은 청록색으로 표시된다. 각 노드의 Input/Output 핀도 같은 색을 사용하며 미연결 테두리와 연결된 핀 채움 모두 적용된다. 기존 에셋은 재작성할 필요가 없다. 이미 실행 중인 에디터는 새 Editor 모듈을 반영하도록 정상 종료 후 다시 연다. Branch/Start/End의 기존 색상은 유지한다.
+
+작가는 **노드 본문 우클릭 → 대화 노드 작업 → 노드 삭제… → 확인창에서 예** 순서로 해당 노드와 연결선을 삭제한다. 아니요를 누르면 변경하지 않는다. 핀 우클릭에는 노드 전체 삭제 메뉴를 추가하지 않았으므로 연결 작업과 구분된다. 이 메뉴는 Line/Choice/StateChange에 적용하며 기존 Branch/End 메뉴와 Start 삭제 보호는 유지한다. 빈 공간 우클릭은 기존 노드 생성 메뉴다.
+
+새 삭제 동작은 UE transaction에 노드·핀 연결을 함께 기록한다. Ctrl+Z/Undo로 되돌리고 Ctrl+Y/Redo로 다시 삭제할 수 있다. 연결을 자동으로 다른 노드에 우회 연결하지 않는다. 삭제 후 필요한 연결을 작성하고 에셋을 저장한다. 여러 노드 일괄 삭제와 키보드 Delete 명령 통합은 이 보완의 범위가 아니다.
+
+개발자 확장: Flow 계열 노드의 `GetNodeTitleColor()`를 override하면 전용 핀 위젯도 같은 색을 사용한다. 저장된 PinSubCategory 변경은 필요 없다. 에디터 명령에서 `CanDeleteFromGraph()`로 확인하고 `DeleteFromGraph()`를 호출하면 연결 정리/transaction을 공유한다. 이 낮은 수준 함수 자체는 확인창을 띄우지 않으며 메뉴가 확인 UI를 담당한다. Runtime/게임 API는 변경하지 않았다.
+
+검증은 `DialogueKit.Editor.NodeDeleteUndo`의 메뉴 구분·읽기전용 거부·링크 제거·Undo/Redo·Graph export와 관련 Graph 회귀를 사용한다. 실제 GUI에서 색감·확인창 클릭을 관찰한 결과와 비시각 자동화 결과는 구분한다.
