@@ -1,5 +1,7 @@
 #include "DialogueGraphEditor.h"
 #include "DialogueLineAuthoring.h"
+#include "EdGraphNode_Comment.h"
+#include "DialogueCommentNode.h"
 #include "DialogueGraphCodec.h"
 
 #include "DesktopPlatformModule.h"
@@ -38,6 +40,7 @@ void FDialogueGraphEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& In
 
 void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UDialogueGraph* InGraph)
 {
+    GEditor->RegisterForUndo(this);
     WorkingAsset = InGraph;
     WorkingAsset->SetPreSaveListener([this] () { OnWorkingAssetPreSave(); });
 
@@ -87,6 +90,7 @@ void FDialogueGraphEditor::SetWorkingGraphUI(TSharedPtr<SGraphEditor> NewWorking
 void FDialogueGraphEditor::SetSelectedDetailView(TSharedPtr<IDetailsView> NewDetailsView)
 {
     SelectedDetailView = NewDetailsView;
+    SelectedDetailView->RegisterInstancedCustomPropertyLayout(UEdGraphNode_Comment::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FDialogueCommentDetails::MakeInstance));
     SelectedDetailView->OnFinishedChangingProperties().AddRaw(this, &FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated);
 }
 
@@ -100,7 +104,12 @@ void FDialogueGraphEditor::OnGraphSelectionChanged(const FGraphPanelSelectionSet
     }
     else
     {
-        SelectedDetailView->SetObject(nullptr);
+        UObject* Comment = nullptr;
+        for (UObject* Object : NewSelection)
+        {
+            if (Cast<UEdGraphNode_Comment>(Object)) { Comment = Object; break; }
+        }
+        SelectedDetailView->SetObject(Comment);
     }
 }
 
@@ -146,6 +155,7 @@ class UDialogueEdGraphNodeBase* FDialogueGraphEditor::GetSelectedNode(const FGra
 
 void FDialogueGraphEditor::OnClose()
 {
+    GEditor->UnregisterForUndo(this);
     UpdateWorkingAssetFromGraph();
     WorkingAsset->SetPreSaveListener(nullptr);
 
@@ -452,4 +462,15 @@ void FDialogueGraphEditor::SaveAssetAs_Execute()
         return;
     }
     FAssetEditorToolkit::SaveAssetAs_Execute();
+}
+
+// Undo/Redo 후 동일 작업 그래프의 화면과 Details를 다시 갱신한다.
+void FDialogueGraphEditor::PostUndo(bool bSuccess)
+{
+    if (bSuccess && WorkingGraphUI.IsValid())
+    {
+        WorkingGraphUI->ClearSelectionSet();
+        WorkingGraphUI->NotifyGraphChanged();
+        WorkingGraph->MarkPackageDirty();
+    }
 }

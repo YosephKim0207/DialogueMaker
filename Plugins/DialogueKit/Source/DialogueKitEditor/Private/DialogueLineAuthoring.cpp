@@ -1,6 +1,7 @@
 #include "DialogueLineAuthoring.h"
 #include "DialogueFlowEdGraphNode.h"
 #include "DialogueLineNodeInfo.h"
+#include "DialogueRerouteNode.h"
 #include "EdGraph/EdGraph.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
@@ -20,39 +21,45 @@ TArray<UDialogueFlowEdGraphNode*> FDialogueLineAuthoring::FindNearestLines(const
 	{
 		return Found;
 	}
-	TArray<UEdGraphNode*> Frontier = {FromPin->GetOwningNode()};
+	TMap<UEdGraphNode*, int32> Distances;
 	TSet<UEdGraphNode*> Visited;
-	while (Frontier.IsEmpty() == false && Found.IsEmpty())
+	Distances.Add(FromPin->GetOwningNode(), 0);
+	int32 Best = MAX_int32;
+	while (true)
 	{
-		TArray<UEdGraphNode*> Next;
-		for (UEdGraphNode* Node : Frontier)
+		UEdGraphNode* Node = nullptr;
+		int32 Distance = MAX_int32;
+		for (const auto& Pair : Distances)
 		{
-			if (Node == nullptr || Visited.Contains(Node))
+			if (Pair.Key && Visited.Contains(Pair.Key) == false && Pair.Value < Distance)
 			{
-				continue;
+				Node = Pair.Key;
+				Distance = Pair.Value;
 			}
-			Visited.Add(Node);
-			UDialogueFlowEdGraphNode* Line = Cast<UDialogueFlowEdGraphNode>(Node);
-			if (Line && Line->GetDialogueNodeType() == EDialogueType::LineNode && Cast<UDialogueLineNodeInfo>(Line->GetNodeInfo()))
+		}
+		if (Node == nullptr || Distance > Best) break;
+		Visited.Add(Node);
+		UDialogueFlowEdGraphNode* Line = Cast<UDialogueFlowEdGraphNode>(Node);
+		if (Line && Line->GetDialogueNodeType() == EDialogueType::LineNode && Cast<UDialogueLineNodeInfo>(Line->GetNodeInfo()))
+		{
+			Best = Distance;
+			Found.Add(Line);
+			continue;
+		}
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			if (Pin && Pin->Direction == EGPD_Input)
 			{
-				Found.Add(Line);
-				continue;
-			}
-			for (UEdGraphPin* Pin : Node->Pins)
-			{
-				if (Pin && Pin->Direction == EGPD_Input)
+				for (UEdGraphPin* Previous : Pin->LinkedTo)
 				{
-					for (UEdGraphPin* Previous : Pin->LinkedTo)
-					{
-						if (Previous)
-						{
-							Next.AddUnique(Previous->GetOwningNode());
-						}
-					}
+					if (Previous == nullptr) continue;
+					UEdGraphNode* Parent = Previous->GetOwningNode();
+					const int32 NewDistance = Distance + (Cast<UDialogueRerouteNode>(Node) ? 0 : 1);
+					int32* Existing = Distances.Find(Parent);
+					if (Existing == nullptr || *Existing > NewDistance) Distances.Add(Parent, NewDistance);
 				}
 			}
 		}
-		Frontier = MoveTemp(Next);
 	}
 	Found.Sort([](const UDialogueFlowEdGraphNode& A, const UDialogueFlowEdGraphNode& B) { return A.NodeGuid < B.NodeGuid; });
 	return Found;

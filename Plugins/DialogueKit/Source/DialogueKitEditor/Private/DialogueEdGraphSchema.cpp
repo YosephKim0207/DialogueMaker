@@ -3,6 +3,9 @@
 #include "DialogueEdGraphSchema.h"
 #include "DialogueFlowEdGraphNode.h"
 #include "DialogueLineAuthoring.h"
+#include "DialogueRerouteNode.h"
+#include "EdGraphNode_Comment.h"
+#include "DialogueCommentNode.h"
 #include "DialogueChoiceEdGraphNode.h"
 #include "DialogueStateChangeEdGraphNode.h"
 #include "ScopedTransaction.h"
@@ -10,6 +13,27 @@
 #include "DialogueEdEndGraphNode.h"
 #include "DialogueEdGraphNode.h"
 #include "DialogueEdStartGraphNode.h"
+
+// 실행 흐름이 없는 편집용 영역 주석을 생성한다.
+struct FDialogueCommentAction : FEdGraphSchemaAction
+{
+	FDialogueCommentAction() : FEdGraphSchemaAction(FText::FromString(TEXT("Nodes")), FText::FromString(TEXT("주석")), FText::FromString(TEXT("영역 주석 생성")), 0) {}
+	virtual UEdGraphNode* PerformAction(UEdGraph* Graph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelect = true) override
+	{
+		if (Graph == nullptr || Graph->bEditable == false || FromPin) return nullptr;
+		const FScopedTransaction Transaction(NSLOCTEXT("DialogueKit", "AddComment", "주석 생성"));
+		Graph->Modify();
+		auto* Node = NewObject<UEdGraphNode_Comment>(Graph, NAME_None, RF_Transactional);
+		Node->CreateNewGuid();
+		Node->NodePosX = Location.X;
+		Node->NodePosY = Location.Y;
+		Node->PostPlacedNewNode();
+		Node->NodeComment = TEXT("주석");
+		Graph->AddNode(Node, true, bSelect);
+		Graph->NotifyGraphChanged();
+		return Node;
+	}
+};
 
 const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const UEdGraphPin* A,
                                                                          const UEdGraphPin* B) const
@@ -72,6 +96,12 @@ void UDialogueEdGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 	ContextMenuBuilder.AddAction(MakeShareable(new FNewNodeAction(UDialogueChoiceEdGraphNode::StaticClass(), FText::FromString(TEXT("Nodes")), FText::FromString(TEXT("Choice")), FText::FromString(TEXT("Add Choice")), 0)));
 	ContextMenuBuilder.AddAction(MakeShareable(new FNewNodeAction(UDialogueStateChangeEdGraphNode::StaticClass(), FText::FromString(TEXT("Nodes")), NSLOCTEXT("DialogueKit", "StateChangeNode", "상태 변경"), FText::FromString(TEXT("StateChange")), 0)));
 	ContextMenuBuilder.AddAction(NewNodeAction);
+	if (ContextMenuBuilder.FromPin == nullptr)
+	{
+		ContextMenuBuilder.AddAction(MakeShared<FDialogueCommentAction>());
+	}
+	ContextMenuBuilder.AddAction(MakeShared<FNewNodeAction>(UDialogueRerouteNode::StaticClass(), FText::FromString(TEXT("Nodes")),
+		FText::FromString(TEXT("경유점")), FText::FromString(TEXT("연결선 정리용 경유점")), 0));
 	if (ContextMenuBuilder.FromPin && ContextMenuBuilder.FromPin->Direction == EGPD_Output)
 	{
 		if (FDialogueLineAuthoring::FindNearestLines(ContextMenuBuilder.FromPin).IsEmpty())
@@ -139,4 +169,27 @@ UEdGraphNode* FNewNodeAction::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* 
 	ParentGraph->MarkPackageDirty();
 
 	return Result;
+}
+
+// 기존 선의 양끝을 한 트랜잭션으로 경유점에 연결한다.
+void UDialogueEdGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& Position) const
+{
+	if (PinA == nullptr || PinB == nullptr || PinA->LinkedTo.Contains(PinB) == false || PinA->Direction == PinB->Direction)
+	{
+		return;
+	}
+	UEdGraph* Graph = PinA->GetOwningNode()->GetGraph();
+	if (Graph == nullptr || Graph->bEditable == false)
+	{
+		return;
+	}
+	UEdGraphPin* Output = PinA->Direction == EGPD_Output ? PinA : PinB;
+	UEdGraphPin* Input = PinA->Direction == EGPD_Input ? PinA : PinB;
+	const FScopedTransaction Transaction(NSLOCTEXT("DialogueKit", "InsertReroute", "경유점 삽입"));
+	FNewNodeAction Action(UDialogueRerouteNode::StaticClass(), FText(), FText(), FText(), 0);
+	UEdGraphNode* Node = Action.PerformAction(Graph, Output, Position);
+	if (Node)
+	{
+		TryCreateConnection(Node->Pins[1], Input);
+	}
 }

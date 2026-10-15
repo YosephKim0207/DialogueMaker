@@ -32,6 +32,8 @@ public:
 	static FString BuildDialogueGraphCSVFromAsset(const UDialogueGraph* InDialogueGraph);
 
 	virtual void OnClose() override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	void OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event);
 	void OnWorkingAssetPreSave();
 
