@@ -1171,6 +1171,16 @@ void UDialogueSubsystem::SaveDialogueSaveData() const
 // 게임 제공자 등록은 다음 Block 시작에 반영한다.
 void UDialogueSubsystem::ConfigureBlockProviders(UObject* StateProvider, UObject* EffectProvider, UDialogueDiagnosticRouter* Router)
 {
+	if (CheckpointSession)
+	{
+		// 제공자 객체의 값은 변경할 수 있지만 실행 중 제공자 교체는 별도 세션으로 처리한다.
+		FDialogueDiagnostic Diagnostic;
+		Diagnostic.Code = TEXT("CheckpointProvidersAlreadyConfigured");
+		Diagnostic.Message = TEXT("저장 세션 생성 전에 게임 제공자를 설정해야 합니다.");
+		Diagnostic.Handling = TEXT("KeepExistingProviders");
+		UDialogueDiagnosticRouter::Dispatch(Diagnostic, BlockRouter);
+		return;
+	}
 	BlockStateProvider = StateProvider;
 	BlockEffectProvider = EffectProvider;
 	BlockRouter = Router;
@@ -1197,7 +1207,7 @@ bool UDialogueSubsystem::StartDialogueBlock(UDialogueGraph* Block)
 	}
 	bUsingBlockRunner = true;
 	CurrentDialogueGraph = Block;
-	return Runner->StartBlock(Block, BlockStateProvider, BlockEffectProvider, BlockRouter);
+	return CheckpointSession ? (IsValid(Block) && CheckpointSession->StartBlock(Block, Block->DialogueTarget)) : Runner->StartBlock(Block, BlockStateProvider, BlockEffectProvider, BlockRouter);
 }
 
 // 새 UI는 표시 인덱스 대신 ChoiceId를 보존해 입력한다.
@@ -1249,4 +1259,24 @@ void UDialogueSubsystem::HandleBlockPresentation(const FDialoguePresentation& Ne
 	{
 		OnDialogueEnded.Broadcast();
 	}
+}
+
+// 실행/표시 경로를 유지하며 저장 기록의 단일 작성자를 등록한다.
+bool UDialogueSubsystem::ConfigureCheckpointSession(UObject* SaveProvider, UDialogueSaveQueue* SaveQueue)
+{
+	if (CheckpointSession || (SaveQueue && SaveQueue->GetGeneration().IsValid() == false)) return false;
+	UDialogueCheckpointSession* Session = NewObject<UDialogueCheckpointSession>(this);
+	if (Session->Initialize(SaveProvider, BlockStateProvider, BlockEffectProvider, BlockRouter, GetBlockRunner()) == false) return false;
+	CheckpointSession = Session;
+	if (SaveQueue && Session->AttachSaveQueue(SaveQueue) == false) return false;
+	return true;
+}
+
+// 같은 합본의 게임 상태 복원이 끝난 뒤 표시 브리지로 저장 위치를 재개한다.
+bool UDialogueSubsystem::ResumeDialogueBlock(UDialogueGraph* Block, const FDialogueCheckpointSnapshot& Snapshot)
+{
+	if (CheckpointSession == nullptr || IsValid(Block) == false || GetBlockRunner()->CanStartBlock() == false) return false;
+	bUsingBlockRunner = true;
+	CurrentDialogueGraph = Block;
+	return CheckpointSession->ResumeBlock(Block, Snapshot);
 }

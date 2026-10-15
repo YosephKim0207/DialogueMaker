@@ -33,6 +33,7 @@
 - [23. 구조체 기본값과 초기화 오류 검사](#23-구조체-기본값과-초기화-오류-검사)
 
 - [24. 누적 열람과 실행별 저장 증거](#24-누적-열람과-실행별-저장-증거)
+- [25. 게임 저장 세션과 실행 재개](#25-게임-저장-세션과-실행-재개)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -635,7 +636,7 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 
 ## 24. 누적 열람과 실행별 저장 증거
 
-`UDialogueCheckpointState`는 게임이 `UPROPERTY`로 보유하는 대화 캐시입니다. 이 클래스만 생성해도 Runner나 파일 저장에 자동 연결되지는 않습니다. 자동 연동은 후속 S3 작업입니다. 현재는 독립 상태기/테스트에 사용할 수 있으며 아래 순서는 후속 실행 연동이 수행해야 할 계약입니다. 현재 Runner에 그대로 연결하는 완성된 사용 절차가 아닙니다. `StartBlock()` 안에서 첫 효과와 표시가 발생할 수 있으므로 반환 후 `GetBlockRunId()`로 상태기를 초기화하면 첫 경계를 놓칩니다. 후속 Prepare → BeginBlock → Run 연결을 구현·검증하기 전에는 이 경로를 실제 게임의 저장 정본으로 사용하지 마십시오.
+`UDialogueCheckpointState`는 게임이 `UPROPERTY`로 보유하는 대화 캐시입니다. 일반 게임 연동은 아래 25절의 `UDialogueCheckpointSession`을 사용합니다. 상태기를 직접 연결할 때는 `PrepareBlock` → `BeginBlock`(Runner의 실행 ID) → `RunPreparedBlock` 순서를 지켜야 합니다. `StartBlock` 반환 후 초기화하면 첫 자동 효과를 놓칩니다. 아래는 상태기의 낮은 수준 호출 계약이며 세션을 사용하면 자동 처리됩니다.
 
 1. 실행 시작 시 `BeginBlock(BlockReference, TargetTag, BlockRunId)`를 호출합니다. Runner 경계의 `Context.BlockRunId`와 같은 ID여야 합니다.
 2. 실제 Line 표시 시 `VisitLine(NodeGuid, ReadVersion)`을 호출합니다. 표시 중 커서는 갱신하지만 누적 열람과 저장 재개점은 아직 변경하지 않습니다.
@@ -649,3 +650,23 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 누적 열람은 Block ID별 Line ID와 열람 버전, 완료 여부를 저장합니다. 현재 실행의 `PassedLines`는 순서·반복 횟수 기록이 아닙니다. `Effects`는 성공한 ExecutionId, 실제 발생 Node, Choice ID와 관련 Line을 보관합니다. Line 없이 실행한 StateChange는 관련 Line이 비어 있을 수 있습니다. 실제 지급 여부는 효과 원장과 함께 확인합니다.
 
 샘플 합본 저장은 완전한 실행 증거의 Block·Node·BlockRunId·ChoiceId·ExecutionId를 효과 원장과 대조합니다. 다른 게임의 제공자도 같은 관계를 검증해야 합니다. 같은 실행 ID를 다른 실행/선택의 요청에 재사용하면 안 됩니다. 정상적인 반복 선택에는 새 실행 ID를 사용합니다. 현재 자동화 테스트에는 이전 저장 이전, End 임시 기록 정리, 중복 통과/효과, 다른 실행 원장 거부를 추가했습니다. 해상도 복구 후 전체 DialogueKit 자동화 37개가 통과했고 오류 로그는 0건입니다(`Saved/AI/20261015_142642_c7d18338`). 이 검증은 독립 상태기와 기존 기능 범위이며 아직 구현되지 않은 자동 실행/저장 연결의 검증을 뜻하지 않습니다.
+
+## 25. 게임 저장 세션과 실행 재개
+
+게임은 저장 제공자를 생성·보유하고 `UDialogueCheckpointSession::Initialize(SaveProvider, StateProvider, EffectProvider, Router, ExistingRunner)`를 호출합니다. ExistingRunner가 없으면 세션이 생성합니다. 게임의 공통 큐가 `UDialogueSaveQueue`라면 시작 전에 `AttachSaveQueue`를 한 번 호출합니다. 이후 다른 큐로 교체하지 않습니다. `GetRunner()`의 표시 이벤트와 `AdvanceLine`/`SelectChoice`를 UI에 연결합니다.
+
+- 신규 실행: `StartBlock(Block, TargetTag)`. 준비 단계에서 실행 ID와 캐시를 먼저 만든 뒤 첫 노드를 실행합니다. 후보 조건 검사는 앞선 로더 책임입니다.
+- 기존 Subsystem UI: `ConfigureBlockProviders` → `ConfigureCheckpointSession(SaveProvider, SaveQueue)` → `StartDialogueBlock`. 저장 세션 생성 후 제공자 객체 교체는 거부합니다. 기존 객체의 게임 상태 값은 게임이 계속 갱신합니다.
+- 일반 저장: `SaveCurrentState()`. 게임 상태도 같은 제공자가 캡처합니다. 성공 반환은 메모리 접수이며 파일 성공이 아닙니다.
+- 복원: 게임 제공자가 최신 합본의 게임 상태를 복원하고 같은 Snapshot을 반환 → 정확 ID/버전의 Block 확보 → `ResumeBlock(Block, Snapshot)` 또는 Subsystem `ResumeDialogueBlock`. 게임 조건으로 다시 후보를 고르지 않습니다. 저장된 실행 ID와 후속 노드에서 재개하며 이전 지급은 실행하지 않습니다. 완료 Snapshot은 완료 상태만 표시합니다.
+- 사망/스토리 초기화: `ResetStory(false)`. 새 게임은 `true`. 게임 상태도 초기화한 뒤 `SaveCurrentState`로 같은 합본에 저장합니다. 로더의 이전 요청/세션 종료는 S4 연동을 사용합니다. 초기화 저장 전 종료는 마지막 성공 저장으로 복원됩니다.
+
+`IDialogueCheckpointProvider` 구현은 `CanCaptureDialogueCheckpoint`와 `CaptureDialogueCheckpoint(Snapshot)`을 제공합니다. 미구현 기본값은 실패입니다. Capture에서는 게임 공통 순서/세대/요청 ID를 발급하고 최초 게임 상태와 Snapshot을 불변 복사합니다. `UDialogueSampleSaveCoordinator`는 이 구현 예제입니다. 실제 게임은 모든 시스템 저장을 동일 조율자로 보내야 합니다.
+
+메모리 접수 실패 시 후속 노드 실행을 중단하고 `HasPendingCapture`와 오류값을 반환합니다. 제공자는 최초 게임 복사본을 유지하고 다른 저장의 추월을 막아야 합니다. 세션의 `RetryCapture`는 같은 자료만 재접수하고 성공하면 같은 실행의 후속 노드에서 이어갑니다. 자동 전체 상태 롤백은 하지 않습니다. 캡처 자체에 실패해 자료가 없는 게임 구현은 안전한 재시도를 제공할 수 없으므로 오류 처리에서 게임 진행을 중단해야 합니다.
+
+샘플은 구조화 게임 복사본과 Queue의 캡처 예약으로 순서를 보장합니다. 직접 `RequestDialogueCheckpoint`를 사용하면 유효한 요청을 전달해야 하며, 실패한 최초 요청을 버리고 새 CheckpointId를 제출하지 않습니다. 파일 쓰기 실패는 큐의 실패 head에 보존되므로 `RetryFailedWrite()`를 사용합니다. 이 경우 대화는 이미 접수된 자료를 유지하며 계속 진행할 수 있습니다. 저장 이미지/실패 안내는 `OnSaveStateChanged`에 연결합니다.
+
+`OnExecutionBoundary`는 단일 세션 기록 이후의 관찰 이벤트입니다. 여기서 같은 저장을 다시 제출하지 않습니다. 접수 실패한 경계는 방송되지 않으며 재시도도 원 경계를 재방송하지 않습니다. 복구 UI는 `RetryCapture` 결과와 표시 이벤트를 사용합니다. 저장 성공 정리는 Queue의 실제 성공 Snapshot에만 적용됩니다. 게임 자체 큐라면 `AcknowledgeSaved`를 성공 시 호출합니다.
+
+작가는 기존 Choice의 SaveOnSelection과 End의 SaveOnEnd를 사용합니다. 효과가 있으면 저장 경계가 필수이며, End 저장을 끄면 완료/열람은 캐시에만 남습니다. 이 절은 실행/저장 연동이며 별도 에디터 화면은 추가하지 않습니다.
