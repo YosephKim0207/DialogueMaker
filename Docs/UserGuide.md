@@ -56,6 +56,8 @@
 
 - [36. 신규 조건과 구형 조건 구분](#36-신규-조건과-구형-조건-구분)
 
+- [37. 텍스트 표시 상태와 안전한 입력](#37-텍스트-표시-상태와-안전한-입력)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -860,3 +862,17 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 - Block 진입 조건은 `Entry Conditions`, 선택지 표시 조건은 각 `Options → Conditions`입니다. 조건 배열의 추가/삭제와 All/Any 조합을 사용하며, Tag/Value/Count 항목과 비교 기준을 지정합니다. 게임은 기존 `IDialogueStateProvider`로 값을 제공해야 합니다.
 - Block Details의 `Legacy 안내`를 확인하세요. 구형 Required All/Any/Blocked Tags가 남으면 신규 후보에서 제외됩니다. 신규 조건에 필요한 내용을 수동 작성한 다음 구형 태그를 명시적으로 비우세요. 구형 `SpeakerID`/`ChapterID`는 새 `DialogueTarget`/`StoryScope`를 대신하지 않습니다.
 - 기존 직렬화 필드와 호환 함수는 유지합니다. 읽기 전용 표시는 신규 작가의 혼동을 줄이기 위한 에디터 제약이며 외부 게임 코드를 자동 변환하지 않습니다.
+
+
+## 37. 텍스트 표시 상태와 안전한 입력
+
+`UDialogueTextPresentation`은 게임 상태를 변경하지 않는 공개 표시 도구입니다. 기본 UMG 또는 게임의 커스텀 UI에서 사용합니다.
+
+1. 지역화된 `FDialoguePresentation`을 `SetPresentation`으로 전달합니다. 0초는 즉시 완료, 전체 시간 또는 글자당 시간은 Line 설정을 따릅니다. 글자 경계를 사용해 결합 문자/emoji 중간에서 자르지 않습니다.
+2. 출력 중 실제 경과 시간을 `AdvanceTime`에 전달하고 `GetVisibleText`, `GetVisibleChoices`로 화면을 갱신합니다. 텍스트가 완료되면 직접 연결된 Choice가 노출됩니다.
+3. 입력 당시 `GetRevision`과 물리 입력 token을 `RequestAdvance`/`RequestChoice`에 전달합니다. 기본 화면은 프레임 번호를 token으로 사용합니다. 동일 token은 새 Line에서도 다시 수락하지 않습니다.
+4. `Reveal`이면 실제 음성을 중지하고 표시만 갱신합니다. `Advance`에서만 Runner의 `AdvanceLine`, `Select`에서만 `SelectChoice`를 호출합니다. `None`은 무시합니다. 표시 객체가 효과/저장/Line 통과를 직접 수행하지 않습니다.
+5. `SetVoicePlaying(상태, 예상 revision)`으로 실제 재생 상태를 전달합니다. 이전 Line의 지연 콜백은 현재 상태를 바꿀 수 없습니다. bool 변경 자체가 음성을 중지하지 않으므로 실제 컴포넌트의 Stop 책임은 화면에 있습니다.
+6. 게임 상태가 변경되면 `UDialogueBlockRunner::RefreshChoices`를 호출합니다. Choice-only 이벤트는 현재 출력률을 유지합니다. 실제 재진입/복원은 새 revision으로 처음부터 표시합니다. `CancelBlock`은 Idle을 게시하여 화면이 수명을 정리하도록 합니다.
+
+기존 Subsystem의 `ProgressNextDialogue`/`SelectBlockChoice`와 Runner 호출은 저수준 호환 API로 남습니다. 새 화면의 물리 입력에 직접 연결하면 펼치기 방어를 우회하므로 위 입력 판정 또는 기본 화면의 Submit API를 사용하세요. 이 절의 자동화는 비시각 상태 검사이며 실제 화면/음향 검증은 별도입니다.
