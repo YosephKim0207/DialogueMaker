@@ -155,3 +155,90 @@ bool UDialogueCheckpointSession::ResetStory(bool bNewGame)
 	ActiveBlock = nullptr;
 	return true;
 }
+
+// 완료/초기화된 저장은 누적 이력만 복원하고 과거 대화를 다시 시작하지 않는다.
+bool UDialogueCheckpointSession::RestoreInactive(const FDialogueCheckpointSnapshot& Snapshot)
+{
+	if (CanOperate() == false || Runner->IsProcessing() ||
+		(Snapshot.Resume.Kind != EDialogueResumeKind::None && Snapshot.Resume.Kind != EDialogueResumeKind::BlockCompleted)) return false;
+	TGuardValue<bool> Guard(bBusy, true);
+	if (State->RestoreSnapshot(Snapshot, LastError) == false) return false;
+	Runner->CancelBlock();
+	ActiveBlock = nullptr;
+	return true;
+}
+
+// 보정은 동기 게임 transaction이며 대체 시작 자료를 후속 효과 전에 캡처한다.
+bool UDialogueCheckpointSession::ReplaceLoadedBlock(UDialogueGraph* Target, const FDialogueCheckpointSnapshot& Source, const FDialogueReplacementRule& Rule, UDialogueGraph* SourceGraph, UObject* CorrectionProvider)
+{
+	if (CanOperate() == false || IsValid(Target) == false || (Target->GetBlockReference() == Rule.TargetReference) == false || FSoftObjectPath(Target) != Rule.Target.ToSoftObjectPath()) return false;
+	TGuardValue<bool> Guard(bBusy, true);
+	if (Ready() == false) return false;
+	FDialogueCheckpointSnapshot Converted;
+	if (Source.UpgradeToLatest(Converted, LastError) == false) return false;
+	FDialogueCorrectionRequest Correction;
+	bool bNeedsCorrection = false;
+	if (FDialogueReplacement::BuildCorrection(Converted, Rule, SourceGraph, Correction, bNeedsCorrection, LastError) == false) return false;
+	if (bNeedsCorrection && (IsValid(CorrectionProvider) == false || CorrectionProvider->GetClass()->ImplementsInterface(UDialogueCorrectionProvider::StaticClass()) == false))
+	{
+		LastError = TEXT("MissingCorrectionProvider");
+		return false;
+	}
+	if (Runner->PrepareBlock(Target, StateProvider, EffectProvider, Router) == false) return false;
+	FDialogueCheckpointSnapshot Replacement = Converted;
+	Replacement.SchemaVersion = 2;
+	Replacement.CheckpointId = FGuid::NewGuid();
+	Replacement.Resume.Kind = EDialogueResumeKind::BlockStart;
+	Replacement.Resume.Block = Target->GetBlockReference();
+	Replacement.Resume.BlockRunId = Runner->GetBlockRunId();
+	Replacement.Resume.NodeGuid.Invalidate();
+	Replacement.RunEvidence = FDialogueRunEvidence();
+	Replacement.RunEvidence.bComplete = true;
+	Replacement.Trigger = FDialogueCheckpointTrigger();
+	Replacement.Trigger.Reason = EDialogueCheckpointReason::Replacement;
+	Replacement.Trigger.ReplacedFromBlock = Converted.Resume.Block;
+	if (bNeedsCorrection) Replacement.AppliedCorrections.AddUnique(Correction.CorrectionId);
+	if (Replacement.Validate(LastError) == false)
+	{
+		Runner->CancelBlock();
+		return false;
+	}
+	if (bNeedsCorrection)
+	{
+		const FDialogueEffectResult Result = IDialogueCorrectionProvider::Execute_CorrectDialogueState(CorrectionProvider, Correction);
+		if (Result.IsSuccess() == false)
+		{
+			LastError = Result.ErrorCode;
+			Runner->CancelBlock();
+			// 게임 제작자는 오류 반환/Router 경계에 보정 실패 로그 전송을 연결한다.
+			return false;
+		}
+	}
+	// 위에서 유효성을 확인한 동일 값 설치는 게임 상태를 재보정하지 않는다.
+	if (State->InstallReplacement(Replacement, LastError) == false)
+	{
+		Runner->CancelBlock();
+		return false;
+	}
+	ActiveBlock = Target;
+	bResumeAfterCapture = true;
+	if (Capture(Replacement) == false)
+	{
+		Runner->CancelBlock();
+		return false;
+	}
+	bResumeAfterCapture = false;
+	return Runner->RunPreparedBlock();
+}
+
+// 사전 확인 후 초기화한 자료를 즉시 캡처하며 실패 자료도 재시도 가능하게 유지한다.
+bool UDialogueCheckpointSession::ResetStoryAndSave(bool bNewGame)
+{
+	if (CanOperate() == false || Runner->IsProcessing() || Ready() == false) return false;
+	TGuardValue<bool> Guard(bBusy, true);
+	if (Runner->CancelBlock() == false) return false;
+	State->ResetStory(bNewGame);
+	ActiveBlock = nullptr;
+	bResumeAfterCapture = false;
+	return Capture(State->CaptureGameSave());
+}

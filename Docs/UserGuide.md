@@ -36,6 +36,8 @@
 - [25. 게임 저장 세션과 실행 재개](#25-게임-저장-세션과-실행-재개)
 - [26. 정확 콘텐츠 버전 복원과 버전 작성](#26-정확-콘텐츠-버전-복원과-버전-작성)
 
+- [27. 명시적 버전 교체와 게임 보정](#27-명시적-버전-교체와-게임-보정)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -683,3 +685,41 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 작가는 새 버전을 편집·저장하고, 구 에셋 Details의 Availability를 RestoreOnly로 설정·저장합니다. 원본은 함수가 자동 변경하지 않습니다. 일반 에셋 Duplicate는 기존대로 새 Block ID를 만드는 기능입니다. 새 버전 작성과 혼동하지 마십시오. 두 버전이 모두 Active이면 신규 후보 선정은 모호한 동일 ID로 거부할 수 있으므로 구 버전을 명시적으로 신규 노출 중단해야 합니다.
 
 지원하는 구버전과 이미지/음향 의존 리소스를 실제 cook에 포함해야 합니다. 프로젝트 AssetManager의 해당 DialogueGraph scan 경로와 AlwaysCook 설정 또는 프로젝트의 명시적 cook 포함 정책을 사용하십시오. Git 보관만으로는 실행 중 복원되지 않습니다. 자동 테스트는 버전별 조회, RestoreOnly 로드, 소속/대상 없는 복원, 중복·누락·목적지 충돌을 검사합니다. 명시적 대체/게임 보정은 다음 기능입니다.
+
+## 27. 명시적 버전 교체와 게임 보정
+
+### 작가와 개발자의 교체 설정
+
+Content Browser → Miscellaneous → Data Asset → `DialogueReplacementMap`을 생성하고 Details의 `Rules`에 항목을 추가한다. 신규 항목의 RuleId는 Details 편집 시 생성된다. C++에서 작성할 때는 `FGuid::NewGuid()`로 명시한다. 원본 `SourceBlockId`, 양 끝 포함 `FirstVersion`/`LastVersion`, 파일 선택기로 `Target`, 그 에셋의 `TargetReference`를 지정한다. 출시된 규칙의 의미를 바꾸면 새 RuleId를 사용한다. 중복 ID/범위 중첩/교체 순환은 오류다. 검증은 공개 `Validate(OutError)`를 사용한다.
+
+| Mode | 처리 |
+|---|---|
+| None | 게임 보정 없이 대체 Block 처음부터 시작 |
+| GameCorrection | 게임 제공자의 `GameRule` 보정 성공 후 처음부터 시작 |
+| SelectiveRollback | 완전한 현재 실행 증거와 정확 원본 Graph를 확인하고 지정 효과만 게임에 전달 |
+
+SelectiveRollback의 `RequiredPassedLine`은 선택 사항이다. 지정하면 그 Line을 이번 실행에서 실제 통과했을 때만 보정한다. `EffectNodeIds`에는 회수할 효과가 있는 Choice/StateChange의 ID를 지정한다. ID가 잘못됐으면 미통과로 간주하지 않고 실패한다. 원본 Graph를 보존·cook해야 한다. 누적 열람과 구 스키마의 불완전 증거만으로는 회수하지 않는다. 일반 게임은 지급 아이템 소비·태그 중복 출처·상태 덮어쓰기 처리 정책을 직접 구현한다.
+
+### 게임의 공개 연결 순서
+
+1. 게임 상태와 대화 Snapshot을 같은 최신 합본에서 복원한다. 샘플은 `UDialogueSampleSaveCoordinator::RestoreLatest`를 사용한다.
+2. `UDialogueCheckpointSession::Initialize`와 `AttachSaveQueue`로 동일 게임 저장 조율자를 연결한다.
+3. 게임이 보유할 `UDialogueRestoreController`를 생성하고 `Initialize(Session, CorrectionProvider, Router, CandidateLoader)`를 호출한다. 마지막 인자는 게임이 사용하는 신규 후보 로더이며 선택 사항이다.
+4. `Restore(Snapshot, ReplacementMap)`을 호출한다. 규칙이 없으면 현재 GameplayTags를 재평가하지 않고 정확 BlockId/버전으로 복원한다. 명시한 범위만 교체한다. 완료/초기화 저장은 과거 Block을 실행하지 않는다.
+5. `OnRestored`의 성공/오류 코드를 받아 게임이 UI·재시도·로그 전송을 결정한다. 반환 true는 요청 대기 또는 동기 성공이며, false는 접수/동기 복원 실패다. 최종 결과는 이벤트로 확인한다. 저장 디스크 완료는 별도 FIFO 이벤트다.
+
+이미 메모리에 확보한 에셋은 `Session->ReplaceLoadedBlock(Target, Source, Rule, SourceGraph, CorrectionProvider)`로 연결할 수도 있다. 낮은 수준 API는 게임이 Source와 같은 게임 상태를 먼저 복원했음을 전제로 한다. 저장한 원본이 사라지고 명시 규칙도 없으면 오류를 반환하며 임의 대화로 보내지 않는다.
+
+### 보정과 저장의 경계
+
+`IDialogueCorrectionProvider::CorrectDialogueState`를 C++/Blueprint로 구현한다. 요청은 규칙 ID에서 계산한 CorrectionId, 규칙 fingerprint, 원본 Snapshot, 이번 실행의 실제 성공 Effects를 제공한다. 게임은 원장과 대조하여 **다른 경로의 변경을 보존하는 전체 성공 또는 실패 무변경** 트랜잭션으로 처리한다. 같은 ID/내용 재전달은 AlreadyApplied, 같은 ID/다른 내용은 오류여야 한다. 결과·보정 영수증·대화 자료를 동일 합본에 저장한다.
+
+보정 성공 후 대체 BlockStart 스냅샷을 **첫 노드 실행 전** 캡처한다. 메모리 접수 성공 후에는 비동기 파일 저장을 기다리지 않고 대화를 실행한다. 접수 실패 시 원본 효과를 다시 보정하지 않고 동일 자료를 `RetryCapture()`로 재시도한다. 디스크 실패는 큐의 `RetryFailedWrite()`다. 임시 원본 선택 기록은 교체 저장의 실제 성공까지 유지한다. 자동 저장 전 종료 시 마지막 온전한 저장 전체를 복원한다.
+
+샘플 `UDialogueSampleEffectProvider`는 초기 수량 0에서 해당 제공자만 기록한 **Count Add**를 원장으로 입증할 때만 회수한다. 다른 경로 Add는 보존한다. 소비·Set·Tag·Value·외부 변경·혼합 batch는 자동 추정하지 않고 실패한다. 이것은 게임 전용 보정 구현 예제이며 범용 인벤토리 롤백 엔진이 아니다.
+
+### 사망과 새 게임
+
+게임 상태 초기화 정책은 게임이 소유한다. `Controller->ResetStoryAndSave(false)`는 누적 열람을 보존하고 활성 복원 위치/실행 증거/세션 후보를 초기화해 같은 조율자에 저장한다. true는 누적 이력도 지운다. 제공자가 캡처 불가이면 대화 캐시는 변경하지 않는다. 초기화 뒤 접수 실패면 같은 초기화 자료가 pending으로 남으므로 `Session->RetryCapture()`한다. 등록한 후보 로더와 복원 로더의 늦은 완료는 무효화된다. 다음 후보 선정은 별도 Start/Refresh 호출로 Active 신규 버전을 사용한다. 등록하지 않은 외부 로더는 게임이 `EndSession()`해야 한다.
+
+테스트: `DialogueKit.Restore.SelectiveReplacement`, `VersionRangeRules`. 샘플 Sentry 전송과 실제 연출 화면 검증을 이 테스트가 대신하지 않는다.

@@ -159,6 +159,26 @@ bool FDialogueSampleEffectSnapshot::Validate(FName& OutError) const
 			}
 		}
 	}
+	TSet<FGuid> CorrectionIds;
+	TSet<FGuid> Corrected;
+	for (const FDialogueSampleCorrectionReceipt& Receipt : Corrections)
+	{
+		if (Receipt.CorrectionId.IsValid() == false || CorrectionIds.Contains(Receipt.CorrectionId) || Receipt.RuleFingerprint.IsEmpty() ||
+			Receipt.Source.IsValid() == false || Receipt.BlockRunId.IsValid() == false || Receipt.Executions.IsEmpty()) return false;
+		CorrectionIds.Add(Receipt.CorrectionId);
+		for (FGuid Id : Receipt.Executions)
+		{
+			const FDialogueEffectBatch* Batch = Requests.Find(Id);
+			const FDialogueEffectResult* Result = Results.Find(Id);
+			if (Corrected.Contains(Id) || Batch == nullptr || Result == nullptr || Result->IsSuccess() == false ||
+				(Batch->Context.Block == Receipt.Source) == false || Batch->Context.BlockRunId != Receipt.BlockRunId) return false;
+			for (const FDialogueEffect& Effect : Batch->Effects)
+			{
+				if (Effect.Key.Kind != EDialogueStateKind::Count || Effect.Operation != EDialogueEffectOperation::Add || Effect.Count < 0) return false;
+			}
+			Corrected.Add(Id);
+		}
+	}
 	OutError = NAME_None;
 	return true;
 }
@@ -171,6 +191,7 @@ FDialogueSampleEffectSnapshot UDialogueSampleEffectProvider::CaptureEffectSnapsh
 	Snapshot.States = States;
 	Snapshot.Requests = Requests;
 	Snapshot.Results = Results;
+	Snapshot.Corrections = Corrections;
 	return Snapshot;
 }
 
@@ -186,5 +207,96 @@ bool UDialogueSampleEffectProvider::RestoreEffectSnapshot(const FDialogueSampleE
 	States = Snapshot.States;
 	Requests = Snapshot.Requests;
 	Results = Snapshot.Results;
+	Corrections = Snapshot.Corrections;
 	return true;
+}
+
+// 원장으로 입증된 Count Add만 제거한다. 소비/설정/외부 쓰기가 섞이면 전량 거부한다.
+FDialogueEffectResult UDialogueSampleEffectProvider::CorrectDialogueState_Implementation(const FDialogueCorrectionRequest& Request)
+{
+	FDialogueEffectResult Failure;
+	Failure.ErrorCode = TEXT("UnsupportedSampleCorrection");
+	FName Error;
+	if (Request.Mode != EDialogueCorrectionMode::SelectiveRollback || Request.CorrectionId.IsValid() == false || Request.RuleFingerprint.IsEmpty() ||
+		Request.Source.Validate(Error) == false || Request.Source.RunEvidence.bComplete == false || Request.Effects.IsEmpty()) return Failure;
+	TArray<FGuid> Selected;
+	for (const FDialogueEffectEvidence& Evidence : Request.Effects)
+	{
+		if (Selected.Contains(Evidence.ExecutionId)) return Failure;
+		const FDialogueEffectEvidence* Saved = Request.Source.RunEvidence.Effects.FindByPredicate([&](const FDialogueEffectEvidence& Item) { return Item.ExecutionId == Evidence.ExecutionId; });
+		if (Saved == nullptr || Saved->NodeGuid != Evidence.NodeGuid || Saved->ChoiceId != Evidence.ChoiceId || Saved->LineGuid != Evidence.LineGuid) return Failure;
+		const FDialogueEffectBatch* Batch = Requests.Find(Evidence.ExecutionId);
+		const FDialogueEffectResult* Result = Results.Find(Evidence.ExecutionId);
+		if (Batch == nullptr || Result == nullptr || Result->IsSuccess() == false || (Batch->Context.Block == Request.Source.Resume.Block) == false ||
+			Batch->Context.BlockRunId != Request.Source.Resume.BlockRunId || Batch->Context.NodeGuid != Evidence.NodeGuid || Batch->ChoiceId != Evidence.ChoiceId) return Failure;
+		Selected.Add(Evidence.ExecutionId);
+	}
+	if (const FDialogueSampleCorrectionReceipt* Existing = Corrections.FindByPredicate([&](const FDialogueSampleCorrectionReceipt& Receipt) { return Receipt.CorrectionId == Request.CorrectionId; }))
+	{
+		if (Existing->RuleFingerprint != Request.RuleFingerprint || Existing->Executions != Selected || (Existing->Source == Request.Source.Resume.Block) == false || Existing->BlockRunId != Request.Source.Resume.BlockRunId)
+		{
+			Failure.ErrorCode = TEXT("CorrectionPayloadConflict");
+			return Failure;
+		}
+		Failure.Status = EDialogueEffectStatus::AlreadyApplied;
+		Failure.ErrorCode = NAME_None;
+		return Failure;
+	}
+	TSet<FGuid> AlreadyCorrected;
+	for (const FDialogueSampleCorrectionReceipt& Receipt : Corrections)
+	{
+		for (FGuid Id : Receipt.Executions) AlreadyCorrected.Add(Id);
+	}
+	TMap<FDialogueStateKey, int64> Remove;
+	for (FGuid Id : Selected)
+	{
+		if (AlreadyCorrected.Contains(Id))
+		{
+			Failure.ErrorCode = TEXT("ExecutionAlreadyCorrected");
+			return Failure;
+		}
+		for (const FDialogueEffect& Effect : Requests.FindChecked(Id).Effects)
+		{
+			if (Effect.Key.Kind != EDialogueStateKind::Count || Effect.Operation != EDialogueEffectOperation::Add || Effect.Count < 0) return Failure;
+			int64& Total = Remove.FindOrAdd(Effect.Key);
+			if (Total > MAX_int64 - Effect.Count) return Failure;
+			Total += Effect.Count;
+		}
+	}
+	TArray<FDialogueSampleState> CorrectedStates = States;
+	for (const auto& Removal : Remove)
+	{
+		int64 Expected = 0;
+		for (const auto& Entry : Requests)
+		{
+			const FDialogueEffectResult* Result = Results.Find(Entry.Key);
+			if (Result == nullptr || Result->IsSuccess() == false) continue;
+			for (const FDialogueEffect& Effect : Entry.Value.Effects)
+			{
+				if ((Effect.Key == Removal.Key) == false) continue;
+				if (Effect.Operation != EDialogueEffectOperation::Add || Effect.Count < 0) return Failure;
+				if (AlreadyCorrected.Contains(Entry.Key)) continue;
+				if (Expected > MAX_int64 - Effect.Count) return Failure;
+				Expected += Effect.Count;
+			}
+		}
+		FDialogueSampleState* State = CorrectedStates.FindByPredicate([&](const FDialogueSampleState& Value) { return Value.Key == Removal.Key; });
+		if (State == nullptr || State->Count != Expected || Expected < Removal.Value)
+		{
+			Failure.ErrorCode = TEXT("UnprovenSampleCountProvenance");
+			return Failure;
+		}
+		State->Count -= Removal.Value;
+	}
+	FDialogueSampleCorrectionReceipt Receipt;
+	Receipt.CorrectionId = Request.CorrectionId;
+	Receipt.RuleFingerprint = Request.RuleFingerprint;
+	Receipt.Source = Request.Source.Resume.Block;
+	Receipt.BlockRunId = Request.Source.Resume.BlockRunId;
+	Receipt.Executions = MoveTemp(Selected);
+	States = MoveTemp(CorrectedStates);
+	Corrections.Add(MoveTemp(Receipt));
+	Failure.Status = EDialogueEffectStatus::Applied;
+	Failure.ErrorCode = NAME_None;
+	return Failure;
 }

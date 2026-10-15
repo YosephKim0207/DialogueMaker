@@ -1219,6 +1219,12 @@ bool UDialogueSubsystem::SelectBlockChoice(FGuid ChoiceId)
 // 로컬라이즈된 복사본을 기존/신규 UI 이벤트에 전달한다.
 void UDialogueSubsystem::HandleBlockPresentation(const FDialoguePresentation& NewPresentation)
 {
+	// 복원 컨트롤러도 같은 세션을 사용하므로 교체 후 로컬라이즈 대상이 이전 Graph에 남지 않는다.
+	if (CheckpointSession && CheckpointSession->GetActiveBlock())
+	{
+		CurrentDialogueGraph = CheckpointSession->GetActiveBlock();
+		bUsingBlockRunner = true;
+	}
 	BlockPresentation = NewPresentation;
 	CurrentOngoingNodeGuid = NewPresentation.NodeGuid;
 	CurrentOngoingDialogueNodeInfo = NewPresentation.Line;
