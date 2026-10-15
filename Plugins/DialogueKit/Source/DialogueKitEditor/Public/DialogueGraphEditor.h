@@ -18,6 +18,7 @@ public:
 	UDialogueGraph* GetWorkingAsset() const { return WorkingAsset; }
 	UEdGraph* GetWorkingGraph() const { return WorkingGraph; }
 	TSharedPtr<FUICommandList> GetGraphCommands() const { return GraphEditorCommands; }
+	bool CanEditGraph() const;
 	void DuplicateSelectedNodes();
 	TSharedRef<SWidget> CreateSearchPanel();
 	void ShowSearch();
@@ -39,6 +40,7 @@ public:
 	static bool ExportDialogueGraphAssetToCSV(const UDialogueGraph* InDialogueGraph, const FString& CSVFilePath);
 	static FString BuildDialogueGraphCSVFromAsset(const UDialogueGraph* InDialogueGraph);
 
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	virtual void OnClose() override;
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }

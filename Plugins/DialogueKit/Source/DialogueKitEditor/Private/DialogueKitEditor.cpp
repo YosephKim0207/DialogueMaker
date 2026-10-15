@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DialogueKitEditor.h"
+#include "DialogueBlockPreview.h"
 #include "DialogueGraphValidation.h"
 #include "DialogueGraphDetails.h"
 #include "DialogueStoryEditor.h"
@@ -227,6 +228,7 @@ void FDialogueKitEditorModule::StartupModule()
 // 모듈 종료 시 등록한 메뉴/스타일/커맨드를 정리한다.
 void FDialogueKitEditorModule::ShutdownModule()
 {
+	FDialogueBlockPreview::Shutdown();
 	FDialogueGraphValidation::Shutdown();
 	if (FPropertyEditorModule* PropertyEditor = FModuleManager::GetModulePtr<FPropertyEditorModule>(TEXT("PropertyEditor")))
 	{

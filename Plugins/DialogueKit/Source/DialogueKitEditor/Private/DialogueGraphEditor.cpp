@@ -1,4 +1,7 @@
 #include "DialogueGraphEditor.h"
+#include "DialogueBlockPreview.h"
+#include "DialoguePreviewPolicy.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "DialogueLineAuthoring.h"
 #include "DialogueGraphEditing.h"
 #include "EdGraphNode_Comment.h"
@@ -67,6 +70,9 @@ void FDialogueGraphEditor::InitEditor(const EToolkitMode::Type Mode, const TShar
         FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanConvertCSV)
         );
 
+    GraphEditorCommands->MapAction(FGenericCommands::Get().Undo, FExecuteAction::CreateLambda([] { GEditor->UndoTransaction(); }), FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanEditGraph));
+    GraphEditorCommands->MapAction(FGenericCommands::Get().Redo, FExecuteAction::CreateLambda([] { GEditor->RedoTransaction(); }), FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanEditGraph));
+
     // Toolbar 생성
     TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender());
     ToolbarExtender->AddToolBarExtension(
@@ -121,7 +127,7 @@ void FDialogueGraphEditor::OnGraphSelectionChanged(const FGraphPanelSelectionSet
 // Graph UI로부터 Data Asset 저장
 void FDialogueGraphEditor::UpdateWorkingAssetFromGraph()
 {
-    if (bCanCommitWorkingGraph == false)
+    if (CanEditGraph() == false || bCanCommitWorkingGraph == false)
     {
         return;
     }
@@ -174,6 +180,7 @@ void FDialogueGraphEditor::OnClose()
 // 에디터의 Properties 상에서 편집된 NodeInfo로 업데이트
 void FDialogueGraphEditor::OnNodeDetailViewPropertiesUpdated(const FPropertyChangedEvent& Event)
 {
+    if (!CanEditGraph()) return;
     if (WorkingGraphUI != nullptr)
     {
         UDialogueEdGraphNodeBase* DialogueEdGraphNode = GetSelectedNode(WorkingGraphUI->GetSelectedNodes());
@@ -200,6 +207,13 @@ void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
         FMenuBuilder Menu(true, GraphEditorCommands);
         Menu.AddMenuEntry(FDialogueGraphEditorCommands::Get().Search);
         Menu.AddMenuEntry(FText::FromString(TEXT("그래프 검사")), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &FDialogueGraphEditor::CheckGraph)));
+        Menu.AddSubMenu(FText::FromString(TEXT("테스트")), FText(), FNewMenuDelegate::CreateLambda([this](FMenuBuilder& Tests)
+        {
+            Tests.AddMenuEntry(FText::FromString(TEXT("프리셋 설정")), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateStatic(&FDialogueBlockPreview::ShowSettings)));
+            Tests.AddMenuEntry(FText::FromString(TEXT("현재 Block 테스트")), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateLambda([this] { FDialogueBlockPreview::Start(WorkingAsset, WorkingGraph, false); }), FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanEditGraph)));
+            Tests.AddMenuEntry(FText::FromString(TEXT("진입 조건 무시하고 테스트")), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateLambda([this] { FDialogueBlockPreview::Start(WorkingAsset, WorkingGraph, true); }), FCanExecuteAction::CreateSP(this, &FDialogueGraphEditor::CanEditGraph)));
+            Tests.AddMenuEntry(FText::FromString(TEXT("테스트 종료")), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateStatic(&FDialogueBlockPreview::Stop)));
+        }));
         return Menu.MakeWidget();
     }), FText::FromString(TEXT("DialogueMaker")), FText::FromString(TEXT("대화 제작 도구")), FSlateIcon());
     ToolbarBuilder.AddToolBarButton(FDialogueGraphEditorCommands::Get().DuplicateNodes);
@@ -221,7 +235,7 @@ void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
         );
     ToolbarBuilder.AddToolBarButton(FUIAction(FExecuteAction::CreateLambda([this]()
     {
-        FDialogueLineAuthoring::ShowTimingDialog(WorkingGraph);
+        if (CanEditGraph()) FDialogueLineAuthoring::ShowTimingDialog(WorkingGraph);
     })), NAME_None, FText::FromString(TEXT("출력 시간 일괄 변경")),
         FText::FromString(TEXT("현재 Block의 모든 Line 출력 시간을 변경합니다.")), FSlateIcon());
     ToolbarBuilder.EndSection();
@@ -229,7 +243,7 @@ void FDialogueGraphEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 
 bool FDialogueGraphEditor::CanConvertCSV() const
 {
-    return WorkingAsset != nullptr && WorkingGraph != nullptr;
+    return CanEditGraph() && WorkingAsset != nullptr && WorkingGraph != nullptr;
 }
 
 // 툴바의 Convert to CSV 버튼 클릭 시 현재 그래프를 CSV 파일로 내보낸다.
@@ -462,6 +476,7 @@ void FDialogueGraphEditor::AddReferencedObjects(FReferenceCollector& Collector)
 // 변환 실패를 성공 저장처럼 보이지 않게 하고 원래 에셋을 보존한다.
 void FDialogueGraphEditor::SaveAsset_Execute()
 {
+    if (!CanEditGraph()) return;
     if (ConfirmGraphSave(true) == false) return;
     FString Error;
     if (bCanCommitWorkingGraph == false || FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, Error) == false)
@@ -475,6 +490,7 @@ void FDialogueGraphEditor::SaveAsset_Execute()
 // 다른 이름 저장에도 같은 기본 구조 검사를 적용한다.
 void FDialogueGraphEditor::SaveAssetAs_Execute()
 {
+    if (!CanEditGraph()) return;
     if (ConfirmGraphSave(true) == false) return;
     FString Error;
     if (bCanCommitWorkingGraph == false || FDialogueGraphCodec::ExportGraph(WorkingGraph, WorkingAsset, Error) == false)
@@ -499,9 +515,26 @@ void FDialogueGraphEditor::PostUndo(bool bSuccess)
 // 복제 결과만 선택하여 원본과 분리해 이동/편집할 수 있게 한다.
 void FDialogueGraphEditor::DuplicateSelectedNodes()
 {
-    if (WorkingGraphUI.IsValid() == false) return;
+    if (!CanEditGraph() || WorkingGraphUI.IsValid() == false) return;
     const TArray<UEdGraphNode*> Nodes = FDialogueGraphEditing::Duplicate(WorkingGraph, WorkingGraphUI->GetSelectedNodes());
     if (Nodes.IsEmpty()) return;
     WorkingGraphUI->ClearSelectionSet();
     for (UEdGraphNode* Node : Nodes) WorkingGraphUI->SetNodeSelection(Node, true);
+}
+
+// PIE 요청 대기부터 종료까지 편집 경로를 동일하게 잠근다.
+bool FDialogueGraphEditor::CanEditGraph() const
+{
+    return !UDialoguePreviewPolicy::IsBlockPreviewActive();
+}
+
+// PIE 중에는 닫기 반영이 유실되지 않게 먼저 테스트 종료를 요구한다.
+bool FDialogueGraphEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
+{
+    if (!CanEditGraph())
+    {
+        FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("테스트를 종료한 뒤 대화 편집기를 닫아 주세요.")));
+        return false;
+    }
+    return FWorkflowCentricApplication::OnRequestClose(InCloseReason);
 }
