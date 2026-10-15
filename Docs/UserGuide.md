@@ -63,6 +63,8 @@
 - [41. 현재 Block 단독 PIE 테스트](#41-현재-block-단독-pie-테스트)
 
 
+- [42. 안정 선택 ID와 하위 폴더 지역화](#42-안정-선택-id와-하위-폴더-지역화)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -947,3 +949,13 @@ DialogueKit의 기존 대화 이력·PlayerProgress·Quest Subsystem은 초기�
 - 선택 결과의 아이템 지급/소모/태그 변경은 시뮬레이션하지 않습니다. 변화 이후 조건은 별도 프리셋으로 시험합니다. 실제 게임 효과·체크포인트 세션·저장 큐는 연결하지 않습니다.
 - `Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Preview`는 복제·조건·격리를, `-TestFilter ProjectPreview.BlockPIELifecycle`는 실제 엔진 PIE 시작/종료 경로를 검사합니다. 기본 래퍼의 NullRHI/nosound 실행은 화면·소리의 관찰이 아닙니다.
 - 수동 확인: 0초/전체1초/글자당시간, 출력·음성 중 입력, Choice 등장, 동일 BGM 유지/빈 값 정지, 화자 표정·위치·반전, 종료 후 편집 복구를 확인하세요. 실제 키 포커스·렌더링·음향 청취 결과는 별도 기록해야 합니다.
+
+## 42. 안정 선택 ID와 하위 폴더 지역화
+
+작가는 기존 DialogueGraph CSV 내보내기/번역 가져오기 메뉴를 그대로 사용한다. 새 CSV에는 기존 `NodeGuid,PinId,Key,Value`에 `ChoiceId` 열이 추가된다. 번역자는 ID 열을 보존하고 Value만 수정한다. 예전 4열 CSV도 가져올 수 있다. 신규 Choice는 ChoiceId를 먼저 조회하고 예전 번역은 PinId로 대체하므로 핀 재생성 뒤에도 신규 번역이 유지된다. Node/Choice 자체를 새로 만들면 해당 ID의 번역도 다시 작성한다.
+
+게임 개발자는 `UDialogueLocalizationSubsystem::SetCurrentLanguage` 또는 `SetCurrentCultureCode`를 호출한다. 언어 전용 `en`, `ko`는 지원 코드 `en-US`, `ko-KR`로 정규화하고 명시적인 `zh-Hant` 같은 문화권은 그대로 둔다. 빈 문자열/공백은 false다. `ResolveDialogueText`는 NodeGuid, `ResolveChoiceText`는 NodeGuid·ChoiceId와 구형 fallback용 PinId를 받는다. 기존 `ResolveResponseText`도 유지된다. Subsystem 표시 이벤트에는 번역 복사본이 전달되며 원본 에셋은 변경하지 않는다.
+
+하위 폴더 번역은 AssetManager의 `DialogueLocalization` PrimaryAsset 등록 경로로 검색한다. 기본 `/Game/DialogueLocalization`은 recursive scan/cook 대상이다. 커스텀 생성 경로를 쓰는 게임은 AssetManager에 해당 경로를 등록하고 cook에 포함해야 한다. 등록되지 않은 경우 기존 루트 경로 조회를 시도하고 번역 누락 시 원문을 반환한다. 같은 Graph·문화권의 번역 에셋을 중복 생성하지 않는다.
+
+검증: `DialogueKit.Localization`은 언어 목록과 CSV→DataAsset→런타임 조회, 하위 폴더, 핀 변경, 구형 CSV를 검사한다. 이는 실제 패키지 UI의 번역 표시 관찰을 대신하지 않는다.
