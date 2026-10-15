@@ -105,15 +105,8 @@ try {
                 $LogErrors = @(Select-String -LiteralPath $Log -Pattern '\bError:')
                 $TestResult.LogErrorLines = $LogErrors.Count
                 $TestResult.StartupClean = ($LogErrors.Count -eq 0)
-                # 기존 6종만 최대 2줄씩 분리 집계한다. 수정된 진단은 이 목록에서도 제거해야 한다.
-                $Known = @(
-                    'EnumProperty FPortraitInitData::Speaker is not initialized properly. Module:DialogueKit File:Public/DialogueGraph.h',
-                    'EnumProperty FPortraitInitData::EmoteType is not initialized properly. Module:DialogueKit File:Public/DialogueGraph.h',
-                    'EnumProperty FPortraitInitData::PortraitSide is not initialized properly. Module:DialogueKit File:Public/DialogueGraph.h',
-                    'EnumProperty FPortraitActionData::ActionTargetSpeakerID is not initialized properly. Module:DialogueKit File:Public/DialoguePortraitData.h',
-                    'EnumProperty FItemRow::ItemType is not initialized properly. Module:DialogueKit File:Public/ItemRow.h',
-                    'IntProperty FItemRow::Value is not initialized properly. Module:DialogueKit File:Public/ItemRow.h'
-                )
+                # 초기화 누락 6종을 수정했으므로 재발도 신규 오류로 처리한다.
+                $Known = @()
                 $Counts = @{}
                 $Unexpected = @()
                 foreach ($Entry in $LogErrors) {
