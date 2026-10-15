@@ -60,6 +60,7 @@
 - [38. 기본 대화 화면과 이미지·음향](#38-기본-대화-화면과-이미지음향)
 - [39. 비동기 저장 표시](#39-비동기-저장-표시)
 - [40. Block 테스트의 게임 상태 격리](#40-block-테스트의-게임-상태-격리)
+- [41. 현재 Block 단독 PIE 테스트](#41-현재-block-단독-pie-테스트)
 
 
 ## 1. 기존 대화 기능 회귀 테스트
@@ -791,7 +792,7 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 - `UDialogueLineNodeInfo::SetTextTiming(bool bWholeLine, float Seconds)`는 두 모드 중 하나만 설정합니다. 음수/비정상 수는 0으로 정규화합니다. 편집 일괄 API `FDialogueLineAuthoring::ApplyTiming`은 잘못된 입력이나 읽기 전용 Graph에 false를 반환합니다.
 - `CopyContinuationDefaultsFrom`은 표현 설정 전용 복사 함수입니다. 향후 새 표현 설정을 추가할 때 이 whitelist와 테스트를 함께 확장하고 게임 효과/이력을 복사하지 않습니다.
 - `FDialogueLineAuthoring::FindNearestLines`와 `CreateContinuation`은 Editor 전용입니다. 실행 중 게임 상태를 변경하는 API가 아닙니다.
-- `PortraitImage`가 비어 있으면 기존 화자/표정 조회를 사용하는 계약입니다. 실제 순차 출력·이미지 적용·음성 중단 소비처는 S6에서 연결합니다. S5는 저작값과 저장 왕복을 제공합니다.
+- `PortraitImage`가 비어 있으면 기존 화자/표정 조회를 사용하는 계약입니다. 순차 출력·이미지 적용·음성 중단은 37~38절의 기본 화면에서 사용합니다. 저작값·저장 왕복과 실제 화면 관찰 검증은 구분합니다.
 - 자동화 `DialogueKit.Editor.LineAuthoring`은 상속·새 ID·연결 교체·Undo·일괄 시간·왕복을 검사합니다. 실제 팝업 클릭/레이아웃은 GUI 도구 부재로 별도 확인이 필요합니다.
 
 
@@ -925,3 +926,24 @@ DialogueKit의 기존 대화 이력·PlayerProgress·Quest Subsystem은 초기�
 `UDialoguePreviewStateProvider`는 샘플 조건 값을 조회하고 유효 효과의 흐름만 통과시킵니다. 보상/소모·태그 변경을 실제로 적용하지 않으며 저장 큐도 만들지 않습니다. 따라서 효과 이후의 조건까지 시험하려면 해당 초기 상태를 별도 프리셋으로 지정하세요. 이 제공자를 게임의 실제 효과 제공자로 등록하지 마세요.
 
 플러그인은 외부 게임 시스템의 임의 파일/네트워크 코드를 가로채지 않습니다. 외부 Subsystem은 위 공개 격리 API를 적용해야 합니다. 배포 빌드에서는 미리보기 활성화 API가 없고 조회 결과는 항상 false입니다. 자동화는 PIE 문맥에서 세 Subsystem의 초기화·메모리 변경·종료 후 저장 호출 전후로 기존 SaveGames 파일 집합과 내용을 비교합니다.
+
+
+## 41. 현재 Block 단독 PIE 테스트
+
+### 시나리오 작가
+
+1. Block Graph 편집기 상단 **DialogueMaker → 테스트 → 프리셋 설정**을 엽니다. `Presets` 배열에 이름 있는 항목을 추가하고 `Selected Preset`에 사용할 번호를 지정합니다(첫 항목은 0).
+2. 프리셋 `Definitions`에 게임 상태 키와 표시명을 등록하거나 `Definition Table`에 공통 `FDialogueStateDefinition` 행 DataTable을 지정합니다. 레벨/능력치는 `Value`, 보유 아이템 수량은 `Count`, 퀘스트/진행도는 `Tag`입니다. `States`에 같은 키와 현재 값을 입력합니다. 정의의 중복, 정의 없는 현재 값, 잘못된 값은 시작 시 거부됩니다. 정의만 있고 현재 값이 없으면 샘플 기본값 0/false입니다.
+3. 예: `Value / Player / Level` 정의와 현재 값 3을 지정하고 Block 진입 조건을 `Level >= 5`로 만들면 일반 테스트는 시작하지 않고 현재 값·기준·False 판정을 안내합니다. 현재 값을 5로 바꾸거나 **진입 조건 무시하고 테스트**를 사용합니다. 강제 테스트에서도 Branch와 각 Choice 조건은 정상 평가합니다. 조건 조회 오류는 기존 런타임 정책대로 로그 후 True 대체되므로 정의 누락 경고를 먼저 확인하세요.
+4. **현재 Block 테스트**는 Graph를 검사한 뒤 미저장 내용을 임시 복제하여 엔진의 빈 맵에서 실제 PIE를 시작합니다. 경고가 있으면 확인 후 실행할 수 있고 구조상 차단 오류는 먼저 수정해야 합니다. 게임의 원래 맵/GameMode/GameInstance 대신 빈 맵과 기본 클래스를 사용합니다.
+5. 텍스트·선택지·초상화·음향을 확인하고 클릭/Space/Enter로 진행합니다. 테스트 중에는 Graph·핀·Details·복제·출력시간 변경·편집 Undo/Redo·에셋 저장을 잠급니다. 화면 이동·확대·선택은 유지합니다. 편집기를 닫으려면 먼저 테스트를 종료합니다.
+6. **DialogueMaker → 테스트 → 테스트 종료** 또는 UE의 PIE 종료 버튼으로 종료합니다. 다음 실행은 프리셋 초기 값부터 시작합니다. 완료된 Block 화면이 사라져도 PIE는 종료 버튼을 누를 때까지 유지됩니다.
+7. 프리셋을 다음 에디터 실행에도 보존하려면 **프리셋 명시적 저장**을 누릅니다. 창 닫기와 테스트 시작/종료는 프리셋을 저장하지 않습니다. 이는 로컬 사용자 설정이며 Block 에셋/실제 게임 저장과 별개입니다.
+
+### 개발자 확장과 검증
+
+- 외부 자동 초기화 Subsystem은 반드시 40절의 격리 API를 적용하세요. 이 도구는 임의 외부 시스템의 파일/네트워크 부수 효과를 차단하는 운영체제 sandbox가 아닙니다.
+- Editor 전용 `FDialogueBlockPreview::CopyWorkingBlock`, `MakeProvider`, `CheckEntry`를 자동 검증/개발 도구에 사용할 수 있습니다. `Start`의 선택적 프리셋 인자는 저장 설정을 바꾸지 않고 특정 값을 시험하는 경로입니다. `GetRunner`는 현재 테스트의 실행 상태 조회용입니다.
+- 선택 결과의 아이템 지급/소모/태그 변경은 시뮬레이션하지 않습니다. 변화 이후 조건은 별도 프리셋으로 시험합니다. 실제 게임 효과·체크포인트 세션·저장 큐는 연결하지 않습니다.
+- `Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Preview`는 복제·조건·격리를, `-TestFilter ProjectPreview.BlockPIELifecycle`는 실제 엔진 PIE 시작/종료 경로를 검사합니다. 기본 래퍼의 NullRHI/nosound 실행은 화면·소리의 관찰이 아닙니다.
+- 수동 확인: 0초/전체1초/글자당시간, 출력·음성 중 입력, Choice 등장, 동일 BGM 유지/빈 값 정지, 화자 표정·위치·반전, 종료 후 편집 복구를 확인하세요. 실제 키 포커스·렌더링·음향 청취 결과는 별도 기록해야 합니다.

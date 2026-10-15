@@ -1,4 +1,5 @@
 #include "DialogueGraphValidation.h"
+#include "DialoguePreviewPolicy.h"
 #include "DialogueGraph.h"
 #include "DialogueChoiceNodeInfo.h"
 #include "DialogueEdGraphSchema.h"
@@ -67,6 +68,7 @@ bool FDialogueGraphValidation::CanSavePackage(UPackage* Package)
 	{
 		UDialogueGraph* Asset = *It;
 		if (Asset->GetOutermost() != Package || Asset->HasAnyFlags(RF_ClassDefaultObject)) continue;
+		if (UDialoguePreviewPolicy::IsBlockPreviewActive()) return false;
 		UEdGraph* Working = DialogueSaveGuard::WorkingGraphs.FindRef(Asset).Get();
 		if (Working == nullptr && Asset->Graph == nullptr) continue;
 		if (Working == nullptr)

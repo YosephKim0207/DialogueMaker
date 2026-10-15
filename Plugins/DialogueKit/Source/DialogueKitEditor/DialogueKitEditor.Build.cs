@@ -32,7 +32,8 @@ public class DialogueKitEditor : ModuleRules
                         "Projects",
                         "ToolMenus",
                         "DesktopPlatform",
-                        "UMG"
+                        "UMG",
+                        "EngineSettings"
                 });
 		
 		// Uncomment if you are using Slate UI

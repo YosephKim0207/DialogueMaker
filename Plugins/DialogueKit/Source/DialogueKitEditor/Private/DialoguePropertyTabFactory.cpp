@@ -34,9 +34,11 @@ TSharedRef<SWidget> DialoguePropertyTabFactory::CreateTabBody(const FWorkflowTab
 
 	TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetObject(InApp->GetWorkingAsset());
+	DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(InApp.ToSharedRef(), &FDialogueGraphEditor::CanEditGraph));
 
 	TSharedPtr<IDetailsView> SelectedNodeDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	SelectedNodeDetailsView->SetObject(nullptr);
+	SelectedNodeDetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(InApp.ToSharedRef(), &FDialogueGraphEditor::CanEditGraph));
 	InApp->SetSelectedDetailView(SelectedNodeDetailsView);
 	
 	return SNew(SVerticalBox)

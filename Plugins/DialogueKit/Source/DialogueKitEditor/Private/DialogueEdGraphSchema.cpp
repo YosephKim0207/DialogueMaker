@@ -43,6 +43,11 @@ const FPinConnectionResponse UDialogueEdGraphSchema::CanCreateConnection(const U
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Pin is nullptr"));
 	}
 	
+	if (!A->GetOwningNode()->GetGraph()->bEditable || !B->GetOwningNode()->GetGraph()->bEditable)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("테스트 중에는 연결을 수정할 수 없습니다."));
+	}
+
 	// 서로 같은 노드끼리 연결하려는 경우
 	if (A->GetOwningNode() == B->GetOwningNode())
 	{
@@ -192,4 +197,23 @@ void UDialogueEdGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdG
 	{
 		TryCreateConnection(Node->Pins[1], Input);
 	}
+}
+
+// 실행 중 이미 열린 핀 메뉴에서도 연결 해제를 거부한다.
+void UDialogueEdGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
+{
+    if (TargetNode.GetGraph() && TargetNode.GetGraph()->bEditable) Super::BreakNodeLinks(TargetNode);
+}
+
+// Graph 위젯의 잠금과 별개로 Schema의 변경 경계도 보호한다.
+void UDialogueEdGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const
+{
+    if (TargetPin.GetOwningNode()->GetGraph()->bEditable) Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
+}
+
+// 단일 링크 해제 역시 테스트 중에는 실행하지 않는다.
+void UDialogueEdGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const
+{
+    if (SourcePin && TargetPin && SourcePin->GetOwningNode()->GetGraph()->bEditable && TargetPin->GetOwningNode()->GetGraph()->bEditable)
+        Super::BreakSinglePinLink(SourcePin, TargetPin);
 }
