@@ -109,8 +109,26 @@ FDialogueCheckpointAcceptance UDialogueSampleSaveCoordinator::RequestDialogueChe
 	{
 		return Result;
 	}
-	UDialogueSampleCombinedSave* Capture = NewObject<UDialogueSampleCombinedSave>();
-	Capture->Game = Provider->CaptureEffectSnapshot();
+	if (PendingCapture && PendingCapture->Request.Snapshot.CheckpointId != Request.Snapshot.CheckpointId)
+	{
+		Result.ErrorCode = TEXT("PendingCaptureMustBeRetried");
+		return Result;
+	}
+	if (Request.Validate(Result.ErrorCode) == false) return Result;
+	if (Queue->ReserveCapture(Request.Snapshot.CheckpointId) == false)
+	{
+		Result.ErrorCode = TEXT("EarlierCapturePending");
+		return Result;
+	}
+	if (PendingCapture == nullptr)
+	{
+		PendingCapture = NewObject<UDialogueSampleCombinedSave>(this);
+		PendingCapture->Request = Request;
+		PendingCapture->Game = Provider->CaptureEffectSnapshot();
+	}
+	UDialogueSampleCombinedSave* Capture = PendingCapture;
+	FDialogueCheckpointRequest FrozenRequest = Request;
+	FrozenRequest.Snapshot = Capture->Request.Snapshot;
 	if (Capture->Game.Validate(Result.ErrorCode) == false)
 	{
 		return Result;
@@ -121,7 +139,9 @@ FDialogueCheckpointAcceptance UDialogueSampleSaveCoordinator::RequestDialogueChe
 		Result.ErrorCode = TEXT("SnapshotSerializationFailed");
 		return Result;
 	}
-	return Queue->Enqueue(Request, Bytes);
+	Result = Queue->Enqueue(FrozenRequest, Bytes);
+	if (Result.bAccepted) PendingCapture = nullptr;
+	return Result;
 }
 
 // 직렬화는 게임 스레드에서, 실제 파일 기록은 UE 비동기 저장으로 수행한다.
@@ -169,7 +189,7 @@ void UDialogueSampleSaveCoordinator::WriteSave(const FDialogueQueuedSave& Save)
 bool UDialogueSampleSaveCoordinator::RestoreLatest(FDialogueCheckpointSnapshot& OutSnapshot, FName& OutError)
 {
 	OutError = TEXT("SaveRestoreUnavailable");
-	if (Queue == nullptr || Queue->GetPendingCount() != 0 || IsValid(Provider) == false)
+	if (Queue == nullptr || Queue->GetPendingCount() != 0 || PendingCapture != nullptr || IsValid(Provider) == false)
 	{
 		return false;
 	}
@@ -188,7 +208,7 @@ bool UDialogueSampleSaveCoordinator::RestoreLatest(FDialogueCheckpointSnapshot& 
 // 모든 요청이 처리된 뒤에만 슬롯 소유권을 해제한다.
 bool UDialogueSampleSaveCoordinator::Shutdown()
 {
-	if (Queue == nullptr || Queue->GetPendingCount() != 0)
+	if (Queue == nullptr || Queue->GetPendingCount() != 0 || PendingCapture != nullptr)
 	{
 		return false;
 	}
@@ -201,4 +221,20 @@ bool UDialogueSampleSaveCoordinator::Shutdown()
 	Provider = nullptr;
 	SlotPrefix.Reset();
 	return true;
+}
+
+// 디스크 실패로 head가 대기 중이어도 후속 불변 자료의 접수는 가능하다.
+bool UDialogueSampleSaveCoordinator::CanCaptureDialogueCheckpoint_Implementation() const
+{
+	return IsValid(Queue) && IsValid(Provider) && PendingCapture == nullptr;
+}
+
+// 정상 입력의 메모리 접수는 즉시 수행하고 파일 완료와 분리한다.
+FDialogueCheckpointAcceptance UDialogueSampleSaveCoordinator::CaptureDialogueCheckpoint_Implementation(const FDialogueCheckpointSnapshot& Snapshot)
+{
+	if (IsValid(Queue) == false || IsValid(Provider) == false)
+	{
+		return FDialogueCheckpointAcceptance();
+	}
+	return RequestDialogueCheckpoint_Implementation(Queue->MakeRequest(Snapshot));
 }

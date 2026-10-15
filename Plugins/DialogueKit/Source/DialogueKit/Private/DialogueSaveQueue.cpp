@@ -3,7 +3,7 @@
 // 세대 변경은 진행 중 요청을 폐기하는 API가 아니다.
 bool UDialogueSaveQueue::InitializeQueue(FGuid NewGeneration)
 {
-	if (NewGeneration.IsValid() == false || NewGeneration == Generation || Pending.IsEmpty() == false || bPumping || bCompleting)
+	if (NewGeneration.IsValid() == false || NewGeneration == Generation || Pending.IsEmpty() == false || ReservedCheckpoint.IsValid() || bPumping || bCompleting)
 	{
 		return false;
 	}
@@ -20,6 +20,11 @@ bool UDialogueSaveQueue::InitializeQueue(FGuid NewGeneration)
 FDialogueCheckpointAcceptance UDialogueSaveQueue::Enqueue(const FDialogueCheckpointRequest& Request, const TArray<uint8>& GamePayload)
 {
 	FDialogueCheckpointAcceptance Result;
+	if (ReservedCheckpoint.IsValid() && ReservedCheckpoint != Request.Snapshot.CheckpointId)
+	{
+		Result.ErrorCode = TEXT("EarlierCapturePending");
+		return Result;
+	}
 	if (Request.Validate(Result.ErrorCode) == false)
 	{
 		return Result;
@@ -33,6 +38,7 @@ FDialogueCheckpointAcceptance UDialogueSaveQueue::Enqueue(const FDialogueCheckpo
 	FDialogueQueuedSave Save;
 	Save.Request = Request;
 	Save.GamePayload = GamePayload;
+	ReservedCheckpoint.Invalidate();
 	Pending.Add(MoveTemp(Save));
 	SeenRequests.Add(Request.RequestId);
 	SeenCheckpoints.Add(Request.Snapshot.CheckpointId);
@@ -110,6 +116,11 @@ bool UDialogueSaveQueue::CompleteWrite(const FDialogueCheckpointCompletion& Comp
 		}
 		// 오류값으로 게임이 재시도/종료 취소/미저장 종료 안내를 결정한다.
 		// 실제 개발자 로그 전송은 이 완료 이벤트 구독 지점에 연결한다.
+		if (Completion.bSaved)
+		{
+			const FDialogueQueuedSave Frozen = LastSuccessfulSave;
+			OnSavedNative.Broadcast(Frozen);
+		}
 		OnWriteCompleted.Broadcast(Completion);
 		OnSaveStateChanged.Broadcast(false, bFailed);
 	}
@@ -128,5 +139,24 @@ bool UDialogueSaveQueue::RetryFailedWrite()
 	SeenRequests.Add(Pending[0].Request.RequestId);
 	bFailed = false;
 	Pump();
+	return true;
+}
+
+// 게임이 다른 시스템 저장에도 같은 큐를 사용하도록 식별자를 한곳에서 발급한다.
+FDialogueCheckpointRequest UDialogueSaveQueue::MakeRequest(const FDialogueCheckpointSnapshot& Snapshot) const
+{
+	FDialogueCheckpointRequest Request;
+	Request.RequestId = FGuid::NewGuid();
+	Request.QueueGenerationId = Generation;
+	Request.Sequence = LastSequence < MAX_int64 ? LastSequence + 1 : 0;
+	Request.Snapshot = Snapshot;
+	return Request;
+}
+
+// 하나의 최초 캡처를 보존하는 동안 후속 자료를 먼저 접수하지 않는다.
+bool UDialogueSaveQueue::ReserveCapture(FGuid CheckpointId)
+{
+	if (CheckpointId.IsValid() == false || SeenCheckpoints.Contains(CheckpointId) || (ReservedCheckpoint.IsValid() && ReservedCheckpoint != CheckpointId)) return false;
+	ReservedCheckpoint = CheckpointId;
 	return true;
 }

@@ -495,3 +495,14 @@ PoC 코드는 격리 테스트 경로에서 시작한다. 성공한 최소 구�
 - 사용자 요청으로 동일 공식 스크립트의 전체 DialogueKit 테스트를 재실행했다. 결과 `Saved/AI/20261015_142642_c7d18338/result.json`: 37개 성공/0개 실패, ExitCode=0, LogErrorLines=0, StartupClean=true. HistoryAndAnchor 및 RunEvidence를 포함한다. 이전 해상도 차단은 해소됐다.
 - 코드 변경 없이 검증 기록만 갱신한다. 이전 Sol Medium 정적 검토를 재사용했고 독립 추가 조사 없이 메인이 재실행했다. 검증된 feature/dialogue-checkpoint-evidence를 기존 지침에 따라 Codex_Develop에 --no-ff 통합/push한다. 기능 브랜치를 보존한다.
 - S3 실행 증거 기반의 실행 검증은 완료됐지만 Runner 자동 연결·캡처 실패 처리·재개, S4 정확 버전/매핑/선택적 롤백·초기화는 여전히 미완료다. 이번 요청에서는 후속 기능을 추가 구현하지 않았다. GUI/PIE·패키징·패키지 실행을 수행하지 않았다.
+
+### S3·S4 마무리 실행 (2026-10-15)
+
+- 사용자 명령: S3와 S4 남은 작업을 마무리한다. 검증된 ea6206c에서 시작한다. 각 기능 브랜치와 작은 Subject/Description 커밋, 검증 후 --no-ff 통합을 유지한다.
+- S3: 준비/실행 분리 → 게임 저장 제공자와 CheckpointSession 연결 → Line 방문/통과 선기록 → 불변 캡처/실패 보존·재시도 → 동일 버전/실행 위치 재개 → 자동화·실파일 검증.
+- S4: 정확 ID/버전 조회와 RestoreOnly 로드 → 버전 보존 저작 API → 범위 매핑·게임 소유 선택적 보정 → 교체 시작 스냅샷 → 스토리 초기화 연결 → cook/회귀 검증.
+- 게임 보정은 전량 성공/실패 무변경·동일 보정 ID 재전달 안전·다른 출처 변경 보존을 게임 제공자에 요구한다. 누적 열람이나 현재 수치만으로 지급 취소를 추측하지 않는다. legacy 불완전 증거는 조건부 롤백을 거부한다.
+- 게임 구현과 외부 서비스 전송은 범위 밖이다. GameDirector 역할 미제공은 유지되며 기술 검토는 Sol Medium, 독립 코드/검증 지점 조사는 Luna High에게 위임한다. 메인만 편집/빌드/Git 수행.
+
+- S3 실행 세션 연결: feature/dialogue-checkpoint-session에서 Prepare/Run 분리, same-run resume, Line 방문/통과 선기록, 단일 캡처 경계, 접수 실패 자료/큐 예약 보존, 샘플 재시도, End 실제 저장 ack, Subsystem 연결 구현. 공개 API/오류 책임은 UserGuide 25절.
+- 검증: Build 20261015_145907_e782ccbe, 전체 DialogueKit 39개 통과/오류0 (20261015_150009_4c1fa116). 최초 fixture 태그/핀 오류는 수정 후 재검증했다. Sol Medium 지적 큐 교체/임의 entry 공개 문제 수정. S4 정확 버전·교체와 최종 실파일 프로세스 재시작/cook는 후속 작업이다.

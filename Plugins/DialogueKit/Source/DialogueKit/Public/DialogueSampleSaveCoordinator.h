@@ -49,6 +49,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Sample")
 	bool Shutdown();
 
+	virtual bool CanCaptureDialogueCheckpoint_Implementation() const override;
+	virtual FDialogueCheckpointAcceptance CaptureDialogueCheckpoint_Implementation(const FDialogueCheckpointSnapshot& Snapshot) override;
+
 	// 같은 호출 안에서 샘플 상태를 복사한다. 반환 성공은 FIFO 접수 성공이다.
 	virtual FDialogueCheckpointAcceptance RequestDialogueCheckpoint_Implementation(const FDialogueCheckpointRequest& Request) override;
 
@@ -70,4 +73,6 @@ private:
 	TObjectPtr<UDialogueSaveQueue> Queue;
 	FString SlotPrefix;
 	int64 Revision = 0;
+	UPROPERTY()
+	TObjectPtr<UDialogueSampleCombinedSave> PendingCapture;
 };

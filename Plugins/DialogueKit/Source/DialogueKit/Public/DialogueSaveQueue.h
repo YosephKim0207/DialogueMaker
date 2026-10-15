@@ -29,6 +29,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Save")
 	bool InitializeQueue(FGuid NewGeneration);
 
+	// 게임 공통 큐의 다음 요청을 만든다. 바로 Enqueue해야 하며 이 함수만으로 접수되지 않는다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Save")
+	FDialogueCheckpointRequest MakeRequest(const FDialogueCheckpointSnapshot& Snapshot) const;
+
+	// 최초 캡처 실패 중 후속 게임 저장의 순서 역전을 막는다. 접수 성공 시 해제한다.
+	bool ReserveCapture(FGuid CheckpointId);
+
 	// 호출 전에 게임 상태/원장과 Snapshot을 함께 캡처한다. true는 접수이며 디스크 성공이 아니다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Save")
 	FDialogueCheckpointAcceptance Enqueue(const FDialogueCheckpointRequest& Request, const TArray<uint8>& GamePayload);
@@ -66,6 +73,8 @@ public:
 
 	DECLARE_DELEGATE_OneParam(FWriteNative, const FDialogueQueuedSave&);
 	FWriteNative OnWriteRequestedNative;
+	DECLARE_MULTICAST_DELEGATE_OneParam(FSavedNative, const FDialogueQueuedSave&);
+	FSavedNative OnSavedNative;
 
 private:
 	// 동기 완료/접수 재진입도 후속 항목의 배열 참조를 무효화하지 않도록 복사하여 게시한다.
@@ -75,6 +84,7 @@ private:
 	UPROPERTY()
 	FDialogueQueuedSave LastSuccessfulSave;
 	FGuid Generation;
+	FGuid ReservedCheckpoint;
 	int64 LastSequence = 0;
 	TSet<FGuid> SeenRequests;
 	TSet<FGuid> SeenCheckpoints;

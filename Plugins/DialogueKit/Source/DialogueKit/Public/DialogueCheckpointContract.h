@@ -268,6 +268,17 @@ class DIALOGUEKIT_API IDialogueCheckpointProvider
 {
 	GENERATED_BODY()
 public:
+	// 게임은 캡처 가능한 상태인지 실행 전 확인한다. 디스크 실패와 별개의 메모리 접수 준비다.
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "DialogueKit|Checkpoint")
+	bool CanCaptureDialogueCheckpoint() const;
+	virtual bool CanCaptureDialogueCheckpoint_Implementation() const;
+
+	// 게임 공통 조율자가 요청 ID/세대/순서를 발급하고 같은 시점 게임 상태를 캡처한다.
+	// 실패 시에도 동일 Snapshot의 게임 자료를 보존해야 하며 재시도에서 새 상태로 다시 캡처하지 않는다.
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "DialogueKit|Checkpoint")
+	FDialogueCheckpointAcceptance CaptureDialogueCheckpoint(const FDialogueCheckpointSnapshot& Snapshot);
+	virtual FDialogueCheckpointAcceptance CaptureDialogueCheckpoint_Implementation(const FDialogueCheckpointSnapshot& Snapshot);
+
 	// 효과 성공 직후 후속 변경 전에 게임 상태/ledger/선택 기록/재개 위치를 함께 복사한다.
 	// 큐 접수만 반환하며 실제 저장은 비동기로 수행한다. 실패 안내/재시도는 게임이 결정한다.
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "DialogueKit|Checkpoint")

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DialogueGraph.h"
 #include "DialogueBlockRunner.h"
+#include "DialogueCheckpointSession.h"
 #include "DialogueNodeInfo.h"
 #include "ShownDialogueSaveData.h"
 #include "AssetRegistry/ARFilter.h"
@@ -53,6 +54,14 @@ public:
 	// 이미 로드한 신규 Block을 실행한다. 실패 안내/후속 흐름은 반환값과 표시 상태로 게임이 처리한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
 	bool StartDialogueBlock(UDialogueGraph* Block);
+
+	// 게임의 저장 제공자를 신규 실행 경로에 연결한다. 기존 수동 저장 구독은 관찰 전용으로 변경한다.
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
+	bool ConfigureCheckpointSession(UObject* SaveProvider, UDialogueSaveQueue* SaveQueue);
+	UFUNCTION(BlueprintPure, Category = "DialogueKit|Block")
+	UDialogueCheckpointSession* GetCheckpointSession() const { return CheckpointSession; }
+	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
+	bool ResumeDialogueBlock(UDialogueGraph* Block, const FDialogueCheckpointSnapshot& Snapshot);
 
 	// 시작 전에 효과/완료 경계 구독에 사용한다. 반환 객체의 수명은 Subsystem이 유지한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
@@ -119,6 +128,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UDialogueBlockRunner> BlockRunner;
+	UPROPERTY()
+	TObjectPtr<UDialogueCheckpointSession> CheckpointSession;
 	UPROPERTY()
 	TObjectPtr<UObject> BlockStateProvider;
 	UPROPERTY()

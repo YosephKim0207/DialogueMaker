@@ -272,3 +272,15 @@ bool FDialogueCheckpointSnapshot::UpgradeToLatest(FDialogueCheckpointSnapshot& O
 	OutSnapshot = MoveTemp(Converted);
 	return true;
 }
+
+// 준비 상태를 구현하지 않은 게임은 저장 연동 실행을 시작할 수 없다.
+bool IDialogueCheckpointProvider::CanCaptureDialogueCheckpoint_Implementation() const
+{
+	return false;
+}
+
+// 공통 큐 식별자 발급과 게임 상태 캡처는 게임 구현 책임이다.
+FDialogueCheckpointAcceptance IDialogueCheckpointProvider::CaptureDialogueCheckpoint_Implementation(const FDialogueCheckpointSnapshot& Snapshot)
+{
+	return FDialogueCheckpointAcceptance();
+}
