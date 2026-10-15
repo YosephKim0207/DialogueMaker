@@ -24,11 +24,19 @@ bool UDialogueCandidateSelector::BeginSession(FGameplayTag Target)
 // 세션 종료는 Block 정상 종료와 다르다. 저장 이력은 이 클래스에 없다.
 void UDialogueCandidateSelector::EndSession()
 {
+	CancelSelection();
 	SessionTarget = FGameplayTag();
 	Selected = FDialogueBlockCandidate();
 	CompletedOrdinary.Reset();
 	CompletedDefaults.Reset();
 	PreviousBlock.Invalidate();
+	bHasSelection = false;
+}
+
+// 이전 평가가 외부 조회/진단 콜백에서 복귀해 최신 결과를 덮지 못하도록 한다.
+void UDialogueCandidateSelector::CancelSelection()
+{
+	SelectionToken = FGuid::NewGuid();
 	bHasSelection = false;
 }
 
@@ -43,7 +51,8 @@ FDialogueSelectionResult UDialogueCandidateSelector::Select(const TArray<FDialog
 	const UDialogueStoryDefinition* Story, const FDialogueStoryProgress& Progress, UObject* Provider, UDialogueDiagnosticRouter* Router)
 {
 	FDialogueSelectionResult Result;
-	bHasSelection = false;
+	CancelSelection();
+	const FGuid Token = SelectionToken;
 	if (SessionTarget.IsValid() == false)
 	{
 		Result.ErrorCode = TEXT("MissingDialogueSessionTarget");
@@ -68,7 +77,13 @@ FDialogueSelectionResult UDialogueCandidateSelector::Select(const TArray<FDialog
 		}
 		References.Add(Metadata.Block);
 		ActiveIds.Add(Metadata.Block.BlockId);
-		if (UDialogueMetadataLibrary::IsEligible(Metadata, SessionTarget, Story, Progress, Provider, Router) == false)
+		const bool bEligible = UDialogueMetadataLibrary::IsEligible(Metadata, SessionTarget, Story, Progress, Provider, Router);
+		if (Token != SelectionToken)
+		{
+			Result.ErrorCode = TEXT("SupersededDialogueSelection");
+			return Result;
+		}
+		if (bEligible == false)
 		{
 			continue;
 		}
