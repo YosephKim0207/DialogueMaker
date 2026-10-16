@@ -11,6 +11,7 @@ class DIALOGUEKITEDITOR_API UDialogueFlowEdGraphNode : public UDialogueEdGraphNo
 {
 	GENERATED_BODY()
 public:
+	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
