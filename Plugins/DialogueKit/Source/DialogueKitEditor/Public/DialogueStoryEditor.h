@@ -15,6 +15,10 @@ class FDialogueStoryEditor
 {
 public:
 	static void Open();
+	// 정의 에셋 Details에서 사용한다. 잘못된 기존 정의는 먼저 명시적으로 수정한다.
+	static FGuid AddDefinitionItem(UDialogueStoryDefinition* Definition, bool bScene);
+	// 0인 자체 ID만 발급하며 부모/유효 ID/중복 ID를 임의 변경하지 않는다.
+	static int32 AssignMissingIds(UDialogueStoryDefinition* Definition);
 	static TArray<FDialogueStoryBlock> CollectBlocks();
 	static bool IsUnassigned(const FDialogueStoryScope& Scope, const UDialogueStoryDefinition* Definition);
 	static bool RemoveChapter(UDialogueStoryDefinition* Definition, FGuid Id);

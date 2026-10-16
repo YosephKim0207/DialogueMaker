@@ -90,7 +90,16 @@ bool FDialogueStoryEditor::MoveScene(UDialogueStoryDefinition* Definition, FGuid
 {
 	if (Definition == nullptr || Definition->FindScene(SceneId) == nullptr || (ChapterId.IsValid() && Definition->FindChapter(ChapterId) == nullptr)) return false;
 	TArray<FString> Issues;
-	if (Definition->ValidateDefinitions(Issues) == false) return false;
+	if (Definition->ValidateDefinitions(Issues) == false)
+	{
+		// 이 Scene의 잘못된 부모만 명시적으로 고치는 이동은 허용한다.
+		// 자체 ID 중복/누락이나 다른 Scene 오류는 우회하지 않는다.
+		for (const FString& Issue : Issues) if (Issue != TEXT("MissingOrDuplicateSceneParent")) return false;
+		for (const auto& Scene : Definition->Scenes)
+		{
+			if (Scene.SceneId != SceneId && Scene.ChapterId.IsValid() && Definition->FindChapter(Scene.ChapterId) == nullptr) return false;
+		}
+	}
 	const FScopedTransaction Transaction(NSLOCTEXT("DialogueKit", "MoveScene", "Scene 소속 이동"));
 	Definition->Modify();
 	for (auto& Scene : Definition->Scenes) if (Scene.SceneId == SceneId) Scene.ChapterId = ChapterId;
@@ -160,4 +169,35 @@ bool FDialogueStoryEditor::DeleteUnassigned(UDialogueStoryDefinition* Definition
 	}
 	Result = Remaining.IsEmpty() ? FText::FromString(TEXT("선택한 Block 삭제 완료")) : FText::FromString(TEXT("삭제하지 못한 Block:\n") + FString::Join(Remaining, TEXT("\n")));
 	return Remaining.IsEmpty();
+}
+
+// 기본 배열 추가 대신 기존 명시적 생성 API를 트랜잭션으로 호출한다.
+FGuid FDialogueStoryEditor::AddDefinitionItem(UDialogueStoryDefinition* Definition, bool bScene)
+{
+	if (Definition == nullptr) return FGuid();
+	TArray<FString> Issues;
+	if (Definition->ValidateDefinitions(Issues) == false) return FGuid();
+	const FScopedTransaction Transaction(NSLOCTEXT("DialogueKit", "AddStoryDefinitionItem", "스토리 정의 항목 추가"));
+	Definition->Modify();
+	const FGuid Id = bScene ? Definition->AddScene(FGuid(), FText::FromString(TEXT("새 Scene"))) : Definition->AddChapter(FText::FromString(TEXT("새 Chapter")));
+	Definition->PostEditChange();
+	Definition->MarkPackageDirty();
+	return Id;
+}
+
+// 명시적인 버튼 동작에서만 누락된 자체 ID를 복구한다. 소속은 추측하지 않는다.
+int32 FDialogueStoryEditor::AssignMissingIds(UDialogueStoryDefinition* Definition)
+{
+	if (Definition == nullptr) return 0;
+	int32 Count = 0;
+	for (const auto& Chapter : Definition->Chapters) if (Chapter.ChapterId.IsValid() == false) ++Count;
+	for (const auto& Scene : Definition->Scenes) if (Scene.SceneId.IsValid() == false) ++Count;
+	if (Count == 0) return 0;
+	const FScopedTransaction Transaction(NSLOCTEXT("DialogueKit", "AssignMissingStoryIds", "누락 스토리 ID 생성"));
+	Definition->Modify();
+	for (auto& Chapter : Definition->Chapters) if (Chapter.ChapterId.IsValid() == false) Chapter.ChapterId = FGuid::NewGuid();
+	for (auto& Scene : Definition->Scenes) if (Scene.SceneId.IsValid() == false) Scene.SceneId = FGuid::NewGuid();
+	Definition->PostEditChange();
+	Definition->MarkPackageDirty();
+	return Count;
 }
