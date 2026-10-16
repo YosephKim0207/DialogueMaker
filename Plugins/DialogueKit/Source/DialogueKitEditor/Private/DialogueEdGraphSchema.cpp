@@ -217,3 +217,13 @@ void UDialogueEdGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
     if (SourcePin && TargetPin && SourcePin->GetOwningNode()->GetGraph()->bEditable && TargetPin->GetOwningNode()->GetGraph()->bEditable)
         Super::BreakSinglePinLink(SourcePin, TargetPin);
 }
+
+// 전용 경유점 위젯도 일반 실행 핀과 같은 파란색 테두리/채움을 사용한다.
+FLinearColor UDialogueEdGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
+{
+	if (PinType.PinCategory == TEXT("DialogueFlow"))
+	{
+		return FLinearColor(0.1f, 0.4f, 0.8f);
+	}
+	return Super::GetPinTypeColor(PinType);
+}
