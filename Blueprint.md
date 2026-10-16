@@ -473,3 +473,7 @@ S0~S4는 이전 완료, S5/S6/S7 기술 구현과 자동 검증은 완료했다.
 ### 2026-10-16 — 저작 노드 표시 보완
 
 경유점의 DialogueFlow 핀은 연결/미연결 모두 파란색으로 표시한다. Line은 제목 막대의 Title과 본문의 Speaker ID·Dialogue Text를 보여주며 긴 본문을 줄바꿈한다. 기존 태그 조건은 Key.Tag의 UE 선택기로 지정하며 복수 태그는 Conditions 배열과 All/Any를 사용한다. Branch 구형 읽기 전용 조건과 기본 Choice를 편집 대상으로 혼동하지 않도록 UserGuide 36절을 보완했다. 자료구조·저장·런타임 조건 의미 변경 없음. Editor 빌드 및 관련 자동 검사 10/10·Error 0, 실제 GUI 색감·배치·태그 선택 조작은 미검증이다. 근거: Docs/AI/EditorReadabilityPlan.md.
+
+### 2026-10-16 — 스토리 정의 직접 편집 보완
+
+DialogueStoryDefinition 기본 배열 추가가 ID 발급을 우회하던 문제를 Editor 전용 Details로 수정한다. + Chapter/+ Scene은 명시적 생성 API를 통해 고유 ID를 발급하고, Scene 부모는 같은 정의의 Chapter 이름/ID 목록에서 선택한다. 기존 0 자체 ID는 누락 ID 생성 버튼에서만 복구하며 부모를 추측하지 않는다. 유효 ID·저장 형식 유지. 배열 삭제/복제 대신 기존 스토리보드의 보호된 제거 절차를 안내한다. 사용법은 UserGuide 47절, 검증 기록은 Docs/AI/StoryDefinitionDetailsPlan.md.
