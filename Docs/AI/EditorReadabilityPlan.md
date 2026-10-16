@@ -27,3 +27,11 @@
 - 조사 진행. 빌드·자동화 결과와 사용자 문서는 기능 완료 시 기록한다.
 
 - 경유점: Editor 빌드 20261016_171749_5f381d8e 성공, LayoutRoundtrip 20261016_171834_9a0ef154 1/1·Error 0. 이전 축약 필터 Layout 실행은 두 테스트 성공·Error 0이나 UnexpectedTests로 래퍼 실패(171814_5d80f9c6), 정확 이름으로 수정. 실제 색감 GUI 미검증.
+
+## Result / Evidence
+- Line: 제목 막대에 Title(빈 경우 Line), 본문에 Speaker ID와 Dialogue Text를 동적 표시. 본문 폭 300에서 줄바꿈. Choice/StateChange 기본 위젯과 Reroute 전용 위젯 유지.
+- 태그: Sol Medium 검토에서 UE GameplayTagsEditor의 FGameplayTag customization과 Key.Tag 필드를 확인. 기존 선택 경로를 UserGuide 36절에 명시했으며 자료형/평가 코드는 변경하지 않았다. 기본 선택지와 Legacy에서는 조건 선택이 없는 이유도 안내했다.
+- Editor Build: Saved/AI/20261016_172053_b5afd7b9/Build.log 성공.
+- DialogueKit.Editor: Saved/AI/20261016_172118_f4ad099f/result.json 10/10·Error 0. 신규 LineNodeContent는 실제 Slate 트리에서 기존 위젯의 화자/본문 갱신과 파생 노드 분리, 경유점 색 조회를 확인. 기존 배치 파일 왕복·Undo·검색·검사 회귀도 통과.
+- 실제 GUI 색감/긴 본문 배치/태그 picker 클릭은 도구 미연결로 미검증. 이번 Editor 전용 수정에서 PIE/패키징은 재실행하지 않았다. 기존 EnhancedInput 의존성 선언·XGE·Git safe.directory 경고는 변경하지 않았다.
+- 전체 계획: S0~S7 구현 상태는 유지. S5~S7 실제 GUI/화면/입력/음향·Shipping 실행과 최종 제품 인수, Prototype2 통합은 별도 잔여 항목이다.

@@ -469,3 +469,7 @@ Line 기존 파란색은 유지하고 Choice는 보라색, StateChange는 청록
 전체 DialogueKit 59개, 실제 엔진 PIE 생명주기 1개, 다른 프로세스 Write/Read 각 1개, 버전 cook Registry 2개, Shipping 제외 검사 1개를 통과했다. Development 실제 패키지의 저장→대기 큐 강제 종료→정확 v1 복원→후속 v2 선정도 통과했고 기존 프로젝트 저장 해시는 불변이었다. Shipping 빌드/cook/package는 통과했으며 Shipping 실제 실행은 미검증이다.
 
 S0~S4는 이전 완료, S5/S6/S7 기술 구현과 자동 검증은 완료했다. 실제 에디터 GUI·화면·물리 입력·음향·제품 검토 및 실제 게임 통합은 별도 확인이 남아 전체 Exit를 Verified로 표시하지 않는다. 사용법은 UserGuide 42~45절, 검증/복구/잔여 목록은 Docs/Reports/S7-Implementation-2026-10-15.md를 따른다. 이 절이 현재 상태이며 앞선 S7 미착수 표기는 과거 기록이다.
+
+### 2026-10-16 — 저작 노드 표시 보완
+
+경유점의 DialogueFlow 핀은 연결/미연결 모두 파란색으로 표시한다. Line은 제목 막대의 Title과 본문의 Speaker ID·Dialogue Text를 보여주며 긴 본문을 줄바꿈한다. 기존 태그 조건은 Key.Tag의 UE 선택기로 지정하며 복수 태그는 Conditions 배열과 All/Any를 사용한다. Branch 구형 읽기 전용 조건과 기본 Choice를 편집 대상으로 혼동하지 않도록 UserGuide 36절을 보완했다. 자료구조·저장·런타임 조건 의미 변경 없음. Editor 빌드 및 관련 자동 검사 10/10·Error 0, 실제 GUI 색감·배치·태그 선택 조작은 미검증이다. 근거: Docs/AI/EditorReadabilityPlan.md.

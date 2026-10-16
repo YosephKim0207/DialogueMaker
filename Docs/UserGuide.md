@@ -70,6 +70,8 @@
 - [44. 실제 패키지 저장과 강제 종료 복원 검사](#44-실제-패키지-저장과-강제-종료-복원-검사)
 - [45. 초상화 없는 기존 대화와 Shipping 샘플](#45-초상화-없는-기존-대화와-shipping-샘플)
 
+- [46. Line 노드 내용 표시](#46-line-노드-내용-표시)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -872,6 +874,18 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 
 ## 36. 신규 조건과 구형 조건 구분
 
+### GameplayTag 선택 및 복수 조건 작성
+
+1. Branch 노드를 선택하고 Details의 `DialogueKit → Branch → Conditions`를 펼칩니다. Choice는 `Options`에서 일반 선택지의 `Conditions`를 펼칩니다.
+2. 내부 `Conditions` 배열의 `+` 버튼으로 항목을 추가하고 해당 항목의 `Key`를 펼칩니다.
+3. `Kind`를 `Tag`로 설정한 뒤 **`Key → Tag`의 태그 선택 버튼/드롭다운**에서 프로젝트에 등록된 GameplayTag를 선택합니다. `Kind=Tag`는 종류 지정일 뿐 실제 검사할 태그 선택이 아닙니다.
+4. 보유 여부는 `Comparison=Equal`, `Tag Operand=true`로 검사합니다. 없는 태그를 요구하려면 `Equal`, `Tag Operand=false`로 설정합니다.
+5. 복수 태그는 태그마다 배열 항목을 추가합니다. 바깥 `Combine=All`이면 전부 충족, `Any`이면 하나 이상 충족해야 합니다. 예: `Quest.Accepted`, `Item.KeyOwned`를 각각 지정하고 All이면 두 태그가 모두 필요합니다. 예시 태그는 게임이 등록해야 합니다.
+
+태그 목록이 비어 있다면 프로젝트 설정의 Gameplay Tags에서 사용할 태그를 먼저 등록합니다. 기본 선택지(`Default=true`)는 조건을 평가하지 않아 Conditions가 숨겨집니다. `Legacy → 구형 조건`은 읽기 전용이므로 그곳에서 태그를 수정할 수 없습니다. 신규 `Key → Tag` 경로에도 선택기가 없다면 정상적인 상태가 아니며 해당 화면을 기준으로 추가 확인이 필요합니다.
+
+복수 태그는 한 드롭다운에서 일괄 선택하는 방식이 아니라 **복수 조건 행**으로 지원합니다. 기존 Value/Count와 섞어 같은 All/Any로 평가할 수 있습니다. 게임 개발자는 `IDialogueStateProvider`의 태그 조회 구현을 제공하며, 이번 안내는 기존 저장 형식과 평가 로직을 변경하지 않습니다.
+
 - 새 Branch는 `DialogueKit → Branch → Conditions`를 편집합니다. `Legacy → 구형 조건 (신규 실행기 미사용)`은 기존 값 확인용 읽기 전용입니다. 자동 변환하지 않습니다.
 - Block 진입 조건은 `Entry Conditions`, 선택지 표시 조건은 각 `Options → Conditions`입니다. 조건 배열의 추가/삭제와 All/Any 조합을 사용하며, Tag/Value/Count 항목과 비교 기준을 지정합니다. 게임은 기존 `IDialogueStateProvider`로 값을 제공해야 합니다.
 - Block Details의 `Legacy 안내`를 확인하세요. 구형 Required All/Any/Blocked Tags가 남으면 신규 후보에서 제외됩니다. 신규 조건에 필요한 내용을 수동 작성한 다음 구형 태그를 명시적으로 비우세요. 구형 `SpeakerID`/`ChapterID`는 새 `DialogueTarget`/`StoryScope`를 대신하지 않습니다.
@@ -1025,3 +1039,9 @@ Shipping에 DialogueValidationId를 함께 주면 스크립트가 거부한다. 
 기존 `BeginDialogue`/개발용 `PlayDialogueGraph` 경로에서 필요한 초상화 에셋이 0개이면 사전 로드 없이 대화 UI를 생성한다. 별도 작가 설정은 필요 없다. 종료 시 preload handle이 없더라도 안전하게 처리한다. 존재하는 초상화의 정상 비동기 로드는 기존 경로를 유지한다.
 
 샘플 `ATEST` 액터의 직접 대화 실행은 Development 전용이며 Shipping에서는 실행하지 않는다. 테스트 Graph를 지정하지 않은 경우도 호출하지 않는다. 실제 게임은 샘플 액터의 테스트 동작에 의존하지 않고 공개 게임 호스트/Subsystem 진입점을 연결한다. 기존 테스트 에셋이나 샘플 맵 바이너리는 변경하지 않았다.
+
+## 46. Line 노드 내용 표시
+
+Line을 선택하고 Details의 `Title`, `Speaker ID`, `Dialogue Text`를 편집합니다. 제목은 노드 제목 막대에, 화자와 대사는 핀 아래에 표시됩니다. 빈 제목은 `Line`이며 긴 본문은 폭 300 기준으로 줄바꿈합니다. 내용은 읽기 전용 미리보기이며 수정은 Details에서 합니다. Undo 또는 저장 후 재열기에도 같은 노드 정보를 읽습니다.
+
+게임 개발자의 추가 호출은 필요 없습니다. 기존 `UDialogueNodeInfo`의 `GetTitle()`, `GetSpeakerEmotePair()`, `GetDialogueText()`를 읽으며 런타임/저장 형식은 바꾸지 않습니다. Choice·StateChange·경유점은 기존 전용 표현을 유지합니다. 실제 화면의 색감·배치는 GUI 인수 확인 대상입니다.
