@@ -15,6 +15,7 @@ class DIALOGUEKITEDITOR_API UDialogueEdGraphSchema : public UEdGraphSchema
 	GENERATED_BODY()
 
 	public:
+	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 	virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
