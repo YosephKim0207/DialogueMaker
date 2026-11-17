@@ -9,10 +9,10 @@ struct FQuestStep
 {
 	GENERATED_BODY()
 	
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FQuestStep|Tag")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FQuestStep|Tag", meta = (ToolTip = "구형 퀘스트 단계의 완료를 식별하는 태그입니다. End의 Selected Quest Step Tag 목록에 표시됩니다."))
     FGameplayTag ClearTag;
 
-    UPROPERTY(EditAnywhere, Category = "DialogueKit|FQuestStep|Reward", meta = (RowType = "/Script/DialogueMaker.ItemRow", TitleProperty = "DisplayName"))
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|FQuestStep|Reward", meta = (ToolTip = "구형 퀘스트 단계의 보상 아이템 행 참조 목록입니다. 원본 퀘스트 에셋에서 설정하며 신규 Block의 Effects와는 별개입니다.", RowType = "/Script/DialogueMaker.ItemRow", TitleProperty = "DisplayName"))
     TArray<FDataTableRowHandle> RewardItems;
 };
 

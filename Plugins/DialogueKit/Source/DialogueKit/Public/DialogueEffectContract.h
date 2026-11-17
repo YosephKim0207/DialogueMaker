@@ -27,16 +27,16 @@ struct DIALOGUEKIT_API FDialogueEffect
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects", meta = (ToolTip = "변경할 게임 상태의 종류·대상·항목 키입니다. 조건 조회에 쓰는 키와 같은 규약이며 실제 변경은 게임 효과 제공자가 담당합니다."))
 	FDialogueStateKey Key;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects", meta = (ToolTip = "변경 연산입니다. Tag는 Add/Remove, Value는 Add/Set, Count는 Add/Set/Remove를 지원합니다. Count 감소는 양수 Count와 Remove로 표현합니다."))
 	EDialogueEffectOperation Operation = EDialogueEffectOperation::Add;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects", meta = (ToolTip = "Kind가 Value일 때 더하거나 설정할 수치입니다. 감소는 음수 Add로 표현합니다. 다른 종류에서는 사용하지 않습니다."))
 	double Value = 0.0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Effects", meta = (ToolTip = "Kind가 Count일 때 더할·설정할·제거할 수량입니다. 0 이상의 정수를 사용하며 감소는 Remove 연산을 선택합니다. 다른 종류에서는 사용하지 않습니다."))
 	int64 Count = 0;
 
 	// 종류별 허용 연산과 활성 값만 검사한다.

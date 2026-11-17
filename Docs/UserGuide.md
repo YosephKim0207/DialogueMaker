@@ -74,6 +74,8 @@
 
 - [47. 스토리 정의 에셋의 ID와 Chapter 선택](#47-스토리-정의-에셋의-id와-chapter-선택)
 
+- [48. DialogueProperty 항목 설명 툴팁](#48-dialogueproperty-항목-설명-툴팁)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -1073,3 +1075,17 @@ Line을 선택하고 Details의 `Title`, `Speaker ID`, `Dialogue Text`를 편집
 ### 검증 범위
 
 자동화는 생성·명시적 복구·부모 선택·Undo/Redo와 격리된 에셋의 실제 저장/재열기를 검사합니다. 실제 화면 배치와 마우스 클릭, 메뉴의 시각적 가독성은 GUI 인수 검증 대상입니다.
+
+
+## 48. DialogueProperty 항목 설명 툴팁
+
+DialogueGraph 에셋을 열고 오른쪽 `DialoguePropertyTab`에서 항목 이름에 마우스를 잠시 올리면 한국어 설명 툴팁이 나타납니다. 위쪽은 Block 전체 설정이고, 그래프에서 Line/Choice/Branch/StateChange/End를 선택하면 아래쪽에 해당 노드 설정이 표시됩니다. 접힌 구조체나 배열은 펼친 뒤 하위 항목 이름에 마우스를 올립니다. Start와 경유점에는 별도 NodeInfo 속성이 없습니다.
+
+- Block ID/Content Version, 대상·소속, Availability, 기본/최우선 여부, 우선순위, Entry Conditions의 의미를 확인할 수 있습니다. 대상 분류 필터·검색창·대상 선택 및 소속 버튼에도 설명이 있습니다.
+- `Entry Conditions → Conditions → 배열 항목 → Key`를 펼치면 Kind/Target ID/Item ID/Tag 설명을 확인할 수 있습니다. Target ID와 Item ID는 게임 제공자와 약속한 ID이며 현재 직접 입력합니다. 이번 보완은 enum/DataTable 선택기를 추가하지 않습니다.
+- 조건의 Comparison과 종류별 Operand, Choice의 기본 선택지·효과·저장 요청, Branch의 빈 조건, StateChange의 효과 연산, End의 저장 옵션을 설명합니다. 조회 실패는 해당 조건을 True로 처리한다는 현재 정책도 표시합니다.
+- Line의 본문·화자·열람 버전·이미지·위치·반전·표시 시간·음향과 중첩 초상화 설정을 설명합니다. Line Duration은 자동 진행 대기 시간이 아니라 본문 표시 시간입니다.
+- 구형 필드는 신규 실행에서 사용하는지 구분하여 안내합니다. 특히 End의 Clear Tag는 구형 경로에서 태그를 추가하는 설정이며, 퀘스트 Action의 실제 후속 처리는 현재 미구현입니다. 구형 초상화 액션도 현재 Move만 실행하며 표정 액션 필드의 미사용 상태를 안내합니다.
+- 주석 설명 입력칸은 제작용 메모임을 안내합니다. 엔진이 제공하는 기본 색상·좌표·주석 필드는 UE 기본 설명을 사용합니다.
+
+게임 개발자: 기본 속성 설명은 공개 헤더의 `UPROPERTY(meta = (ToolTip = "설명"))`으로 제공하며 추가 등록 API는 없습니다. 게임에서 확장한 속성도 같은 메타데이터를 지정할 수 있습니다. 직접 만든 Slate 버튼/행은 `ToolTipText`를 지정해야 합니다. 툴팁은 에디터 안내이며 조건 평가·비동기 저장·에셋 직렬화 형식을 변경하지 않습니다. C++ 메타데이터 변경 후 Editor 타깃을 다시 빌드하고 에디터를 재시작해 확인합니다.

@@ -12,13 +12,13 @@ struct FDialogueChoice
 	GENERATED_BODY()
 
 	// 선택 문구/배열 위치와 독립적인 저작 식별자다. 기존 에셋 로드시 자동 발급하지 않는다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Identity")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Identity", meta = (ToolTip = "구형 선택지의 고유 ID입니다. 문구 및 배열 순서와 독립적이며 직접 수정하지 않습니다."))
 	FGuid ChoiceId;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Text")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Text", meta = (ToolTip = "구형 대사에 표시할 선택지 문구입니다. 신규 Choice 노드는 Options의 Text를 사용합니다."))
     FText ResponseText;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Conditions")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|FDialogueChoice|Conditions", meta = (ToolTip = "구형 선택지의 레벨·태그 조건입니다. 신규 Choice 노드는 공통 Conditions를 사용합니다."))
     FDialogueConditionEvalCriteria SelectableChoiceEvalCriteria;
 
 	FDialogueChoice(){}
