@@ -75,33 +75,33 @@ protected:
 	bool bStandaloneLine = false;
 
 private:
-	UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueNodeInfo|Identity")
+	UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueNodeInfo|Identity", meta = (ToolTip = "이 Line의 누적 읽음 판정 버전입니다. 본문 수정만으로 바뀌지 않습니다. 미열람 갱신 버튼으로 올리면 기존 플레이어에게 다시 미열람으로 취급됩니다."))
 	int32 ReadVersion = 1;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (ToolTip = "편집 그래프의 노드 제목입니다. 플레이어에게 표시할 대사 본문은 Dialogue Text에 작성합니다.", AllowPrivateAccess = "true"))
     FText Title;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (ToolTip = "이 대사를 말하는 화자입니다. 화자 이름 표시와 화자·표정 기반 초상화 조회에 사용합니다. Block 진입 대상과 다를 수 있습니다.", AllowPrivateAccess = "true"))
     ESpeakerID SpeakerID;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (ToolTip = "화자의 표정과 화면 배치 등 초상화 설정입니다. 신규 Line의 직접 이미지·오프셋·반전은 별도 Portrait 항목에서 설정합니다.", AllowPrivateAccess = "true"))
     FPortraitData PortraitData;
 
-    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueNodeInfo|PortraitActions")
+    UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueNodeInfo|PortraitActions", meta = (ToolTip = "구형 초상화 연출 경로에 전달하는 동작 목록입니다. 신규 Block 기본 화면이 이 액션 배열을 자동 실행하지는 않습니다."))
     TArray<FPortraitActionData> PortraitActionDatas;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (ToolTip = "플레이어에게 표시할 대사 본문입니다. 신규 Line에서는 글자당 시간 또는 전체 시간 설정을 적용하며 구형 일반 노드는 기존 UI 표시 경로를 사용합니다.", AllowPrivateAccess = "true"))
     FText DialogueText;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (AllowPrivateAccess = "true", EditCondition = "!bStandaloneLine", EditConditionHides))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Default", meta = (ToolTip = "구형 대사 노드에 포함된 선택지 목록입니다. 신규 Line에서는 숨겨지며 독립 Choice 노드의 Options를 사용합니다.", AllowPrivateAccess = "true", EditCondition = "!bStandaloneLine", EditConditionHides))
     TArray<FDialogueChoice> DialogueChoices;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|State", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|State", meta = (ToolTip = "구형 노드의 열람 표시입니다. 신규 실행의 누적 읽음은 별도 기록과 Read Version으로 판정합니다.", AllowPrivateAccess = "true"))
     bool bIsShown;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Quest", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Quest", meta = (ToolTip = "구형 대사 자료의 퀘스트 지정 필드입니다. 신규 Block 실행기가 자동 지급하지 않습니다. 게임 효과 연동을 사용하세요.", AllowPrivateAccess = "true"))
     TSubclassOf<UQuestBase> QuestToGive;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Quest", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DialogueKit|DialogueNodeInfo|Quest", meta = (ToolTip = "구형 대사 자료의 퀘스트 지정 필드입니다. 신규 Block 실행기가 자동 완료하지 않습니다. 게임 효과 연동을 사용하세요.", AllowPrivateAccess = "true"))
     TSubclassOf<UQuestBase> QuestToClear;
 };

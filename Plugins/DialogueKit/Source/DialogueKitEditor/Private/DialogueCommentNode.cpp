@@ -36,7 +36,7 @@ void FDialogueCommentDetails::CustomizeDetails(IDetailLayoutBuilder& Builder)
 	Builder.GetObjectsBeingCustomized(Objects);
 	const TWeakObjectPtr<UObject> Node = Objects.IsEmpty() ? nullptr : Objects[0];
 	Builder.EditCategory("Comment").AddCustomRow(FText::FromString(TEXT("설명"))).WholeRowContent()
-	[SNew(SMultiLineEditableTextBox).HintText(FText::FromString(TEXT("주석 설명")))
+	[SNew(SMultiLineEditableTextBox).ToolTipText(NSLOCTEXT("DialogueKit", "CommentDescriptionHelp", "제작자를 위한 주석 설명입니다. 그래프와 함께 저장되며 플레이어 대사나 실행 조건에는 사용하지 않습니다.")).HintText(FText::FromString(TEXT("주석 설명")))
 		.Text_Lambda([Node]() { return GetDescription(Node.Get()); })
 		.OnTextCommitted_Lambda([Node](const FText& Text, ETextCommit::Type)
 		{
