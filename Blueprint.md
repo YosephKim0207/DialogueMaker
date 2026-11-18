@@ -514,3 +514,11 @@ S0~S4는 이전 완료, S5/S6/S7 기술 구현과 자동 검증은 완료했다.
 ### 2026-10-16 — 스토리 정의 직접 편집 보완
 
 DialogueStoryDefinition 기본 배열 추가가 ID 발급을 우회하던 문제를 Editor 전용 Details로 수정한다. + Chapter/+ Scene은 명시적 생성 API를 통해 고유 ID를 발급하고, Scene 부모는 같은 정의의 Chapter 이름/ID 목록에서 선택한다. 기존 0 자체 ID는 누락 ID 생성 버튼에서만 복구하며 부모를 추측하지 않는다. 유효 ID·저장 형식 유지. 배열 삭제/복제 대신 기존 스토리보드의 보호된 제거 절차를 안내한다. 사용법은 UserGuide 47절, 검증 기록은 Docs/AI/StoryDefinitionDetailsPlan.md.
+
+### 2026-11-18 — BP-116 게임 정의 기반 조건 선택 UI 구현 요청
+
+- 사용자 요청: DataAsset NPC ID와 DataTable Item ID를 DialogueGraph에서 드롭다운으로 선택하도록 구현한다.
+- 승인 범위: 프로젝트 설정의 IDialogueDefinitionProvider 에셋 연결, Kind별 Target 및 Kind+Target별 Item 검색·선택, Tag 기존 선택기, 고급 직접 입력, 오류/미등록 안내. 샘플 프로젝트만 기존 Catalog를 연결한다.
+- 보존 규칙: Kind/Target 변경 및 원본 오류로 기존 ID를 자동 삭제/교체하지 않는다. Key/SaveData 형식과 런타임 의미, 게임 상태 소유권은 그대로다.
+- 완료 기준: 목록 필터·검색, 오류·기존 값 보존, Undo/Redo·저장 왕복, 공통 Key 적용 지점 및 기존 조건 평가 검증, UserGuide 갱신. 실제 GUI와 자동 검사는 구분한다.
+- 상태: 선택 UI·샘플 연결·가이드 구현 완료. Editor 빌드 및 최종 DialogueKit 66/66·Error 0. 실제 Details 선택·Undo/Redo·파일 왕복, 오류/미등록 값 보존과 다중 편집·잠금을 자동 검사했다. GameDirector 제품 일치 검토 완료. 실제 GUI/PIE/패키징 및 Blueprint 전용 원본 피커 실사용은 미검증이다. UserGuide 50절, 상세 증거/복구: Docs/AI/DialogueConditionIdPickerPlan.md.

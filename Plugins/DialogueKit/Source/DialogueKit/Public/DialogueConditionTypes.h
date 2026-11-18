@@ -54,7 +54,7 @@ struct DIALOGUEKIT_API FDialogueStateKey
 	bool IsValid() const;
 	// 비활성 필드는 동일성에 영향을 주지 않는다.
 	bool operator==(const FDialogueStateKey& Other) const;
-	friend uint32 GetTypeHash(const FDialogueStateKey& Key);
+	friend DIALOGUEKIT_API uint32 GetTypeHash(const FDialogueStateKey& Key);
 };
 
 // 게임 DataTable을 직접 사용하거나 게임별 표를 이 행 구조로 변환할 수 있다.

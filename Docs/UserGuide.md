@@ -77,6 +77,7 @@
 - [48. DialogueProperty 항목 설명 툴팁](#48-dialogueproperty-항목-설명-툴팁)
 
 - [49. 게임 정의 DataAsset·DataTable 연동 샘플](#49-게임-정의-dataassetdatatable-연동-샘플)
+- [50. 게임 정의에서 조건 ID 검색·선택](#50-게임-정의에서-조건-id-검색선택)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -1084,7 +1085,7 @@ Line을 선택하고 Details의 `Title`, `Speaker ID`, `Dialogue Text`를 편집
 DialogueGraph 에셋을 열고 오른쪽 `DialoguePropertyTab`에서 항목 이름에 마우스를 잠시 올리면 한국어 설명 툴팁이 나타납니다. 위쪽은 Block 전체 설정이고, 그래프에서 Line/Choice/Branch/StateChange/End를 선택하면 아래쪽에 해당 노드 설정이 표시됩니다. 접힌 구조체나 배열은 펼친 뒤 하위 항목 이름에 마우스를 올립니다. Start와 경유점에는 별도 NodeInfo 속성이 없습니다.
 
 - Block ID/Content Version, 대상·소속, Availability, 기본/최우선 여부, 우선순위, Entry Conditions의 의미를 확인할 수 있습니다. 대상 분류 필터·검색창·대상 선택 및 소속 버튼에도 설명이 있습니다.
-- `Entry Conditions → Conditions → 배열 항목 → Key`를 펼치면 Kind/Target ID/Item ID/Tag 설명을 확인할 수 있습니다. Target ID와 Item ID는 게임 제공자와 약속한 ID이며 현재 직접 입력합니다. 이번 보완은 enum/DataTable 선택기를 추가하지 않습니다.
+- `Entry Conditions → Conditions → 배열 항목 → Key`를 펼치면 Kind/Target ID/Item ID/Tag 설명을 확인할 수 있습니다. Target ID와 Item ID는 게임 제공자와 약속한 안정 ID입니다. 정의 원본 연결과 검색 목록 선택, 고급 직접 입력은 50절을 따릅니다.
 - 조건의 Comparison과 종류별 Operand, Choice의 기본 선택지·효과·저장 요청, Branch의 빈 조건, StateChange의 효과 연산, End의 저장 옵션을 설명합니다. 조회 실패는 해당 조건을 True로 처리한다는 현재 정책도 표시합니다.
 - Line의 본문·화자·열람 버전·이미지·위치·반전·표시 시간·음향과 중첩 초상화 설정을 설명합니다. Line Duration은 자동 진행 대기 시간이 아니라 본문 표시 시간입니다.
 - 구형 필드는 신규 실행에서 사용하는지 구분하여 안내합니다. 특히 End의 Clear Tag는 구형 경로에서 태그를 추가하는 설정이며, 퀘스트 Action의 실제 후속 처리는 현재 미구현입니다. 구형 초상화 액션도 현재 Move만 실행하며 표정 액션 필드의 미사용 상태를 안내합니다.
@@ -1191,7 +1192,7 @@ const FDialogueConditionResult Result = UDialogueConditionLibrary::EvaluateCondi
 2. 해당 객체의 `Build Definitions`를 호출하면 14개 Key/DisplayName을 확인할 수 있습니다. Return Value와 Out Error를 함께 확인합니다.
 3. `Create Memory Provider`의 Outer에 Self를 전달하고 반환 객체를 변수에 저장합니다. 성공 후 `Make Dialogue Sample State`의 Key를 `Count / Player / Item.HealthPotion`, Count를 3으로 만들고 `Set Sample State`에 전달합니다.
 4. DialogueGraph의 `Entry Conditions → Conditions`에 같은 Key와 `GreaterOrEqual / Count Operand=3`을 작성합니다. 게임의 후보 선정/실행 연결에 위 제공자 또는 실제 게임 상태 제공자를 전달해야 평가됩니다. 기존 샘플 호스트 연결은 43절을 참고합니다.
-5. 카탈로그를 만드는 것만으로 Conditions에 드롭다운이 생기거나 프로젝트의 기본 제공자가 교체되지는 않습니다. 현재 Target ID/Item ID는 직접 입력하는 UI이며 목록 선택기는 별도 작업입니다.
+5. Project Settings의 `Condition Definition Source`에 카탈로그를 연결하면 Target ID/Item ID를 목록에서 선택합니다. 이 샘플 프로젝트는 연결되어 있습니다. 설정·선택 방법은 50절을 참고하세요. 게임의 현재 상태 제공자는 자동 교체되지 않습니다.
 
 ### 게임 개발자가 교체할 부분
 
@@ -1216,3 +1217,55 @@ const FDialogueConditionResult Result = UDialogueConditionLibrary::EvaluateCondi
 ```
 
 Editor 빌드가 필요하며 내부적으로 `-run=DialogueCreateDefinitionSamples` commandlet을 실행합니다. 생성 결과/해시는 `Saved/AI/DefinitionSamples_<실행ID>/result.json`에 기록합니다. 생성은 새로운 원본 파일만 저장하며 게임 상태 저장을 수행하지 않습니다.
+
+
+## 50. 게임 정의에서 조건 ID 검색·선택
+
+NPC DataAsset과 아이템·스킬 DataTable의 정의를 DialogueGraph 조건 편집기에 연결합니다. 키의 저장 형식과 런타임 평가 방식은 유지하며, 직접 입력하던 ID를 공통 정의 목록에서 선택합니다. Block의 **대화 대상 태그**와 조건의 **Target ID**는 다른 값입니다.
+
+### 프로젝트에서 정의 원본 연결
+
+1. **Edit → Project Settings → DialogueKit Settings → Authoring → Condition Definition Source**를 찾습니다. 설정 검색에 `Condition Definition Source`를 입력해도 됩니다.
+2. `IDialogueDefinitionProvider`를 구현한 **에셋 인스턴스**를 선택합니다. 이 프로젝트는 `DA_SampleDefinitionCatalog`가 기본 연결되어 있습니다. 해당 에셋은 49절의 NPC DataAsset 2개와 Item/Skill DataTable 각 6행을 읽습니다.
+3. 원본 연결은 프로젝트 `Config/DefaultDialogueKit.ini`에 저장됩니다. 플러그인 코드와 플러그인 기본 Config는 샘플을 기본 원본으로 강제하지 않습니다. 다른 게임에서는 게임의 카탈로그 에셋을 지정하세요.
+4. 원본을 변경한 후 열려 있는 Key의 **정의 목록 새로고침**을 누릅니다. 처음에는 저장된 ID를 그대로 보여주며, 드롭다운을 열 때 최신 원본과 표시 이름·등록 상태를 읽습니다. 매 Tick이나 런타임 조건 평가에서 카탈로그를 읽지 않습니다.
+
+### 작가의 선택 순서
+
+DialogueGraph를 열고 **DialogueProperty → Entry Conditions → Conditions → 배열 항목 → Key**를 펼칩니다. Branch와 Choice의 Conditions, StateChange의 효과 Key, 샘플 프리셋 등 같은 `FDialogueStateKey` 편집 위치에도 동일한 UI가 적용됩니다.
+
+1. `Kind`를 선택합니다. 아이템 보유 수량은 샘플에서 **Count**, NPC 호감도·스킬 레벨은 **Value**입니다.
+2. `Target ID` 드롭다운을 열고 ID를 검색·선택합니다. 같은 Kind에 등록된 대상만 나옵니다. `None` 전역 대상은 **전역 [None]**으로 표시합니다. NPC 이름을 항목 이름에서 추측하지 않으므로 Target은 안정 ID로 표시합니다.
+3. `Item ID` 드롭다운을 열어 표시 이름 또는 ID를 검색·선택합니다. 현재 Kind와 Target에 속한 항목만 표시합니다. `표시 이름 [ID]` 형식이라 이름이 같아도 ID를 구별할 수 있습니다.
+4. 비교 연산과 기준값을 지정하고 저장합니다. 예: `Count / Player / Item.HealthPotion`, `GreaterOrEqual`, `Count Operand=3`은 게임 제공자가 조회한 물약 수량 3개 이상을 의미합니다.
+
+| 샘플 목적 | Kind | Target ID | Item ID |
+|---|---|---|---|
+| 상인 호감도 | Value | NPC.Merchant | Affection |
+| 물약 수량 | Count | Player | Item.HealthPotion |
+| 화염탄 레벨 | Value | Player | Skill.Firebolt |
+
+Kind가 **Tag**이면 `Tag`의 기존 UE GameplayTag 선택기를 사용합니다. Item ID는 사용하지 않으며 목록 선택이 비활성화됩니다. 샘플 Catalog에는 Tag 정의가 없으므로 Target 목록도 비어 있습니다. 게임이 Tag 정의를 제공하거나 고급 직접 입력에서 Target을 지정할 수 있습니다. 등록되지 않은 키를 입력하는 것 자체를 막지는 않지만 현재 정의 목록에 없다는 안내가 표시됩니다.
+
+### 기존 ID·오류·직접 입력
+
+- Kind 또는 Target을 바꿔도 기존 Item/Tag를 자동 삭제하지 않습니다. 변경 후 조합이 목록에 없으면 **미등록 상태 키** 안내가 나타납니다. 새로 사용할 Item을 명시적으로 선택하세요.
+- 원본 없음, 로드/인터페이스 실패, 제공자의 false 반환, 잘못된 키·빈 표시 이름·중복 복합 키는 오류로 표시합니다. 잘못된 목록의 일부를 정상 목록으로 노출하지 않습니다. 정상적인 빈 목록과 검색 결과 없음은 별도 안내입니다.
+- Key 아래 **고급: ID 직접 입력** 그룹을 펼치면 기존 `Target ID`/`Item ID` 기본 입력기를 사용할 수 있습니다. 동적 ID, 이전 에셋, 정의 원본 자체를 편집할 때 사용하는 호환 경로입니다. 원본을 지정하지 않아도 접근할 수 있습니다.
+- 선택은 UE 프로퍼티 변경 경로를 사용하므로 Undo/Redo·저장/재열기를 지원합니다. 검색만 하거나 메뉴를 닫으면 값을 바꾸지 않습니다. 다중 편집에서 Kind 또는 Target이 서로 다르면 그 값을 기준으로 하는 목록은 잠깁니다. 기준을 통일하거나 고급 기본 입력기를 사용하세요.
+- Graph 편집 잠금 및 PIE 중에는 선택·직접 입력을 잠급니다. 정의 목록 갱신은 게임 인벤토리·호감도·스킬 상태나 저장 파일을 변경하지 않습니다.
+
+### 게임 개발자 확장 계약
+
+게임의 NPC/아이템/스킬 원본을 원하는 구조로 유지하고, 에디터에서 읽을 수 있는 DataAsset 등의 에셋에 `IDialogueDefinitionProvider`를 구현합니다. 공개 함수 `GetDialogueDefinitions_Implementation(TArray<FDialogueStateDefinition>& OutDefinitions) const`가 **전체 목록**과 bool을 반환합니다. 카탈로그의 예제 구현은 `Samples/DialogueSampleDefinitions.h/.cpp`입니다.
+
+- 각 행의 `Key.Kind`, `Key.TargetId`, 활성 `Key.ItemId` 또는 `Key.Tag`, `DisplayName`을 채웁니다. `TargetId=None`은 전역 상태로 사용할 수 있습니다. 표시 이름은 항목 이름이며 Target 이름 필드는 아닙니다.
+- 같은 복합 키는 한 번만 반환합니다. ID는 행 이름/에셋 이름/표시 이름에서 자동 재생성하지 않고 게임 상태 제공자가 사용하는 안정 ID와 일치시킵니다.
+- NPC 원본/테이블의 참조와 변환은 어댑터 책임입니다. 임의 게임 DataTable을 설정에 직접 넣거나 공통 enum을 등록하는 것만으로 행 구조를 추측하지 않습니다.
+- 제공자는 에디터에서 월드 없이 호출 가능해야 하며, 호출 시 게임 상태 변경·저장·외부 부작용 없이 정의만 반환해야 합니다. 읽기 실패는 false로 반환합니다. 대용량 원본은 게임 어댑터에서 적절히 캐시하고 변경 시 갱신하세요.
+- Blueprint 제공자도 인터페이스 실행 경로로 호출합니다. UE 5.4의 인터페이스 자산 필터는 로드된 구현 클래스에 의존할 수 있습니다. Blueprint에서만 인터페이스를 추가한 클래스가 목록에 없다면 해당 Blueprint를 열고 컴파일한 뒤 설정 창을 다시 여세요. C++ 구현 기반 카탈로그를 권장합니다.
+- 실제 평가에는 같은 키를 읽는 `IDialogueStateProvider`를 기존 게임 시작/후보 선정 경로로 전달해야 합니다. 목록 원본 설정은 그 제공자를 자동 생성/교체하지 않습니다. 게임 데이터의 cook·비동기 로드·저장 정책도 기존 게임 책임입니다.
+
+### 검증
+
+`Scripts/AI/Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Editor.ConditionIdPicker`로 실제 샘플 원본·필터·검색·잘못된 목록 거부와 Details 프로퍼티 선택·Undo/Redo·격리 파일 왕복을 검사합니다. NullRHI 자동 검사는 실제 화면 배치와 마우스/키보드 사용성 관찰을 대신하지 않습니다.
