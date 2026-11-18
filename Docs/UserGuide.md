@@ -76,6 +76,8 @@
 
 - [48. DialogueProperty 항목 설명 툴팁](#48-dialogueproperty-항목-설명-툴팁)
 
+- [49. 게임 정의 DataAsset·DataTable 연동 샘플](#49-게임-정의-dataassetdatatable-연동-샘플)
+
 ## 1. 기존 대화 기능 회귀 테스트
 
 ### 기능과 준비 사항
@@ -1089,3 +1091,128 @@ DialogueGraph 에셋을 열고 오른쪽 `DialoguePropertyTab`에서 항목 이�
 - 주석 설명 입력칸은 제작용 메모임을 안내합니다. 엔진이 제공하는 기본 색상·좌표·주석 필드는 UE 기본 설명을 사용합니다.
 
 게임 개발자: 기본 속성 설명은 공개 헤더의 `UPROPERTY(meta = (ToolTip = "설명"))`으로 제공하며 추가 등록 API는 없습니다. 게임에서 확장한 속성도 같은 메타데이터를 지정할 수 있습니다. 직접 만든 Slate 버튼/행은 `ToolTipText`를 지정해야 합니다. 툴팁은 에디터 안내이며 조건 평가·비동기 저장·에셋 직렬화 형식을 변경하지 않습니다. C++ 메타데이터 변경 후 Editor 타깃을 다시 빌드하고 에디터를 재시작해 확인합니다.
+
+## 49. 게임 정의 DataAsset·DataTable 연동 샘플
+
+### 목적과 게임의 책임
+
+NPC 수가 적고 아이템·스킬 수가 많은 게임에서 서로 다른 정의 원본을 DialogueKit의 공통 목록으로 연결하는 참고 구현입니다. 게임 프로젝트와 DialogueMaker는 별개이며 이 샘플의 행 구조·NPC 클래스·스킬 수치·상태 규약을 게임에 강제하지 않습니다. 스킬 실행·습득·성장·인벤토리·호감도·저장은 게임이 구현합니다. 정의와 실제 현재 값은 분리합니다.
+
+### 실제 샘플 에셋 열기
+
+1. 에디터 Content Browser의 Settings에서 **Show Plugin Content(플러그인 콘텐츠 표시)**를 켭니다.
+2. `DialogueKit Content → Sample → GameDefinitions` 폴더를 엽니다. 패키지 경로는 `/DialogueKit/Sample/GameDefinitions`입니다.
+3. 아래 에셋을 더블클릭합니다. Data Asset은 Details, DataTable은 행 목록과 Row Editor에서 값을 확인합니다. 각 필드 이름에 한국어 툴팁이 있습니다.
+
+| 에셋 | 형식·내용 | 상태 키 예시 |
+|---|---|---|
+| `DA_SampleNPC_Merchant` | `UDialogueSampleNpcDefinition`, 상인 정의 | Value / NPC.Merchant / Affection |
+| `DA_SampleNPC_Guard` | 같은 형식, 경비병 정의 | Value / NPC.Guard / Affection |
+| `DT_SampleItems` | `FDialogueSampleItemRow`, 아이템 6행 | Count / Player / Item.HealthPotion |
+| `DT_SampleSkills` | `FDialogueSampleSkillRow`, 스킬 6행 | Value / Player / Skill.Firebolt |
+| `DA_SampleDefinitionCatalog` | 원본 참조와 정의 변환 예제 | NPC 2 + 아이템 6 + 스킬 6 = 14개 |
+
+아이템은 회복 물약·마력 물약·철광석·편지·철검·선물, 스킬은 화염탄·얼음탄·돌진·보호막·소환·집중의 정의 예시입니다. 이름과 숫자는 샘플이며 실제 효과는 실행하지 않습니다. Icon/Portrait는 의도적으로 비어 있는 선택적 soft 참조입니다. 이미지가 없어도 목록 변환과 상태 조회 예제는 동작합니다.
+
+카탈로그를 열면 `Npcs`에 NPC 원본 2개, `Items`/`Skills`에 각 테이블이 연결되어 있습니다. NPC 원본 목록은 **명시적 참조**입니다. 전 프로젝트 자동 검색/등록 누락 검사는 제공하지 않습니다. 아이템·스킬은 연결한 테이블의 모든 행을 읽으므로 대화용 항목 목록을 별도로 다시 작성하지 않습니다.
+
+### 게임 데이터와 대화 키 연결
+
+- NPC `Id` → Value 종류의 Target ID, `NpcAffectionItemId`(기본 Affection) → Item ID.
+- 아이템 `Id` → Count 종류의 Item ID, `PlayerTargetId`(기본 Player) → Target ID.
+- 스킬 `Id` → Value 종류의 Item ID, 같은 Player 대상 → 현재 스킬 레벨 예시.
+- `DisplayName`은 표시용입니다. DataTable의 RowName은 편집 위치이며 상태 식별자는 행의 명시 `Id`입니다. 행 이름·에셋 이름·표시 이름 변경으로 Id를 자동 수정하지 않습니다. Id 자체 변경은 게임 저장/대화 참조의 마이그레이션 문제입니다.
+- 원본의 MaxStack/MaxLevel/CooldownSeconds와 Icon/Portrait는 게임 정의 예시이며 공통 상태 정의에는 복사되지 않습니다. 현재 수량·레벨·남은 쿨다운이 아닙니다. 메모리 제공자는 MaxStack/MaxLevel 제한을 자동 적용하지 않습니다.
+
+`Id`와 표시 이름 누락, 원본 로드/테이블 행 형식 오류, 같은 복합키 중복, NPC와 플레이어 대상 ID 충돌, MaxStack/MaxLevel < 1, 음수·비유한 쿨다운은 변환 실패입니다. Item/Skill은 서로 다른 Kind이므로 동일 문자열이 기술적으로 같은 키는 아니지만 샘플은 Item./Skill. 접두사로 구별합니다.
+
+### 공개 C++ 예제
+
+게임 모듈의 Build.cs에 `DialogueKit` 의존성을 추가합니다. 아래 객체 보관 필드는 게임이 소유한 UObject/Component 등의 클래스 멤버로 둡니다. Outer만 지정하는 것은 GC 보관을 대신하지 않습니다.
+
+```cpp
+#include "Samples/DialogueSampleDefinitions.h"
+#include "DialogueConditionLibrary.h"
+
+UPROPERTY()
+TObjectPtr<UDialogueSampleStateProvider> SampleProvider;
+```
+
+게임 초기화 함수 안에서 다음 공개 API를 사용할 수 있습니다. `this`는 위 멤버를 가진 유효한 UObject를 뜻합니다.
+
+```cpp
+UDialogueSampleDefinitionCatalog* Catalog = LoadObject<UDialogueSampleDefinitionCatalog>(nullptr,
+    TEXT("/DialogueKit/Sample/GameDefinitions/DA_SampleDefinitionCatalog.DA_SampleDefinitionCatalog"));
+if (Catalog == nullptr)
+{
+    return;
+}
+
+FString Error;
+SampleProvider = Catalog->CreateMemoryProvider(this, Error);
+if (SampleProvider == nullptr)
+{
+    UE_LOG(LogTemp, Warning, TEXT("샘플 정의 연결 실패: %s"), *Error);
+    return;
+}
+
+FDialogueSampleState State;
+State.Key.Kind = EDialogueStateKind::Count;
+State.Key.TargetId = TEXT("Player");
+State.Key.ItemId = TEXT("Item.HealthPotion");
+State.Count = 3; // 현재 수량은 게임 상태를 대신하는 메모리 값으로만 설정한다.
+if (SampleProvider->SetSampleState(State) == false)
+{
+    return;
+}
+
+FDialogueCondition Condition;
+Condition.Key = State.Key;
+Condition.Comparison = EDialogueComparison::GreaterOrEqual;
+Condition.CountOperand = 3;
+FDialogueConditionSet Conditions;
+Conditions.Conditions.Add(Condition);
+const FDialogueConditionResult Result = UDialogueConditionLibrary::EvaluateConditions(
+    Conditions, SampleProvider.Get(), false, FDialogueDiagnosticContext(), nullptr);
+// 위 예시는 Result.bPassed=true, bHadErrors=false다.
+```
+
+샘플 제공자를 새로 만들면 알려진 항목의 값은 모두 0/false입니다. 원본의 최대 수량/레벨을 현재 값으로 복사하지 않습니다. 다른 제공자 객체의 값과도 공유하지 않습니다. 게임의 실제 인벤토리·저장 파일에는 접근하지 않습니다.
+
+`BuildDefinitions(OutDefinitions, OutError)`는 전체 원본을 검증하고 성공 시 안정 키 순으로 정렬한 목록을 반환합니다. 실패하면 false·빈 배열·원인 문자열을 반환합니다. 카탈로그는 `IDialogueDefinitionProvider`를 구현하므로 `Execute_GetDialogueDefinitions(Catalog, OutDefinitions)`로도 같은 목록을 읽을 수 있습니다. 이 인터페이스는 실패 이유 문자열 없이 bool과 배열만 반환합니다.
+
+`CreateMemoryProvider(Outer, OutError)`는 전체 검증 후 **새** 메모리 제공자에 정의만 등록하고, 실패하면 nullptr를 반환합니다. 기존 제공자를 변경하지 않습니다. 제공자를 만든 뒤 원본을 편집해도 이미 생성된 제공자의 정의가 자동 동기화되지는 않습니다. 원본 변경 후 다시 목록을 읽거나 새 샘플 제공자를 만들어야 하며 새 객체의 현재 값은 초기화됩니다.
+
+이 API는 원본 NPC와 테이블을 **동기 로드**하므로 초기화·에디터 목록 준비 시 사용합니다. 매 조건 평가나 Tick마다 호출하지 마세요. Icon/Portrait 이미지는 이 과정에서 로드하지 않습니다. 카탈로그는 현재 상태 제공자가 아니므로 조건 평가의 StateProvider 자리에 카탈로그 자체를 전달하면 안 됩니다.
+
+### Blueprint 및 DialogueGraph에서 확인
+
+1. 테스트용 Blueprint에서 `Dialogue Sample Definition Catalog` 타입의 객체 참조 변수에 `DA_SampleDefinitionCatalog`를 지정합니다.
+2. 해당 객체의 `Build Definitions`를 호출하면 14개 Key/DisplayName을 확인할 수 있습니다. Return Value와 Out Error를 함께 확인합니다.
+3. `Create Memory Provider`의 Outer에 Self를 전달하고 반환 객체를 변수에 저장합니다. 성공 후 `Make Dialogue Sample State`의 Key를 `Count / Player / Item.HealthPotion`, Count를 3으로 만들고 `Set Sample State`에 전달합니다.
+4. DialogueGraph의 `Entry Conditions → Conditions`에 같은 Key와 `GreaterOrEqual / Count Operand=3`을 작성합니다. 게임의 후보 선정/실행 연결에 위 제공자 또는 실제 게임 상태 제공자를 전달해야 평가됩니다. 기존 샘플 호스트 연결은 43절을 참고합니다.
+5. 카탈로그를 만드는 것만으로 Conditions에 드롭다운이 생기거나 프로젝트의 기본 제공자가 교체되지는 않습니다. 현재 Target ID/Item ID는 직접 입력하는 UI이며 목록 선택기는 별도 작업입니다.
+
+### 게임 개발자가 교체할 부분
+
+실제 게임의 NPC DataAsset/아이템·스킬 DataTable을 유지하고, 게임 측 `IDialogueDefinitionProvider`에서 공통 `FDialogueStateDefinition`으로 변환하면 됩니다. 원본의 종류/대상/ID/표시명을 매핑하고, `IDialogueStateProvider`에서는 같은 키로 현재 호감도·인벤토리 수량·스킬 상태를 조회하세요. 샘플 Catalog의 변환 코드는 `DialogueKit/Private/Samples/DialogueSampleDefinitions.cpp`, 공개 타입은 `DialogueKit/Public/Samples/DialogueSampleDefinitions.h`입니다. 게임 고유 행 형식을 샘플 행으로 강제 캐스팅하지 않습니다.
+
+플러그인은 게임 NPC·아이템·스킬 종류를 하드코딩하지 않습니다. 프로젝트 전체 자동 수집, 스킬 실행/GAS, 실제 게임 저장·복원, 게임 상태 한도 적용은 이 샘플 범위가 아닙니다. 실제 배포에서는 사용하는 정의 에셋·테이블의 참조 또는 Asset Manager/cook 규칙도 게임에서 설정해야 합니다. 문자열 경로의 LoadObject 예제만으로 패키지 포함을 보장하지 않습니다.
+
+### 생성·검증 도구
+
+배포된 샘플은 이미 생성되어 있으므로 일반 사용자는 재생성할 필요가 없습니다. 에디터와 빌드를 종료한 뒤 프로젝트 루트 Windows PowerShell에서 검증합니다.
+
+```powershell
+.\Scripts\AI\Invoke-DefinitionSamples.ps1 -Action Validate
+```
+
+기존 자동화 래퍼로 `DialogueKit.Samples`를 실행하여 실제 에셋 로드, 원본/공통 키 대응, 상태 분리와 잘못된 입력 거부를 검사합니다. 보고서는 새 `Saved/AI/<실행ID>/Report/index.json`에 저장합니다. 이는 실제 GUI 관찰·게임 PIE·패키징 검증과 다릅니다.
+
+최초 생성 도구는 다음과 같습니다. 대상 5개 중 하나라도 존재하면 **모두 생성 전 거부**하며 기존 에셋을 삭제/덮어쓰지 않습니다. 생성 실패로 일부 새 파일이 남은 경우 자동 정리하지 않으므로 결과와 원인을 먼저 확인하세요.
+
+```powershell
+.\Scripts\AI\Invoke-DefinitionSamples.ps1 -Action Create
+```
+
+Editor 빌드가 필요하며 내부적으로 `-run=DialogueCreateDefinitionSamples` commandlet을 실행합니다. 생성 결과/해시는 `Saved/AI/DefinitionSamples_<실행ID>/result.json`에 기록합니다. 생성은 새로운 원본 파일만 저장하며 게임 상태 저장을 수행하지 않습니다.
