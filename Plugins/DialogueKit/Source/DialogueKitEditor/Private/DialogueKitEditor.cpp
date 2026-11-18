@@ -12,6 +12,7 @@
 #include "DialogueFlowEdGraphNode.h"
 #include "DialogueLineDetails.h"
 #include "DialogueStoryDefinitionDetails.h"
+#include "DialogueStateKeyCustomization.h"
 #include "PropertyEditorModule.h"
 #include "DialogueGraphEditorCommands.h"
 #include "DialogueLocalizationCSVConverter.h"
@@ -219,6 +220,7 @@ void FDialogueKitEditorModule::StartupModule()
 	FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor")).RegisterCustomClassLayout(TEXT("DialogueGraph"), FOnGetDetailCustomizationInstance::CreateStatic(&FDialogueGraphDetails::MakeInstance));
 	FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor")).RegisterCustomClassLayout(TEXT("DialogueLineNodeInfo"), FOnGetDetailCustomizationInstance::CreateStatic(&FDialogueLineDetails::MakeInstance));
 	FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor")).RegisterCustomClassLayout(TEXT("DialogueStoryDefinition"), FOnGetDetailCustomizationInstance::CreateStatic(&FDialogueStoryDefinitionDetails::MakeInstance));
+	FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor")).RegisterCustomPropertyTypeLayout(TEXT("DialogueStateKey"), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDialogueStateKeyCustomization::MakeInstance));
 	LoadDialogueLanguageOverrideFromConfig();
 
 	if (UToolMenus::IsToolMenuUIEnabled())
@@ -237,6 +239,7 @@ void FDialogueKitEditorModule::ShutdownModule()
 		PropertyEditor->UnregisterCustomClassLayout(TEXT("DialogueGraph"));
 		PropertyEditor->UnregisterCustomClassLayout(TEXT("DialogueLineNodeInfo"));
 		PropertyEditor->UnregisterCustomClassLayout(TEXT("DialogueStoryDefinition"));
+		PropertyEditor->UnregisterCustomPropertyTypeLayout(TEXT("DialogueStateKey"));
 	}
 	if (UToolMenus::IsToolMenuUIEnabled())
 	{

@@ -52,6 +52,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DialogueKit|Story")
 	TSoftObjectPtr<class UDialogueStoryDefinition> StoryDefinition;
 
+	// 게임 원본을 공통 상태 정의로 변환하는 에셋이다. 현재 상태 제공자와 구분한다.
+	UPROPERTY(Config, EditAnywhere, Category = "DialogueKit|Authoring", meta = (AllowedClasses = "/Script/DialogueKit.DialogueDefinitionProvider", MustImplement = "/Script/DialogueKit.DialogueDefinitionProvider", ToolTip = "조건 ID 선택 목록의 원본 에셋입니다. IDialogueDefinitionProvider를 구현한 카탈로그를 지정하세요. NPC DataAsset·아이템 DataTable은 이 에셋이 공통 정의로 변환합니다. 게임의 현재 상태 제공자를 자동 교체하지 않습니다."))
+	TSoftObjectPtr<UObject> ConditionDefinitionSource;
+
 	// 게임별 저작 명칭이다. 표시명 변경은 저장된 대상 Tag나 실행 일치를 바꾸지 않는다.
 	UPROPERTY(Config, EditAnywhere, Category = "DialogueKit|Authoring")
 	FText TargetFieldLabel = NSLOCTEXT("DialogueKit", "TargetLabel", "대화 대상");
