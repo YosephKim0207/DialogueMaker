@@ -213,7 +213,7 @@ bool FDialogueChoiceFlowTest::RunTest(const FString& Parameters)
 	Condition.Key = Definition.Key;
 	Condition.Comparison = EDialogueComparison::Greater;
 	Condition.ValueOperand = 10;
-	Info->Options[1].Conditions.Conditions.Add(Condition);
+	Info->Options[1].Conditions.AnyConditions.Add(Condition);
 	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
 	Runner = NewObject<UDialogueBlockRunner>();
 	TestTrue(TEXT("Start fallback"), Runner->StartBlock(Asset, Provider, nullptr, nullptr));
@@ -221,10 +221,10 @@ bool FDialogueChoiceFlowTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Only default shown"), View.Choices.Num() == 1 && View.Choices[0].ChoiceId == DefaultId);
 		// 표시되지 않았던 ID는 조건이 바뀌어도 첫 요청에서 실행하지 않는다.
 	UDialogueChoiceNodeInfo* RuntimeInfo = CastChecked<UDialogueChoiceNodeInfo>(Asset->Graph->Nodes[2]->NodeInfo);
-	RuntimeInfo->Options[1].Conditions.Conditions.Reset();
+	RuntimeInfo->Options[1].Conditions.AnyConditions.Reset();
 	TestFalse(TEXT("Newly eligible hidden ID rejected"), Runner->SelectChoice(OrdinaryId));
 	TestTrue(TEXT("Next input accepts now published ID"), Runner->SelectChoice(OrdinaryId));
-	RuntimeInfo->Options[1].Conditions.Conditions.Add(Condition);
+	RuntimeInfo->Options[1].Conditions.AnyConditions.Add(Condition);
 	TestFalse(TEXT("Stale ordinary rejected and fallback published"), Runner->SelectChoice(OrdinaryId));
 	TestTrue(TEXT("Default reaches End"), Runner->SelectChoice(DefaultId));
 	TestTrue(TEXT("Completed"), Runner->GetPresentation().State == EDialogueRunState::Completed);
@@ -236,14 +236,14 @@ bool FDialogueChoiceFlowTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Preview does not complete empty choice"), Runner->GetPresentation().State == EDialogueRunState::WaitingLine);
 	TestTrue(TEXT("Entering empty filtered choice completes normally"), Runner->AdvanceLine());
 	TestTrue(TEXT("Fallback completion"), Runner->GetPresentation().State == EDialogueRunState::Completed);
-	Info->Options[0].Conditions.Conditions.Reset();
+	Info->Options[0].Conditions.AnyConditions.Reset();
 	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
 	Runner = NewObject<UDialogueBlockRunner>();
 	Runner->StartBlock(Asset, Provider, nullptr, nullptr);
 	Runner->AdvanceLine();
 	TestTrue(TEXT("Waiting for explicit choice"), Runner->GetPresentation().State == EDialogueRunState::WaitingChoice);
 	TestTrue(TEXT("Choice does not predict first option path"), Runner->GetDirectNextType() == EDialogueType::Unknown);
-	CastChecked<UDialogueChoiceNodeInfo>(Asset->Graph->Nodes[2]->NodeInfo)->Options[0].Conditions.Conditions.Add(Condition);
+	CastChecked<UDialogueChoiceNodeInfo>(Asset->Graph->Nodes[2]->NodeInfo)->Options[0].Conditions.AnyConditions.Add(Condition);
 	TestFalse(TEXT("Stale choice returns false"), Runner->SelectChoice(OrdinaryId));
 	TestTrue(TEXT("No permanent wait after all choices disappear"), Runner->GetPresentation().State == EDialogueRunState::Completed);
 	return true;
@@ -274,7 +274,7 @@ bool FDialogueBranchFlowTest::RunTest(const FString& Parameters)
 	Condition.Key = Definition.Key;
 	Condition.Comparison = EDialogueComparison::Greater;
 	Condition.ValueOperand = 0;
-	Info->Conditions.Conditions.Add(Condition);
+	Info->Conditions.RequiredConditions.Add(Condition);
 	FString Error;
 	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
 	UDialogueDiagnosticRouter* Router = NewObject<UDialogueDiagnosticRouter>();
@@ -293,7 +293,7 @@ bool FDialogueBranchFlowTest::RunTest(const FString& Parameters)
 	Runner->AdvanceLine();
 	TestTrue(TEXT("Same Branch allowed after player input"), Runner->AdvanceLine());
 	TestTrue(TEXT("Normal Branch loop remains waiting"), Runner->GetPresentation().NodeGuid == FalseLine->NodeGuid && Runner->GetPresentation().State == EDialogueRunState::WaitingLine);
-	Info->Conditions.Conditions.Reset();
+	Info->Conditions.RequiredConditions.Reset();
 	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
 	Runner = NewObject<UDialogueBlockRunner>();
 	Runner->StartBlock(Asset, Provider, nullptr, Router);
@@ -301,13 +301,13 @@ bool FDialogueBranchFlowTest::RunTest(const FString& Parameters)
 	Runner->AdvanceLine();
 	TestTrue(TEXT("Empty branch True"), Runner->GetPresentation().NodeGuid == TrueLine->NodeGuid);
 	TestEqual(TEXT("Empty branch diagnostic"), Diagnostics, 1);
-	Info->Conditions.Conditions.Add(Condition);
+	Info->Conditions.RequiredConditions.Add(Condition);
 	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;
 	Runner = NewObject<UDialogueBlockRunner>();
 	Runner->StartBlock(Asset, nullptr, nullptr, Router);
 	Runner->AdvanceLine();
 	TestTrue(TEXT("Missing provider substitutes True"), Runner->GetPresentation().NodeGuid == TrueLine->NodeGuid);
-	Info->Conditions.Conditions.Reset();
+	Info->Conditions.RequiredConditions.Reset();
 	UDialogueEdGraphNodeBase* BranchB = AddFlowTestNode(Graph, UDialogueBranchEdGraphNode::StaticClass(), Branch->Pins[1]);
 	Graph->GetSchema()->TryCreateConnection(BranchB->Pins[1], Branch->Pins[0]);
 	if (FDialogueGraphCodec::ExportGraph(Graph, Asset, Error) == false) return false;

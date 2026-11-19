@@ -136,40 +136,48 @@ bool FDialogueBlockPreview::CheckEntry(UDialogueGraph* InBlock, UObject* InProvi
     Context.Block = InBlock->GetBlockReference();
     const auto Result = UDialogueConditionLibrary::EvaluateConditions(InBlock->EntryConditions, InProvider, false, Context, nullptr);
     Explanation = FString::Printf(TEXT("Block 진입 판정: %s\n"), Result.bPassed ? TEXT("True") : TEXT("False"));
-    for (const auto& Condition : InBlock->EntryConditions.Conditions)
+    auto ExplainGroup = [&](const TArray<FDialogueCondition>& Items, const TCHAR* GroupName, bool bBlocked)
     {
-        FString Current;
-        FString Operand;
-        bool bKnown = false;
-        if (Condition.Key.Kind == EDialogueStateKind::Tag)
+        for (const auto& Condition : Items)
         {
-            bool Value = false;
-            bKnown = IDialogueStateProvider::Execute_QueryDialogueTag(InProvider, Condition.Key.TargetId, Condition.Key.Tag, Value);
-            Current = Value ? TEXT("True") : TEXT("False");
-            Operand = Condition.bTagOperand ? TEXT("True") : TEXT("False");
+            FString Current;
+            FString Operand;
+            bool bKnown = false;
+            if (Condition.Key.Kind == EDialogueStateKind::Tag)
+            {
+                bool Value = false;
+                bKnown = IDialogueStateProvider::Execute_QueryDialogueTag(InProvider, Condition.Key.TargetId, Condition.Key.Tag, Value);
+                Current = Value ? TEXT("True") : TEXT("False");
+                Operand = Condition.bTagOperand ? TEXT("True") : TEXT("False");
+            }
+            else if (Condition.Key.Kind == EDialogueStateKind::Value)
+            {
+                double Value = 0;
+                bKnown = IDialogueStateProvider::Execute_QueryDialogueValue(InProvider, Condition.Key.TargetId, Condition.Key.ItemId, Value);
+                Current = FString::SanitizeFloat(Value);
+                Operand = FString::SanitizeFloat(Condition.ValueOperand);
+            }
+            else
+            {
+                int64 Value = 0;
+                bKnown = IDialogueStateProvider::Execute_QueryDialogueCount(InProvider, Condition.Key.TargetId, Condition.Key.ItemId, Value);
+                Current = LexToString(Value);
+                Operand = LexToString(Condition.CountOperand);
+            }
+            FDialogueConditionSet Single;
+            if (bBlocked) Single.BlockedConditions.Add(Condition);
+            else Single.RequiredConditions.Add(Condition);
+            const auto Verdict = UDialogueConditionLibrary::EvaluateConditions(Single, InProvider, false, Context, nullptr);
+            Explanation += FString::Printf(TEXT("[%s] %s / %s: 현재 %s, %s %s → 항목 판정(금지는 반전) %s%s\n"), GroupName, *Condition.Key.TargetId.ToString(),
+                *(Condition.Key.Kind == EDialogueStateKind::Tag ? Condition.Key.Tag.ToString() : Condition.Key.ItemId.ToString()),
+                *(bKnown ? Current : TEXT("조회 실패")), *StaticEnum<EDialogueComparison>()->GetNameStringByValue(int64(Condition.Comparison)),
+                *Operand, Verdict.bPassed ? TEXT("True") : TEXT("False"), Verdict.bHadErrors ? TEXT(" (오류 대체)") : TEXT(""));
         }
-        else if (Condition.Key.Kind == EDialogueStateKind::Value)
-        {
-            double Value = 0;
-            bKnown = IDialogueStateProvider::Execute_QueryDialogueValue(InProvider, Condition.Key.TargetId, Condition.Key.ItemId, Value);
-            Current = FString::SanitizeFloat(Value);
-            Operand = FString::SanitizeFloat(Condition.ValueOperand);
-        }
-        else
-        {
-            int64 Value = 0;
-            bKnown = IDialogueStateProvider::Execute_QueryDialogueCount(InProvider, Condition.Key.TargetId, Condition.Key.ItemId, Value);
-            Current = LexToString(Value);
-            Operand = LexToString(Condition.CountOperand);
-        }
-        FDialogueConditionSet Single;
-        Single.Conditions.Add(Condition);
-        const auto Verdict = UDialogueConditionLibrary::EvaluateConditions(Single, InProvider, false, Context, nullptr);
-        Explanation += FString::Printf(TEXT("%s / %s: 현재 %s, %s %s → %s%s\n"), *Condition.Key.TargetId.ToString(),
-            *(Condition.Key.Kind == EDialogueStateKind::Tag ? Condition.Key.Tag.ToString() : Condition.Key.ItemId.ToString()),
-            *(bKnown ? Current : TEXT("조회 실패")), *StaticEnum<EDialogueComparison>()->GetNameStringByValue(int64(Condition.Comparison)),
-            *Operand, Verdict.bPassed ? TEXT("True") : TEXT("False"), Verdict.bHadErrors ? TEXT(" (오류 대체)") : TEXT(""));
-    }
+    };
+    ExplainGroup(InBlock->EntryConditions.Conditions, TEXT("기존"), false);
+    ExplainGroup(InBlock->EntryConditions.RequiredConditions, TEXT("필수"), false);
+    ExplainGroup(InBlock->EntryConditions.AnyConditions, TEXT("대안"), false);
+    ExplainGroup(InBlock->EntryConditions.BlockedConditions, TEXT("금지: 참이면 차단"), true);
     return Result.bPassed;
 }
 

@@ -29,13 +29,13 @@ TArray<FDialogueGraphIssue> FDialogueGraphValidation::Inspect(UEdGraph* Graph)
 	auto CheckConditions = [&Add](UEdGraphNode* Node, const FDialogueConditionSet& Set)
 	{
 		bool bInvalid = Set.Combine != EDialogueConditionCombine::All && Set.Combine != EDialogueConditionCombine::Any;
-		for (const FDialogueCondition& Condition : Set.Conditions)
+		for (const FDialogueCondition& Condition : Set.GetAllConditions())
 		{
 			bInvalid |= Condition.Key.IsValid() == false || uint8(Condition.Comparison) > uint8(EDialogueComparison::GreaterOrEqual);
 			bInvalid |= Condition.Key.Kind == EDialogueStateKind::Tag && Condition.Comparison != EDialogueComparison::Equal && Condition.Comparison != EDialogueComparison::NotEqual;
 			bInvalid |= Condition.Key.Kind == EDialogueStateKind::Value && FMath::IsFinite(Condition.ValueOperand) == false;
 		}
-		if (bInvalid) Add(Node, TEXT("InvalidCondition"), TEXT("불완전한 조건입니다. 실행 시 오류를 기록하고 True로 대체합니다."));
+		if (bInvalid) Add(Node, TEXT("InvalidCondition"), TEXT("불완전한 조건입니다. 실행 시 오류를 기록합니다. 필수·대안·기존 항목 오류는 통과 처리하고 금지 항목 오류는 차단하지 않습니다."));
 	};
 	int32 StartCount = 0;
 	for (UEdGraphNode* Node : Graph->Nodes)
@@ -52,7 +52,7 @@ TArray<FDialogueGraphIssue> FDialogueGraphValidation::Inspect(UEdGraph* Graph)
 		}
 		if (const auto* Branch = Cast<UDialogueBranchNodeInfoBase>(Typed->GetNodeInfo()))
 		{
-			if (Branch->Conditions.Conditions.IsEmpty()) Add(Node, TEXT("EmptyBranch"), TEXT("빈 Branch 조건: 오류를 기록하고 True로 진행합니다."));
+			if (Branch->Conditions.IsEmpty()) Add(Node, TEXT("EmptyBranch"), TEXT("빈 Branch 조건: 오류를 기록하고 True로 진행합니다."));
 			CheckConditions(Node, Branch->Conditions);
 		}
 		if (const auto* Choice = Cast<UDialogueChoiceNodeInfo>(Typed->GetNodeInfo()))
@@ -71,7 +71,7 @@ TArray<FDialogueGraphIssue> FDialogueGraphValidation::Inspect(UEdGraph* Graph)
 				else
 				{
 					++NormalCount;
-					bUnconditional |= Option.Conditions.Conditions.IsEmpty();
+					bUnconditional |= Option.Conditions.IsEmpty();
 					CheckConditions(Node, Option.Conditions);
 				}
 			}

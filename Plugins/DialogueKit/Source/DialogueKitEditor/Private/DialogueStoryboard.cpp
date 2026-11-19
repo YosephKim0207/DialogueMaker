@@ -298,7 +298,7 @@ private:
 				return FReply::Handled();
 			})];
 		Center->AddSlot().AutoHeight()[SNew(SButton).Text(FText::FromString(TEXT("소속 없는 선택 Block 삭제"))).OnClicked_Lambda([this]() { DeleteSelected(); return FReply::Handled(); })];
-		Center->AddSlot().AutoHeight()[SNew(SSearchBox).InitialText(FText::FromString(Search)).HintText(FText::FromString(TEXT("Block 이름 또는 대상 태그 검색"))).OnTextChanged_Lambda([this](const FText& Text) { Search = Text.ToString(); })];
+		Center->AddSlot().AutoHeight()[SNew(SSearchBox).InitialText(FText::FromString(Search)).HintText(FText::FromString(TEXT("Block 이름·대상 태그·대화 유형 검색"))).OnTextChanged_Lambda([this](const FText& Text) { Search = Text.ToString(); })];
 		TSharedRef<SScrollBox> Blocks = SNew(SScrollBox);
 		int32 BlockCount = 0;
 		for (const auto& Row : Rows)
@@ -311,7 +311,7 @@ private:
 			else bShow = Row.bMetadataReadable == false || FDialogueStoryEditor::IsUnassigned(Scope, Definition.Get());
 			if (bShow == false) continue;
 			++BlockCount;
-			const FString Label = Row.Asset.AssetName.ToString() + TEXT(" | ") + Row.Metadata.TargetTag.ToString() + FString::Printf(TEXT(" | 우선순위 %d | %s | %s"), Row.Metadata.Priority, Row.Metadata.bDefault ? TEXT("기본") : Row.Metadata.bTopPriority ? TEXT("최우선") : TEXT("일반"), Row.Metadata.Availability == EDialogueBlockAvailability::RestoreOnly ? TEXT("복원 전용") : TEXT("신규 사용")) +
+			const FString Label = Row.Asset.AssetName.ToString() + TEXT(" | ") + (Row.Metadata.HasKnownGraphType() ? StaticEnum<EDialogueGraphType>()->GetDisplayNameTextByValue(int64(Row.Metadata.DialogueGraphType)).ToString() : FString(TEXT("유형 확인 필요"))) + TEXT(" | ") + Row.Metadata.TargetTag.ToString() + FString::Printf(TEXT(" | 우선순위 %d | %s | %s"), Row.Metadata.Priority, Row.Metadata.bDefault ? TEXT("기본") : Row.Metadata.bTopPriority ? TEXT("최우선") : TEXT("일반"), Row.Metadata.Availability == EDialogueBlockAvailability::RestoreOnly ? TEXT("복원 전용") : TEXT("신규 사용")) +
 				(Row.bMetadataReadable == false ? TEXT(" | 메타데이터 확인 필요") : Scope.Mode != EDialogueStoryScope::Unassigned && FDialogueStoryEditor::IsUnassigned(Scope, Definition.Get()) ? TEXT(" | 삭제된 소속") : TEXT(""));
 			Blocks->AddSlot()[SNew(SHorizontalBox).Visibility_Lambda([this, Label]() { return Search.IsEmpty() || Label.Contains(Search) ? EVisibility::Visible : EVisibility::Collapsed; })
 				+ SHorizontalBox::Slot().AutoWidth()[SNew(SCheckBox).IsChecked_Lambda([this, Path = Row.Asset.GetSoftObjectPath()]() { return Selected.Contains(Path) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
