@@ -27,7 +27,7 @@ bool FDialogueCookRegistryTest::RunTest(const FString& Parameters)
 		++Count;
 		FString Value;
 		TestTrue(*FString::Printf(TEXT("Cooked metadata: %s"), *Asset.PackageName.ToString()), Asset.GetTagValue(FDialogueBlockMetadata::RegistryKey(), Value));
-		TestTrue(TEXT("Metadata format retained"), Value.Contains(TEXT("MetadataVersion=1")));
+		TestTrue(TEXT("Metadata format retained"), (Value.Contains(TEXT("MetadataVersion=1")) || Value.Contains(TEXT("MetadataVersion=2"))));
 		TestTrue(TEXT("Condition definition retained"), Value.Contains(TEXT("EntryConditions=")));
 		TestEqual(TEXT("Primary asset type retained"), Asset.GetPrimaryAssetId().PrimaryAssetType.GetName(), FName(TEXT("Dialogue")));
 	}

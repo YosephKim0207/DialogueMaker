@@ -23,3 +23,19 @@ uint32 GetTypeHash(const FDialogueStateKey& Key)
 	return HashCombine(HashCombine(GetTypeHash(static_cast<uint8>(Key.Kind)), GetTypeHash(Key.TargetId)),
 		Key.Kind == EDialogueStateKind::Tag ? GetTypeHash(Key.Tag) : GetTypeHash(Key.ItemId));
 }
+
+// 빈 Branch/Choice 판정은 모든 그룹을 함께 고려한다.
+bool FDialogueConditionSet::IsEmpty() const
+{
+	return Conditions.IsEmpty() && RequiredConditions.IsEmpty() && AnyConditions.IsEmpty() && BlockedConditions.IsEmpty();
+}
+
+// 에디터 검증에서 새 그룹을 누락하지 않도록 공통 순회를 제공한다.
+TArray<FDialogueCondition> FDialogueConditionSet::GetAllConditions() const
+{
+	TArray<FDialogueCondition> Result = Conditions;
+	Result.Append(RequiredConditions);
+	Result.Append(AnyConditions);
+	Result.Append(BlockedConditions);
+	return Result;
+}

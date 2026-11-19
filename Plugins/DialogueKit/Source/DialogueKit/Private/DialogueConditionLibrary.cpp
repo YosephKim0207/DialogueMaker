@@ -72,41 +72,50 @@ FDialogueConditionResult UDialogueConditionLibrary::EvaluateConditions(const FDi
 	UObject* Provider, bool bBranchCondition, const FDialogueDiagnosticContext& Context, UDialogueDiagnosticRouter* Router)
 {
 	FDialogueConditionResult Result;
-	auto Report = [&](FName Code, const FString& Message)
+	auto Report = [&](FName Code, const FString& Message, bool bBlocked = false)
 	{
 		FDialogueDiagnostic Diagnostic;
 		Diagnostic.Code = Code;
 		Diagnostic.Message = Message;
-		Diagnostic.Handling = TEXT("ContinueWithTrue");
+		Diagnostic.Handling = bBlocked ? TEXT("ContinueWithoutBlock") : TEXT("ContinueWithTrue");
 		Diagnostic.Context = Context;
-		// 개발자는 Router 이벤트에서 오류 전송을 연결한다. 평가 오류의 True 대체 사실을 함께 전달한다.
 		Result.Diagnostics.Add(UDialogueDiagnosticRouter::Dispatch(MoveTemp(Diagnostic), Router));
 		Result.bHadErrors = true;
 	};
+	// 전 항목을 평가하여 앞선 불충족 때문에 뒤의 오류 진단이 사라지지 않게 한다.
+	auto EvaluateGroup = [&](const TArray<FDialogueCondition>& Items, bool bAll, bool bBlocked, const TCHAR* Name)
+	{
+		if (Items.IsEmpty()) return true;
+		bool bCombined = bAll;
+		for (int32 Index = 0; Index < Items.Num(); ++Index)
+		{
+			bool bPassed = false;
+			if (EvaluateOne(Items[Index], Provider, bPassed) == false)
+			{
+				Report(TEXT("ConditionLookupFailed"), FString::Printf(TEXT("%s condition %d is invalid or its state query failed."), Name, Index), bBlocked);
+				bPassed = !bBlocked;
+			}
+			bCombined = bAll ? bCombined && bPassed : bCombined || bPassed;
+		}
+		return bBlocked ? !bCombined : bCombined;
+	};
+	bool bLegacy = true;
 	if (ConditionSet.Combine != EDialogueConditionCombine::All && ConditionSet.Combine != EDialogueConditionCombine::Any)
 	{
-		Report(TEXT("InvalidConditionCombine"), TEXT("Unknown condition combine mode."));
-		return Result;
+		Report(TEXT("InvalidConditionCombine"), TEXT("Unknown legacy condition combine mode."));
 	}
-	if (ConditionSet.Conditions.IsEmpty())
+	else
 	{
-		if (bBranchCondition)
-		{
-			Report(TEXT("EmptyBranchCondition"), TEXT("Branch has no conditions."));
-		}
-		return Result;
+		bLegacy = EvaluateGroup(ConditionSet.Conditions, ConditionSet.Combine == EDialogueConditionCombine::All, false, TEXT("Legacy"));
 	}
-	Result.bPassed = ConditionSet.Combine == EDialogueConditionCombine::All;
-	for (int32 Index = 0; Index < ConditionSet.Conditions.Num(); ++Index)
+	if (ConditionSet.IsEmpty() && bBranchCondition)
 	{
-		bool bPassed = true;
-		if (EvaluateOne(ConditionSet.Conditions[Index], Provider, bPassed) == false)
-		{
-			Report(TEXT("ConditionLookupFailed"), FString::Printf(TEXT("Condition %d is invalid or its state query failed."), Index));
-			bPassed = true;
-		}
-		Result.bPassed = ConditionSet.Combine == EDialogueConditionCombine::All ? Result.bPassed && bPassed : Result.bPassed || bPassed;
+		Report(TEXT("EmptyBranchCondition"), TEXT("Branch has no conditions in any group."));
 	}
+	const bool bRequired = EvaluateGroup(ConditionSet.RequiredConditions, true, false, TEXT("Required"));
+	const bool bAny = EvaluateGroup(ConditionSet.AnyConditions, false, false, TEXT("Any"));
+	const bool bNotBlocked = EvaluateGroup(ConditionSet.BlockedConditions, false, true, TEXT("Blocked"));
+	Result.bPassed = bLegacy && bRequired && bAny && bNotBlocked;
 	return Result;
 }
 

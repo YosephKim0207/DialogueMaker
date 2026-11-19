@@ -78,6 +78,7 @@
 
 - [49. 게임 정의 DataAsset·DataTable 연동 샘플](#49-게임-정의-dataassetdatatable-연동-샘플)
 - [50. 게임 정의에서 조건 ID 검색·선택](#50-게임-정의에서-조건-id-검색선택)
+- [51. 필수·대안·금지 조건과 대화 유형](#51-필수대안금지-조건과-대화-유형)
 
 ## 1. 기존 대화 기능 회귀 테스트
 
@@ -347,9 +348,9 @@ const FDialogueConditionResult Result = UDialogueConditionLibrary::EvaluateCondi
 
 샘플의 `SetSampleState(NewState)`로 메모리 값만 설정하며 미등록 키/음수 Count/비유한 Value는 false입니다. 샘플은 명시 생성해야 하고 실제 게임 제공자가 없다고 자동 선택되지 않습니다. 값의 원본과 상태 수명은 게임 책임입니다. 제공자 객체는 게임이 UPROPERTY로 보관합니다.
 
-EvaluateConditions의 bBranchCondition은 빈 Branch 진단 여부입니다. 빈 일반 조건은 True/무오류, 빈 Branch는 True/진단입니다. 오류 항목만 True로 바꾼 뒤 AND/OR로 종합하므로 AND의 다른 False는 유지되고 OR의 오류 항목은 최종 True를 만들 수 있습니다. bHadErrors와 Diagnostics에서 이를 구별합니다. 효과/저장 실패에는 이 정책을 적용하지 않습니다. Tag는 Equal/NotEqual만, 수치는 여섯 비교 연산을 지원합니다. double 동등 비교는 정확 비교이며 Count는 int64 그대로 비교합니다. Count의 현재 값은 0 이상이지만 비교 기준에는 음수도 허용하여 그대로 수치 비교합니다. 미구현 인터페이스 기본 구현은 false와 초기화된 출력값을 반환합니다. DataTable 반환 순서는 저작 정렬 기준이 아니므로 UI에서 표시 순서를 별도 정합니다.
+EvaluateConditions의 bBranchCondition은 빈 Branch 진단 여부입니다. 빈 일반 조건은 True/무오류, 빈 Branch는 True/진단입니다. 기존 호환·필수·대안 그룹의 오류 항목은 True로 대체하므로 다른 필수 False는 유지되고 대안의 오류 항목은 해당 대안 그룹을 통과시킬 수 있습니다. 금지 그룹 오류는 차단하지 않습니다(51절). bHadErrors와 Diagnostics에서 이를 구별합니다. 효과/저장 실패에는 이 정책을 적용하지 않습니다. Tag는 Equal/NotEqual만, 수치는 여섯 비교 연산을 지원합니다. double 동등 비교는 정확 비교이며 Count는 int64 그대로 비교합니다. Count의 현재 값은 0 이상이지만 비교 기준에는 음수도 허용하여 그대로 수치 비교합니다. 미구현 인터페이스 기본 구현은 false와 초기화된 출력값을 반환합니다. DataTable 반환 순서는 저작 정렬 기준이 아니므로 UI에서 표시 순서를 별도 정합니다.
 
-작가용 새 조건 선택 UI는 S2/S5에서 연결합니다. 현재는 독립 공통 계약과 샘플이며 기존 FPlayerCondition/Branch/내장 선택지 소비처를 바꾸지 않았습니다. 게임별 새 아이템/능력치는 목록과 제공자만 확장하면 되고 플러그인 enum에 게임 항목을 추가할 필요가 없습니다. 중첩 그룹은 지원하지 않습니다.
+작가용 ID 선택 UI는 50절, 새 세 그룹과 기존 조건 호환 UI는 51절을 따릅니다. 구형 FPlayerCondition은 별도 호환 경로로 유지합니다. 게임별 새 아이템/능력치는 목록과 제공자만 확장하면 되고 플러그인 enum에 게임 항목을 추가할 필요가 없습니다. 중첩 그룹은 지원하지 않습니다.
 
 ## 9. 효과 묶음과 게임 처리 계약
 
@@ -496,9 +497,9 @@ Line 출력에서 빈 공간으로 드래그하여 `Choice`를 생성하면 자�
 
 ### 작가: 조건 분기
 
-생성 메뉴의 `Branch Node`를 추가하고 Details → DialogueKit → Branch → Conditions에서 Tag/Value/Count 조건과 All/Any 결합을 설정합니다. True/False 출력 각각을 후속 Line 등으로 연결합니다. Legacy 조건은 구형 실행기 호환 자료이며 신규 BlockRunner는 Conditions만 사용합니다.
+생성 메뉴의 `Branch Node`를 추가하고 Details → DialogueKit → Branch → Conditions에서 필수·대안·금지 그룹에 Tag/Value/Count 조건을 설정합니다(51절). 이전 All/Any 목록은 고급: 기존 호환 조건에 보존됩니다. True/False 출력 각각을 후속 Line 등으로 연결합니다. Legacy 조건은 구형 실행기 호환 자료이며 신규 BlockRunner는 Conditions만 사용합니다.
 
-빈 Branch는 진단을 남기고 True로 진행합니다. 조건 조회 오류도 공통 평가 규칙대로 해당 항목만 True 대체한 후 나머지 조건과 결합합니다. 제작사는 진단 Router를 이용해 오류를 수집합니다.
+빈 Branch는 진단을 남기고 True로 진행합니다. 조건 조회 오류는 기존 호환·필수·대안에서는 해당 항목을 True로 대체하고 금지에서는 그 항목으로 차단하지 않습니다. 제작사는 진단 Router를 이용해 오류를 수집합니다.
 
 ### 개발자: 자동 진행과 입력 반복 구분
 
@@ -617,7 +618,7 @@ Block 에셋의 Details에서 `DialogueKit > Selection`의 `Dialogue Target`에 
 
 `UDialogueGraph::GetSelectionMetadata()`는 에셋 원본에서 메타데이터를 만듭니다. 저장/cook 시 `GetAssetRegistryTags()`가 `DialogueKit.MetadataV1`과 `DialogueKit.Target`을 기록합니다. `FDialogueBlockMetadata::ReadAsset(FAssetData, OutMetadata)`는 Registry만 읽고 `GetAsset()`/`TryLoad()`를 호출하지 않습니다.
 
-읽은 자료는 `UDialogueMetadataLibrary::IsEligible(Metadata, Target, StoryDefinition, StoryProgress, StateProvider, Router)`로 검사합니다. 게임이 현재 진행도와 상태 제공자를 전달합니다. 대상 정확 일치·신규 노출 허용·소속을 확인한 뒤 기존 조건 평가 계약을 적용합니다. 상태 조회 오류의 True 대체와 진단은 기존 공통 계약을 따릅니다. 이 API는 신규 시작/Refresh 전용이며 활성 체크포인트 복원에 적용하지 않습니다.
+읽은 자료는 `UDialogueMetadataLibrary::IsEligible(Metadata, Target, StoryDefinition, StoryProgress, StateProvider, Router)`로 검사합니다. 게임이 현재 진행도와 상태 제공자를 전달합니다. 대상 정확 일치·신규 노출 허용·소속을 확인한 뒤 기존 조건 평가 계약을 적용합니다. 상태 조회 오류는 기존 호환·필수·대안 그룹에서 True로 대체하고 금지 그룹에서는 차단하지 않으며 진단을 남깁니다(51절). 이 API는 신규 시작/Refresh 전용이며 활성 체크포인트 복원에 적용하지 않습니다.
 
 게임별 아이템/능력치/태그 이름과 현재 값은 Provider에서 확장합니다. Registry에는 조건 정의만 들어 있고 플레이어 현재 값은 들어 있지 않습니다. `int64` 수량은 UE 구조체 텍스트로 보존합니다. 메타데이터 읽기 실패 시 출력값은 바꾸지 않으며 실패를 무조건 적격으로 취급하지 않습니다.
 
@@ -884,17 +885,17 @@ Graph에서 Line은 기존 파란색, Choice는 보라색, 상태 변경(StateCh
 ### GameplayTag 선택 및 복수 조건 작성
 
 1. Branch 노드를 선택하고 Details의 `DialogueKit → Branch → Conditions`를 펼칩니다. Choice는 `Options`에서 일반 선택지의 `Conditions`를 펼칩니다.
-2. 내부 `Conditions` 배열의 `+` 버튼으로 항목을 추가하고 해당 항목의 `Key`를 펼칩니다.
+2. 내부 **필수 조건 / 대안 조건 / 금지 조건** 중 원하는 배열의 `+` 버튼으로 항목을 추가하고 해당 항목의 `Key`를 펼칩니다.
 3. `Kind`를 `Tag`로 설정한 뒤 **`Key → Tag`의 태그 선택 버튼/드롭다운**에서 프로젝트에 등록된 GameplayTag를 선택합니다. `Kind=Tag`는 종류 지정일 뿐 실제 검사할 태그 선택이 아닙니다.
 4. 보유 여부는 `Comparison=Equal`, `Tag Operand=true`로 검사합니다. 없는 태그를 요구하려면 `Equal`, `Tag Operand=false`로 설정합니다.
-5. 복수 태그는 태그마다 배열 항목을 추가합니다. 바깥 `Combine=All`이면 전부 충족, `Any`이면 하나 이상 충족해야 합니다. 예: `Quest.Accepted`, `Item.KeyOwned`를 각각 지정하고 All이면 두 태그가 모두 필요합니다. 예시 태그는 게임이 등록해야 합니다.
+5. 복수 태그는 태그마다 배열 항목을 추가합니다. 필수는 모두 충족, 대안은 하나 이상 충족, 금지는 하나라도 참이면 차단합니다. 예: `Quest.Accepted`, `Item.KeyOwned`를 필수 조건에 넣으면 두 태그가 모두 필요합니다. 예시 태그는 게임이 등록해야 합니다.
 
-태그 목록이 비어 있다면 프로젝트 설정의 Gameplay Tags에서 사용할 태그를 먼저 등록합니다. 기본 선택지(`Default=true`)는 조건을 평가하지 않아 Conditions가 숨겨집니다. `Legacy → 구형 조건`은 읽기 전용이므로 그곳에서 태그를 수정할 수 없습니다. 신규 `Key → Tag` 경로에도 선택기가 없다면 정상적인 상태가 아니며 해당 화면을 기준으로 추가 확인이 필요합니다.
+태그 목록이 비어 있다면 프로젝트 설정의 Gameplay Tags에서 사용할 태그를 먼저 등록합니다. 기본 선택지(`Default=true`)는 조건을 평가하지 않아 Conditions가 숨겨집니다. `Legacy → 구형 조건`은 별도 구형 Branch 자료이며 읽기 전용입니다. 이번 세 그룹 안의 편집 가능한 `고급: 기존 호환 조건`과 구분하세요. 신규 `Key → Tag` 경로에도 선택기가 없다면 정상적인 상태가 아니며 해당 화면을 기준으로 추가 확인이 필요합니다.
 
-복수 태그는 한 드롭다운에서 일괄 선택하는 방식이 아니라 **복수 조건 행**으로 지원합니다. 기존 Value/Count와 섞어 같은 All/Any로 평가할 수 있습니다. 게임 개발자는 `IDialogueStateProvider`의 태그 조회 구현을 제공하며, 이번 안내는 기존 저장 형식과 평가 로직을 변경하지 않습니다.
+복수 태그는 한 드롭다운에서 일괄 선택하는 방식이 아니라 **복수 조건 행**으로 지원합니다. Value/Count와 섞어 세 그룹으로 평가할 수 있습니다. 기존 Combine/Conditions는 고급 호환 영역에서 별도로 유지합니다. 게임 개발자는 `IDialogueStateProvider`의 태그 조회 구현을 제공하며, 이번 안내는 기존 저장 형식과 평가 로직을 변경하지 않습니다.
 
 - 새 Branch는 `DialogueKit → Branch → Conditions`를 편집합니다. `Legacy → 구형 조건 (신규 실행기 미사용)`은 기존 값 확인용 읽기 전용입니다. 자동 변환하지 않습니다.
-- Block 진입 조건은 `Entry Conditions`, 선택지 표시 조건은 각 `Options → Conditions`입니다. 조건 배열의 추가/삭제와 All/Any 조합을 사용하며, Tag/Value/Count 항목과 비교 기준을 지정합니다. 게임은 기존 `IDialogueStateProvider`로 값을 제공해야 합니다.
+- Block 진입 조건은 `Entry Conditions`, 선택지 표시 조건은 각 `Options → Conditions`입니다. 필수·대안·금지 배열의 추가/삭제를 사용하며, Tag/Value/Count 항목과 비교 기준을 지정합니다. 게임은 기존 `IDialogueStateProvider`로 값을 제공해야 합니다.
 - Block Details의 `Legacy 안내`를 확인하세요. 구형 Required All/Any/Blocked Tags가 남으면 신규 후보에서 제외됩니다. 신규 조건에 필요한 내용을 수동 작성한 다음 구형 태그를 명시적으로 비우세요. 구형 `SpeakerID`/`ChapterID`는 새 `DialogueTarget`/`StoryScope`를 대신하지 않습니다.
 - 기존 직렬화 필드와 호환 함수는 유지합니다. 읽기 전용 표시는 신규 작가의 혼동을 줄이기 위한 에디터 제약이며 외부 게임 코드를 자동 변환하지 않습니다.
 
@@ -1085,8 +1086,8 @@ Line을 선택하고 Details의 `Title`, `Speaker ID`, `Dialogue Text`를 편집
 DialogueGraph 에셋을 열고 오른쪽 `DialoguePropertyTab`에서 항목 이름에 마우스를 잠시 올리면 한국어 설명 툴팁이 나타납니다. 위쪽은 Block 전체 설정이고, 그래프에서 Line/Choice/Branch/StateChange/End를 선택하면 아래쪽에 해당 노드 설정이 표시됩니다. 접힌 구조체나 배열은 펼친 뒤 하위 항목 이름에 마우스를 올립니다. Start와 경유점에는 별도 NodeInfo 속성이 없습니다.
 
 - Block ID/Content Version, 대상·소속, Availability, 기본/최우선 여부, 우선순위, Entry Conditions의 의미를 확인할 수 있습니다. 대상 분류 필터·검색창·대상 선택 및 소속 버튼에도 설명이 있습니다.
-- `Entry Conditions → Conditions → 배열 항목 → Key`를 펼치면 Kind/Target ID/Item ID/Tag 설명을 확인할 수 있습니다. Target ID와 Item ID는 게임 제공자와 약속한 안정 ID입니다. 정의 원본 연결과 검색 목록 선택, 고급 직접 입력은 50절을 따릅니다.
-- 조건의 Comparison과 종류별 Operand, Choice의 기본 선택지·효과·저장 요청, Branch의 빈 조건, StateChange의 효과 연산, End의 저장 옵션을 설명합니다. 조회 실패는 해당 조건을 True로 처리한다는 현재 정책도 표시합니다.
+- `Entry Conditions → 필수/대안/금지 조건 → 배열 항목 → Key`를 펼치면 Kind/Target ID/Item ID/Tag 설명을 확인할 수 있습니다. Target ID와 Item ID는 게임 제공자와 약속한 안정 ID입니다. 정의 원본 연결과 검색 목록 선택, 고급 직접 입력은 50절을 따릅니다.
+- 조건의 Comparison과 종류별 Operand, Choice의 기본 선택지·효과·저장 요청, Branch의 빈 조건, StateChange의 효과 연산, End의 저장 옵션을 설명합니다. 조회 실패는 필수·대안·기존 조건에서 True 대체, 금지 조건에서 차단하지 않는 정책도 표시합니다.
 - Line의 본문·화자·열람 버전·이미지·위치·반전·표시 시간·음향과 중첩 초상화 설정을 설명합니다. Line Duration은 자동 진행 대기 시간이 아니라 본문 표시 시간입니다.
 - 구형 필드는 신규 실행에서 사용하는지 구분하여 안내합니다. 특히 End의 Clear Tag는 구형 경로에서 태그를 추가하는 설정이며, 퀘스트 Action의 실제 후속 처리는 현재 미구현입니다. 구형 초상화 액션도 현재 Move만 실행하며 표정 액션 필드의 미사용 상태를 안내합니다.
 - 주석 설명 입력칸은 제작용 메모임을 안내합니다. 엔진이 제공하는 기본 색상·좌표·주석 필드는 UE 기본 설명을 사용합니다.
@@ -1232,7 +1233,7 @@ NPC DataAsset과 아이템·스킬 DataTable의 정의를 DialogueGraph 조건 �
 
 ### 작가의 선택 순서
 
-DialogueGraph를 열고 **DialogueProperty → Entry Conditions → Conditions → 배열 항목 → Key**를 펼칩니다. Branch와 Choice의 Conditions, StateChange의 효과 Key, 샘플 프리셋 등 같은 `FDialogueStateKey` 편집 위치에도 동일한 UI가 적용됩니다.
+DialogueGraph를 열고 **DialogueProperty → Entry Conditions → 필수 조건/대안 조건/금지 조건 → 배열 항목 → Key**를 펼칩니다. 이전 `Conditions`는 **고급: 기존 호환 조건** 안에 보존됩니다. 세 그룹의 조합은 51절을 참고하세요. Branch와 Choice의 Conditions, StateChange의 효과 Key, 샘플 프리셋 등 같은 `FDialogueStateKey` 편집 위치에도 동일한 UI가 적용됩니다.
 
 1. `Kind`를 선택합니다. 아이템 보유 수량은 샘플에서 **Count**, NPC 호감도·스킬 레벨은 **Value**입니다.
 2. `Target ID` 드롭다운을 열고 ID를 검색·선택합니다. 같은 Kind에 등록된 대상만 나옵니다. `None` 전역 대상은 **전역 [None]**으로 표시합니다. NPC 이름을 항목 이름에서 추측하지 않으므로 Target은 안정 ID로 표시합니다.
@@ -1269,3 +1270,78 @@ Kind가 **Tag**이면 `Tag`의 기존 UE GameplayTag 선택기를 사용합니�
 ### 검증
 
 `Scripts/AI/Invoke-UE.ps1 -Action Test -TestFilter DialogueKit.Editor.ConditionIdPicker`로 실제 샘플 원본·필터·검색·잘못된 목록 거부와 Details 프로퍼티 선택·Undo/Redo·격리 파일 왕복을 검사합니다. NullRHI 자동 검사는 실제 화면 배치와 마우스/키보드 사용성 관찰을 대신하지 않습니다.
+
+
+## 51. 필수·대안·금지 조건과 대화 유형
+
+새 조건은 **필수 모두 만족 + 대안 하나 이상 만족 + 금지 조건 없음**을 동시에 검사합니다. 각 그룹은 비어 있으면 제한하지 않습니다. 태그, 능력치(Value), 수량(Count)을 어느 그룹에나 사용할 수 있습니다. 임의 깊이의 중첩 조건 트리는 제공하지 않습니다.
+
+### 작가: 조건 작성과 툴팁
+
+1. DialogueGraph를 열고 **DialogueProperty → Entry Conditions**를 펼칩니다.
+2. **필수 조건**에 반드시 모두 만족해야 하는 항목을 추가합니다.
+3. **대안 조건**에 여러 자격 중 하나만 충족하면 되는 항목을 추가합니다. 대안이 참이어도 필수나 금지 검사를 우회하지 않습니다.
+4. **금지 조건**에 참이면 대화를 막을 항목을 추가합니다. 예를 들어 `적대 태그 / Equal / True`는 적대 상태일 때 차단합니다. `Equal / False`로 작성하면 적대 태그가 없을 때 차단하므로 기준값 방향을 확인하세요.
+5. 각 항목의 **Key**에서 Kind와 Target ID·Item ID/Tag를 선택하고 비교 연산과 기준값을 지정합니다. 정의 원본 연결과 검색 드롭다운은 50절을 따릅니다.
+6. 그룹 이름·항목 이름에 마우스를 올리면 의미·빈 목록·오류 처리에 대한 한국어 툴팁이 표시됩니다. 상위 조건 행의 `필수 + 대안 + 금지` 안내와 대화 유형 선택 항목에도 설명을 제공합니다.
+
+예: 필수에 `레벨 >= 10`, 대안에 `호감도 >= 50`과 `추천장 수량 >= 1`, 금지에 `적대 태그 == True`를 넣으면 **레벨이 10 이상이고, 호감도가 충분하거나 추천장이 있으며, 적대 상태가 아닌 경우** 통과합니다.
+
+같은 편집기와 평가기는 **Block 진입, Branch 조건, 일반 Choice 조건**에 적용됩니다. 금지 조건을 만족한 Branch는 False 경로로, 일반 Choice는 조건 불충족 처리로 이어집니다. 기본 Choice의 기존 조건 무시 정책은 유지합니다. 전체 조건이 비면 일반 문맥은 통과하고 Branch는 진단을 남긴 뒤 True로 진행합니다.
+
+### 기존 조건과의 관계
+
+이전 `Combine / Conditions`는 **고급: 기존 호환 조건**에 보존합니다. 기존 목록이 있으면 `기존 조건 N개도 함께 적용됩니다` 안내와 펼친 그룹을 보여 줍니다. 여러 에셋의 조건 수가 다르면 그 차이를 안내합니다. 기존 조건을 편집해도 Undo/Redo를 사용할 수 있습니다.
+
+최종 결과는 `기존 조건 결과 AND 필수 결과 AND 대안 결과 AND 금지 없음`입니다. 기존 조건을 새 그룹에 자동 복사하거나 삭제하지 않습니다. 기존 조건을 옮기려면 원래 All/Any 의미와 새 세 그룹의 결과를 확인하고 제작자가 명시적으로 옮기세요. 기존 조건을 남겨 두고 새 그룹을 추가하면 **양쪽 모두 적용**됩니다.
+
+이 호환 조건은 `EntryConditions` 등의 이전 `FDialogueConditionSet` 배열을 뜻합니다. 별도의 **구형 Required All/Any/Blocked Tags 필터**는 자동 이관하지 않습니다. 그 태그가 남은 Graph의 신규 후보 제외와 기존 `BeginDialogue` 경로는 그대로이며, 이번 작업이 두 시작 API 전체를 하나로 바꾸는 것은 아닙니다.
+
+### 조회 오류와 미리보기
+
+| 그룹 | 정상 조건 의미 | 조회·평가 오류 항목 |
+|---|---|---|
+| 필수 | 모두 참이어야 통과 | 진단 후 참으로 대체 |
+| 대안 | 비어 있지 않다면 하나 이상 참 | 진단 후 참으로 대체 |
+| 금지 | 하나라도 참이면 차단 | 진단 후 그 항목은 차단하지 않음 |
+| 기존 호환 | 기존 All/Any 규칙 | 종전 참 대체 유지 |
+
+금지 그룹에 조회 오류와 정상 참인 항목이 함께 있으면 정상 항목 때문에 차단됩니다. 오류를 태그 부재나 보유 수량 0과 혼동하지 마세요. 진단은 그룹명·항목 번호를 포함하며 금지 오류의 Handling은 `ContinueWithoutBlock`, 나머지는 `ContinueWithTrue`입니다.
+
+기존 Block 테스트의 진입 조건 확인 결과에는 `[기존]`, `[필수]`, `[대안]`, `[금지: 참이면 차단]`별 현재값과 항목 판정이 나옵니다. 금지는 통과 여부를 위해 비교 결과를 반전한 값이며 맨 위 **Block 진입 판정**이 모든 그룹을 합친 최종 결과입니다. 실제 게임 값은 게임 제공자가 조회합니다.
+
+### 대화 유형
+
+**DialogueProperty → Selection → 대화 유형**에서 **퀘스트 / 스토리 / 일상**을 선택합니다. 각 선택지와 필드 이름에 설명 툴팁이 있습니다.
+
+- 퀘스트: 퀘스트 관련 대화 분류. 퀘스트 실행이나 최우선을 자동 설정하지 않습니다.
+- 스토리: 서사 진행 대화 분류. Chapter/Scene 소속은 별도로 설정합니다.
+- 일상: 일상 대화 분류. 기본 대화·반복 가능 상태를 자동 설정하지 않습니다.
+
+새 후보 선정에서는 유형과 **최우선 / 우선순위 / 기본 대화**가 독립입니다. 기존 enum 식별자와 숫자는 `Quest=0`, `Story=10`, `DailyChat=100` 그대로입니다. 구형 `BeginDialogue`는 여전히 이 유형을 기존 정렬 순서로 사용하므로 구형 API를 사용하는 게임에서 분류 변경은 그 정렬에 영향을 줍니다.
+
+**DialogueMaker → 스토리보드**의 Block 목록에도 유형이 표시됩니다. 검색창에서 `퀘스트`, `스토리`, `일상`으로 찾을 수 있습니다. 이전 미로드 에셋의 유형은 독립 Registry 태그에서 읽으며 값이 없거나 손상된 경우 `유형 확인 필요`로 표시합니다. 에셋을 열어 원본 유형을 확인하고 명시적으로 저장하세요.
+
+### 개발자 API와 호환성
+
+`FDialogueConditionSet`에 다음 배열이 추가되었습니다. 기존 공개 `EvaluateConditions` 호출은 그대로 사용합니다. 에디터 전용 클래스에 의존할 필요가 없습니다.
+
+```cpp
+FDialogueConditionSet Conditions;
+Conditions.RequiredConditions.Add(LevelCondition);
+Conditions.AnyConditions.Add(AffectionCondition);
+Conditions.AnyConditions.Add(InvitationCondition);
+Conditions.BlockedConditions.Add(HostileCondition);
+const FDialogueConditionResult Result = UDialogueConditionLibrary::EvaluateConditions(
+    Conditions, GameStateProvider, false, FDialogueDiagnosticContext(), DiagnosticRouter);
+```
+
+위 네 Condition 변수는 게임이 정의한 `FDialogueCondition`이며 Key/Comparison/Operand를 먼저 채워야 합니다. `IsEmpty()`는 기존·신규 네 배열 전체를 검사하고, `GetAllConditions()`는 도구용으로 전체 조건 복사본을 반환합니다. `Combine`은 기존 `Conditions`에만 적용합니다. 원본 정의 제공자와 현재 상태 제공자의 계약은 변경하지 않았습니다.
+
+기존 tagged Graph/NodeInfo 에셋은 새 배열을 빈 기본값으로 읽어 이전 조건 의미를 유지합니다. SaveData 형식은 변경하지 않았습니다. 유형 enum 선언은 `Enum/DialogueGraphType.h`로 분리했지만 반영 이름과 값은 유지합니다. `DialogueGraph.h`를 포함하던 코드도 계속 사용할 수 있습니다.
+
+새 Registry payload는 버전 **2**, 읽기는 **1과 2**를 지원합니다. 색인 키 이름 `DialogueKit.MetadataV1`은 기존 검색 호환을 위해 유지하며 payload 버전과 구분합니다. v1에 새 그룹이 들어 있는 잘못된 자료는 거부합니다. 정확 복원은 기존대로 ID/콘텐츠 버전을 사용하고 진입 조건을 다시 평가하지 않습니다. 새 그룹을 작성한 에셋의 구버전 플러그인 실행은 지원하지 않습니다. 배포할 때 플러그인과 해당 콘텐츠를 함께 갱신하고 재cook해야 합니다.
+
+### 검증 실행
+
+에디터를 종료한 뒤 `Scripts/AI/Invoke-UE.ps1 -Action Test -TestFilter DialogueKit`을 실행합니다. 신규 그룹 조합/오류/구자료와 실제 Details/Undo·파일 왕복 검사, 기존 Branch·Choice 실행 회귀가 포함됩니다. 실제 화면 배치·마우스 hover·키보드 사용성, 게임별 Blueprint 호출과 패키지 실행은 각각 별도 검증 범위입니다.

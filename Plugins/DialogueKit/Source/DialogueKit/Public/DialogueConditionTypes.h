@@ -97,11 +97,25 @@ struct DIALOGUEKIT_API FDialogueConditionSet
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (ToolTip = "여러 조건을 합치는 방식입니다. All은 모두 만족(AND), Any는 하나 이상 만족(OR)입니다. 빈 목록은 두 방식 모두 통과합니다."))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "필수 조건", ToolTip = "모두 만족해야 합니다. 빈 목록은 제한하지 않습니다. 조회 오류 항목은 진단 후 참으로 대체합니다. 대안·금지 및 기존 호환 조건도 함께 적용됩니다."))
+	TArray<FDialogueCondition> RequiredConditions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "대안 조건", ToolTip = "하나 이상 만족해야 합니다. 빈 목록은 제한하지 않습니다. 조회 오류 항목은 진단 후 참으로 대체합니다. 필수 조건을 우회하는 별도 경로가 아닙니다."))
+	TArray<FDialogueCondition> AnyConditions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "금지 조건", ToolTip = "정상 평가된 조건 중 하나라도 참이면 전체 조건을 통과하지 못합니다. 빈 목록은 차단하지 않습니다. 조회 오류는 진단하되 그 항목으로 차단하지 않습니다. 예: 적대 태그 Equal True 또는 수배 수치 GreaterOrEqual 1."))
+	TArray<FDialogueCondition> BlockedConditions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "기존 조건 결합", ToolTip = "기존 호환 조건 목록에만 적용합니다. All은 모두 만족, Any는 하나 이상 만족입니다. 그 결과와 새 필수·대안·금지 그룹을 함께 적용합니다."))
 	EDialogueConditionCombine Combine = EDialogueConditionCombine::All;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (ToolTip = "평가할 조건 목록입니다. 빈 목록은 통과하며 Branch에서는 추가로 진단을 남깁니다. 조회 오류 항목은 진단 후 True로 처리하고 나머지 조건과 종합합니다."))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "기존 호환 조건", ToolTip = "기존 에셋과 API의 조건입니다. 비어 있으면 제한하지 않으며, 값이 있으면 Combine으로 평가한 결과도 반드시 만족해야 합니다. 새 그룹으로 자동 이동·삭제되지 않습니다."))
 	TArray<FDialogueCondition> Conditions;
+
+	// 기존 및 신규 그룹 전체가 비어 있는지 확인한다.
+	bool IsEmpty() const;
+	// 검증·검색 도구용으로 네 그룹의 조건을 원래 순서대로 복사한다.
+	TArray<FDialogueCondition> GetAllConditions() const;
 };
 
 USTRUCT(BlueprintType)

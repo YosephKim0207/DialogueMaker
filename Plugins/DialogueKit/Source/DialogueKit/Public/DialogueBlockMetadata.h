@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "DialogueConditionTypes.h"
+#include "Enum/DialogueGraphType.h"
 #include "DialogueStoryDefinition.h"
 #include "AssetRegistry/AssetData.h"
 #include "DialogueBlockMetadata.generated.h"
@@ -19,7 +20,7 @@ struct DIALOGUEKIT_API FDialogueBlockMetadata
 {
 	GENERATED_BODY()
 	UPROPERTY()
-	int32 MetadataVersion = 1;
+	int32 MetadataVersion = 2;
 	UPROPERTY()
 	bool bRequiresManualRewrite = false;
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Selection")
@@ -31,6 +32,8 @@ struct DIALOGUEKIT_API FDialogueBlockMetadata
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Selection")
 	FDialogueConditionSet EntryConditions;
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Selection")
+	EDialogueGraphType DialogueGraphType = EDialogueGraphType::Quest;
+	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Selection")
 	EDialogueBlockAvailability Availability = EDialogueBlockAvailability::Active;
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Selection")
 	bool bDefault = false;
@@ -40,11 +43,15 @@ struct DIALOGUEKIT_API FDialogueBlockMetadata
 	int32 Priority = 0;
 
 	bool IsValid() const;
+	// 알려진 세 대화 유형인지 검사하며 알 수 없는 값을 임의 분류하지 않는다.
+	bool HasKnownGraphType() const;
 	FString ToRegistryValue() const;
 	static bool FromRegistryValue(const FString& Value, FDialogueBlockMetadata& OutMetadata);
 	// 복원은 신규 대상/소속 조건과 무관하게 정확 콘텐츠 식별자만 읽는다.
 	static bool ReadIdentity(const FAssetData& Asset, FDialogueBlockReference& OutReference);
 	static bool ReadAsset(const FAssetData& Asset, FDialogueBlockMetadata& OutMetadata);
+	// v1 payload에 없던 유형은 기존 에셋의 독립 Registry 태그에서 보완한다.
+	void ReadLegacyGraphType(const FAssetData& Asset);
 	static FName RegistryKey();
 	static FName TargetRegistryKey();
 };

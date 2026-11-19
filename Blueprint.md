@@ -522,3 +522,24 @@ DialogueStoryDefinition 기본 배열 추가가 ID 발급을 우회하던 문제
 - 보존 규칙: Kind/Target 변경 및 원본 오류로 기존 ID를 자동 삭제/교체하지 않는다. Key/SaveData 형식과 런타임 의미, 게임 상태 소유권은 그대로다.
 - 완료 기준: 목록 필터·검색, 오류·기존 값 보존, Undo/Redo·저장 왕복, 공통 Key 적용 지점 및 기존 조건 평가 검증, UserGuide 갱신. 실제 GUI와 자동 검사는 구분한다.
 - 상태: 선택 UI·샘플 연결·가이드 구현 완료. Editor 빌드 및 최종 DialogueKit 66/66·Error 0. 실제 Details 선택·Undo/Redo·파일 왕복, 오류/미등록 값 보존과 다중 편집·잠금을 자동 검사했다. GameDirector 제품 일치 검토 완료. 실제 GUI/PIE/패키징 및 Blueprint 전용 원본 피커 실사용은 미검증이다. UserGuide 50절, 상세 증거/복구: Docs/AI/DialogueConditionIdPickerPlan.md.
+
+
+### 2026-11-19 — BP-116 구형 필터의 의미를 참고한 새 조건 통합 논의
+
+- 사용자 목표: 새 필터를 기준으로 통합하되 기존 필터를 단순 제거하기 전에 유용한 조건 의미를 검토한다. 이번 요청은 조사·설계 논의이며 구현·필드 삭제·자동 변환 승인이 아니다.
+- 확인된 가치: 구형 RequiredAll/RequiredAny/BlockedAny는 필수·대안·금지 조건 묶음을 동시에 적용한다. 개별 필수/부재 조건과 단독 Any는 새 조건으로 표현 가능하지만, `A AND (B OR C) AND NOT D` 조합은 현재 단일 All/Any 조건 배열로 일반적으로 표현할 수 없다.
+- 보완 후보(논의중): 제한된 조건 그룹을 새 공통 평가 구조에서 지원할지 검토한다. 기존 중첩 그룹 보류 결정은 이번 조사만으로 변경하지 않는다. 채택 시 Tag/Value/Count에 일관된 규칙을 적용하는 방향을 검토한다.
+- 중복·정책 구분: DialoguePriorityWeight와 로드 전 메타데이터 평가는 새 경로에 이미 계승돼 있다. Quest/Story/DailyChat의 고정 실행 우선순위는 새 선정 정책으로 자동 복원하지 않으며 각 유형을 Top Priority/Default에 기계적으로 매핑하지 않는다. 분류 자체는 검색·정리용으로 유지할지 검토할 수 있다.
+- 이전 원칙 후보: 구형 조건 의미를 확인하고 새 조건의 동등 표현 여부를 검증한다. 정확 태그 일치·빈 목록·조회 오류 의미를 구분하고 개발용 임시 태그 주입을 제품 규칙으로 계승하지 않는다. 구형/신형 조건의 암묵적 이중 적용·조용한 무시는 피한다.
+- 근거: DialogueSubsystem.cpp의 태그 순차 검사 및 GraphType/가중치 정렬, DialogueConditionLibrary.cpp의 단일 Combine 평가, DialogueGraph.cpp의 수동 이전 표식과 Priority 공유. GameDirector 읽기 전용 검토 취합.
+- 상태: 새 기준 통합을 희망하는 사용자 방향을 확인했다. 그룹 지원 범위와 이전/표시 방식은 미확정이다. 논의만 기록했으며 기존 저장 필드·에셋·런타임 코드는 변경하지 않았다. 빌드/테스트 미실행.
+
+### 2026-11-19 — BP-116 조건 세 그룹 및 대화 유형 구현 승인
+
+- 사용자 승인: 필수·대안·금지 조건 동시 적용과 스토리/퀘스트/일상 유형을 현재 시스템에 포함하고 각 항목 한국어 툴팁을 제공한다.
+- 세 그룹을 공통 조건에 추가한다. 필수 모두 만족, 대안은 등록 시 하나 이상 만족, 금지는 정상 참인 항목이 있으면 차단하며 빈 그룹은 제한하지 않는다. 기존 Combine/Conditions 결과도 함께 적용한다. 기존 조건이 있으면 별도 적용 안내와 펼친 호환 영역으로 표시한다.
+- 필수·대안 오류는 기존 참 대체, 금지 오류는 진단 후 차단하지 않는다. 다른 정상 금지의 차단은 유지한다. 전체 빈 Branch 진단은 유지한다.
+- 기존 DialogueGraphType enum/값을 재사용한다. 신규 선정 우선순위와 독립이며 스토리보드 표시·검색에 활용한다. 구형 BeginDialogue의 유형 정렬은 이번에 바꾸지 않는다.
+- 기존 에셋의 그룹 배열은 빈 기본값으로 읽는다. 새 Registry payload v2, 기존 v1 읽기와 정확 복원 식별 유지. SaveData 형식은 변경하지 않는다. 새 그룹 자산의 구 바이너리 실행은 지원하지 않는다.
+- 제외: 구형 실행 경로 삭제·기존 태그 자동 변환/삭제·임의 중첩 조건. 제한된 세 그룹은 승인하며 임의 중첩 보류는 유지한다.
+- 구현·자동 검증 완료. Editor 및 Win64 Development build/cook/package 성공, DialogueKit 69/69·오류 0, cooked Registry 1/1 통과. 세 그룹·호환 UI·유형/스토리보드·한국어 툴팁을 반영했다. GameDirector 제품 검토와 Sol Medium 최종 검토 완료. 실제 GUI hover/PIE·패키지 실행·Shipping·실게임 연결은 이번 미검증이다. 사용법은 UserGuide 51절, 증거와 복구는 Docs/AI/DialogueConditionGroupsPlan.md.

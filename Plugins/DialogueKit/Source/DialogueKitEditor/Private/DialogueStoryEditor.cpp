@@ -34,8 +34,10 @@ TArray<FDialogueStoryBlock> FDialogueStoryEditor::CollectBlocks()
 			FStringOutputDevice Errors;
 			if (Asset.GetTagValue(FDialogueBlockMetadata::RegistryKey(), Value))
 			{
+				Row.Metadata.MetadataVersion = 0;
 				const TCHAR* End = FDialogueBlockMetadata::StaticStruct()->ImportText(*Value, &Row.Metadata, nullptr, PPF_None, &Errors, TEXT("DialogueBlockMetadata"));
-				Row.bMetadataReadable = End && *End == 0 && Errors.IsEmpty() && Row.Metadata.MetadataVersion == 1;
+				Row.bMetadataReadable = End && *End == 0 && Errors.IsEmpty() && (Row.Metadata.MetadataVersion == 1 || Row.Metadata.MetadataVersion == 2);
+				if (Row.bMetadataReadable) Row.Metadata.ReadLegacyGraphType(Asset);
 			}
 		}
 		Result.Add(Row);

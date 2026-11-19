@@ -34,6 +34,11 @@ bool FDialogueValidationTest::RunTest(const FString& Parameters)
 	Issues = FDialogueGraphValidation::Inspect(Graph);
 	TestTrue(TEXT("Conditional-only warns"), HasCode(Issues, TEXT("NoFallback")));
 	TestTrue(TEXT("Invalid condition still permits save"), FDialogueGraphValidation::CanSave(Issues));
+	Info->Options[0].Conditions.Conditions.Reset();
+	Info->Options[0].Conditions.BlockedConditions.AddDefaulted();
+	Issues = FDialogueGraphValidation::Inspect(Graph);
+	TestTrue(TEXT("New forbidden-only choice is conditional"), HasCode(Issues, TEXT("NoFallback")));
+	TestTrue(TEXT("New group invalid key diagnosed"), HasCode(Issues, TEXT("InvalidCondition")));
 	FString Error;
 	TestTrue(TEXT("Initial runtime snapshot"), FDialogueGraphCodec::ExportGraph(Graph, Asset, Error));
 	FDialogueGraphValidation::RegisterWorkingGraph(Asset, Graph);
