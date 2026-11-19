@@ -543,3 +543,15 @@ DialogueStoryDefinition 기본 배열 추가가 ID 발급을 우회하던 문제
 - 기존 에셋의 그룹 배열은 빈 기본값으로 읽는다. 새 Registry payload v2, 기존 v1 읽기와 정확 복원 식별 유지. SaveData 형식은 변경하지 않는다. 새 그룹 자산의 구 바이너리 실행은 지원하지 않는다.
 - 제외: 구형 실행 경로 삭제·기존 태그 자동 변환/삭제·임의 중첩 조건. 제한된 세 그룹은 승인하며 임의 중첩 보류는 유지한다.
 - 구현·자동 검증 완료. Editor 및 Win64 Development build/cook/package 성공, DialogueKit 69/69·오류 0, cooked Registry 1/1 통과. 세 그룹·호환 UI·유형/스토리보드·한국어 툴팁을 반영했다. GameDirector 제품 검토와 Sol Medium 최종 검토 완료. 실제 GUI hover/PIE·패키지 실행·Shipping·실게임 연결은 이번 미검증이다. 사용법은 UserGuide 51절, 증거와 복구는 Docs/AI/DialogueConditionGroupsPlan.md.
+
+### 2026-11-19 — BP-116 필터 통합 의미 정정
+
+- 사용자 정정: 기존 필터와 새 필터를 병용·결합하는 것이 아니라 두 기능을 하나로 합친다. 앞선 구현 기록의 기존 조건 상시 병용 및 구형 필터 경로 제외는 사용자 의도와 불일치하므로 통합 완료 기준에서 철회한다. 앞선 빌드·자동 검증 성공은 요청한 통합 완료를 뜻하지 않는다.
+- 수정 완료 기준: 조건 저작은 Entry Conditions의 필수·대안·금지로 통일하고 후보 필터·선정은 새 경로를 기준으로 하나만 사용한다. 유형은 분류로 유지하며 새 우선순위 규칙을 따른다. 구형 진입 API를 유지하더라도 독립 필터·유형 정렬을 실행하지 않는다.
+- 구형 데이터의 직렬화 보존은 이관·복구 용도로 한정한다. 활성 편집 영역이나 실행 시 기존 결과 AND 신규 결과 평가로 계속 병존시키지 않는다. 구형 재생기 전체 삭제는 이번 필터 통합과 구분한다.
+- 조사 결과: 구형 SpeakerID enum과 DialogueTarget 태그, ChapterID enum과 StoryScope ID의 자동 대응 정보가 없으므로 임의 매핑하지 않는다. 서로 다른 Any 묶음을 단순 합치면 논리가 달라질 수 있으므로 실제 데이터 검증이 필요하다.
+- 상태: 정정 반영 및 읽기 전용 조사. 이전 방식에 관한 사용자 답변 대기 중이며 이번 정정에 따른 코드·에셋 수정과 빌드·테스트는 아직 수행하지 않았다.
+
+- 후속 사용자 확정: **기존 에셋은 재사용하지 않는다.** 이관 도구·ID 매핑 없이 새 Graph를 작성한다. 구형 필터/검색과 Combine·Conditions를 제거하고 기존 파일은 보존하되 후보 및 새 Block 실행에서 제외한다. 기존 재생기 전체 삭제는 포함하지 않는다. 구현과 검증은 Docs/AI/UnifiedDialogueFilterPlan.md를 따른다.
+
+- 정정 구현 완료: 구형 필터/검색 및 호환 조건 병용을 제거했다. 조건은 세 그룹, 후보 선정은 새 경로 하나다. 구형 파일은 삭제하지 않으며 영속 제외 표식으로 신규 후보·직접/개발 재생·정확 로드·공통 인사를 차단한다. Editor 빌드, DialogueKit 69/69(Error 0), Win64 Development 패키징, cooked Registry 1/1 성공. GameDirector 제품 일치 및 Sol 최종 검토 완료. 실제 GUI/PIE/패키지 실행·Shipping·실게임 연결은 미검증. 사용법은 UserGuide51, 실패 이력·검증 근거는 UnifiedDialogueFilterPlan을 따른다.

@@ -20,9 +20,9 @@ struct DIALOGUEKIT_API FDialogueBlockMetadata
 {
 	GENERATED_BODY()
 	UPROPERTY()
-	int32 MetadataVersion = 2;
+	int32 MetadataVersion = 3;
 	UPROPERTY()
-	bool bRequiresManualRewrite = false;
+	bool bRetiredFilterAsset = false;
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Selection")
 	FDialogueBlockReference Block;
 	UPROPERTY(BlueprintReadOnly, Category = "DialogueKit|Selection")
@@ -50,8 +50,6 @@ struct DIALOGUEKIT_API FDialogueBlockMetadata
 	// 복원은 신규 대상/소속 조건과 무관하게 정확 콘텐츠 식별자만 읽는다.
 	static bool ReadIdentity(const FAssetData& Asset, FDialogueBlockReference& OutReference);
 	static bool ReadAsset(const FAssetData& Asset, FDialogueBlockMetadata& OutMetadata);
-	// v1 payload에 없던 유형은 기존 에셋의 독립 Registry 태그에서 보완한다.
-	void ReadLegacyGraphType(const FAssetData& Asset);
 	static FName RegistryKey();
 	static FName TargetRegistryKey();
 };

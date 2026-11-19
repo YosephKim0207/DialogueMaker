@@ -28,7 +28,7 @@ TArray<FDialogueGraphIssue> FDialogueGraphValidation::Inspect(UEdGraph* Graph)
 	}
 	auto CheckConditions = [&Add](UEdGraphNode* Node, const FDialogueConditionSet& Set)
 	{
-		bool bInvalid = Set.Combine != EDialogueConditionCombine::All && Set.Combine != EDialogueConditionCombine::Any;
+		bool bInvalid = false;
 		for (const FDialogueCondition& Condition : Set.GetAllConditions())
 		{
 			bInvalid |= Condition.Key.IsValid() == false || uint8(Condition.Comparison) > uint8(EDialogueComparison::GreaterOrEqual);

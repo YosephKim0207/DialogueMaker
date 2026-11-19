@@ -463,7 +463,7 @@ bool FDialogueAllNodesRoundtripTest::RunTest(const FString& Parameters)
 	FDialogueCondition Condition;
 	Condition.Key.Kind = EDialogueStateKind::Value;
 	Condition.Key.ItemId = TEXT("Level");
-	CastChecked<UDialogueBranchNodeInfoBase>(Branch->GetNodeInfo())->Conditions.Conditions.Add(Condition);
+	CastChecked<UDialogueBranchNodeInfoBase>(Branch->GetNodeInfo())->Conditions.RequiredConditions.Add(Condition);
 	FString Error;
 	if (TestTrue(TEXT("All nodes export"), FDialogueGraphCodec::ExportGraph(Graph, Asset, Error)) == false) return false;
 	TArray<FGuid> NodeIds;

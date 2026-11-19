@@ -99,15 +99,6 @@ FDialogueConditionResult UDialogueConditionLibrary::EvaluateConditions(const FDi
 		}
 		return bBlocked ? !bCombined : bCombined;
 	};
-	bool bLegacy = true;
-	if (ConditionSet.Combine != EDialogueConditionCombine::All && ConditionSet.Combine != EDialogueConditionCombine::Any)
-	{
-		Report(TEXT("InvalidConditionCombine"), TEXT("Unknown legacy condition combine mode."));
-	}
-	else
-	{
-		bLegacy = EvaluateGroup(ConditionSet.Conditions, ConditionSet.Combine == EDialogueConditionCombine::All, false, TEXT("Legacy"));
-	}
 	if (ConditionSet.IsEmpty() && bBranchCondition)
 	{
 		Report(TEXT("EmptyBranchCondition"), TEXT("Branch has no conditions in any group."));
@@ -115,7 +106,7 @@ FDialogueConditionResult UDialogueConditionLibrary::EvaluateConditions(const FDi
 	const bool bRequired = EvaluateGroup(ConditionSet.RequiredConditions, true, false, TEXT("Required"));
 	const bool bAny = EvaluateGroup(ConditionSet.AnyConditions, false, false, TEXT("Any"));
 	const bool bNotBlocked = EvaluateGroup(ConditionSet.BlockedConditions, false, true, TEXT("Blocked"));
-	Result.bPassed = bLegacy && bRequired && bAny && bNotBlocked;
+	Result.bPassed = bRequired && bAny && bNotBlocked;
 	return Result;
 }
 

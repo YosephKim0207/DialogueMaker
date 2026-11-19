@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 
-// 새 조건 세 그룹을 먼저 보여주고 기존 조건의 추가 적용을 명시한다.
+// 공통 조건의 필수·대안·금지 세 그룹과 설명을 표시한다.
 class FDialogueConditionSetCustomization : public IPropertyTypeCustomization
 {
 public:

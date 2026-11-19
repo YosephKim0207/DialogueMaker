@@ -33,6 +33,7 @@ bool UDialogueBlockRunner::PrepareAtNode(UDialogueGraph* Block, UObject* NewStat
 	{
 		return Fail(TEXT("InvalidBlock"));
 	}
+	if (!Block->UsesUnifiedFilter()) return Fail(TEXT("RetiredFilterAsset"));
 	TArray<FString> Issues;
 	if (Block->Graph->ValidateIdentifiers(Issues) == false)
 	{

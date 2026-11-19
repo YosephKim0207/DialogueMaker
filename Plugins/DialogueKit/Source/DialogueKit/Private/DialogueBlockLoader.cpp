@@ -191,7 +191,7 @@ bool UDialogueBlockLoader::CompleteRequest(FGuid RequestId, UDialogueGraph* Bloc
 	{
 		return false;
 	}
-	if (IsValid(Block) == false || FSoftObjectPath(Block) != ExpectedPath || Block->GetBlockReference().IsValid() == false ||
+	if (IsValid(Block) == false || !Block->UsesUnifiedFilter() || FSoftObjectPath(Block) != ExpectedPath || Block->GetBlockReference().IsValid() == false ||
 		(bGreeting ? Block->Availability != EDialogueBlockAvailability::Active : (Block->GetBlockReference() == Selected.Metadata.Block) == false))
 	{
 		FailRequest(RequestId, TEXT("InvalidLoadedBlock"));

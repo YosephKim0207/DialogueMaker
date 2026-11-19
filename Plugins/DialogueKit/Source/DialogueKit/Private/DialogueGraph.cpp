@@ -2,11 +2,28 @@
 
 
 #include "DialogueGraph.h"
-#include "GameplayTags.h"
 #include "UObject/AssetRegistryTagsContext.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Serialization/CustomVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDialogueGraph, Log, All);
+
+namespace
+{
+	const FGuid UnifiedFilterVersion(0x48B54B16, 0x327A4B9D, 0x94DC6EAA, 0x7CA8EF03);
+	FCustomVersionRegistration RegisterUnifiedFilterVersion(UnifiedFilterVersion, 1, TEXT("DialogueUnifiedFilter"));
+}
+
+// 구형 에셋은 읽기만 허용하고 새 조건이 사라진 채 후보로 실행되지 않게 한다.
+void UDialogueGraph::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(UnifiedFilterVersion);
+	Super::Serialize(Ar);
+	if (Ar.IsLoading() && Ar.IsPersistent() && Ar.CustomVer(UnifiedFilterVersion) < 1)
+	{
+		bRetiredFilterAsset = true;
+	}
+}
 
 // FString UDialogueGraph::GetSpeakerName() const
 // {
@@ -49,9 +66,6 @@ void UDialogueGraph::GetAssetRegistryTags(FAssetRegistryTagsContext Context) con
 	Context.AddTag(FAssetRegistryTag(FDialogueBlockMetadata::RegistryKey(), GetSelectionMetadata().ToRegistryValue(), FAssetRegistryTag::TT_Hidden));
 	Context.AddTag(FAssetRegistryTag(FDialogueBlockMetadata::TargetRegistryKey(), DialogueTarget.ToString(), FAssetRegistryTag::TT_Hidden));
 
-	Context.AddTag(FAssetRegistryTag(*FString::Printf(TEXT("%s"), *GameplayTags::Required_All_Tags.GetTag().ToString()),RequiredAllTags.ToString(), FAssetRegistryTag::TT_Hidden));
-	Context.AddTag(FAssetRegistryTag(*FString::Printf(TEXT("%s"), *GameplayTags::Required_Any_Tags.GetTag().ToString()), RequiredAnyTags.ToString(), FAssetRegistryTag::TT_Hidden));
-	Context.AddTag(FAssetRegistryTag(*FString::Printf(TEXT("%s"), *GameplayTags::Blocked_Any_Tags.GetTag().ToString()), BlockedAnyTags.ToString(), FAssetRegistryTag::TT_Hidden));
 }
 
 // C++ 생성 도구와 Factory에서만 명시적으로 호출하여 기존 에셋을 조용히 변경하지 않는다.
@@ -90,7 +104,7 @@ void UDialogueGraph::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 FDialogueBlockMetadata UDialogueGraph::GetSelectionMetadata() const
 {
 	FDialogueBlockMetadata Metadata;
-	Metadata.bRequiresManualRewrite = RequiredAllTags.IsEmpty() == false || RequiredAnyTags.IsEmpty() == false || BlockedAnyTags.IsEmpty() == false;
+	Metadata.bRetiredFilterAsset = !UsesUnifiedFilter();
 	Metadata.Block = GetBlockReference();
 	Metadata.TargetTag = DialogueTarget;
 	Metadata.StoryScope = StoryScope;

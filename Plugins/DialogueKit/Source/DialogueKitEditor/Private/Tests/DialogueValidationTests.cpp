@@ -30,11 +30,11 @@ bool FDialogueValidationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Default-only warning"), HasCode(Issues, TEXT("DefaultOnly")));
 	TestTrue(TEXT("Default-only save allowed"), FDialogueGraphValidation::CanSave(Issues));
 	Info->Options[0].bDefault = false;
-	Info->Options[0].Conditions.Conditions.AddDefaulted();
+	Info->Options[0].Conditions.RequiredConditions.AddDefaulted();
 	Issues = FDialogueGraphValidation::Inspect(Graph);
 	TestTrue(TEXT("Conditional-only warns"), HasCode(Issues, TEXT("NoFallback")));
 	TestTrue(TEXT("Invalid condition still permits save"), FDialogueGraphValidation::CanSave(Issues));
-	Info->Options[0].Conditions.Conditions.Reset();
+	Info->Options[0].Conditions.RequiredConditions.Reset();
 	Info->Options[0].Conditions.BlockedConditions.AddDefaulted();
 	Issues = FDialogueGraphValidation::Inspect(Graph);
 	TestTrue(TEXT("New forbidden-only choice is conditional"), HasCode(Issues, TEXT("NoFallback")));

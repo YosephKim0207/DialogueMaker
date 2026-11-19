@@ -60,7 +60,15 @@ public:
     // 일반 저작 복제만 새 Block으로 취급하고 World/PIE 복제는 동일 콘텐츠로 유지한다.
     virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
+	// 이전 조건 형식으로 저장된 에셋은 신규 필터에서 실행하지 않는다.
+	virtual void Serialize(FArchive& Ar) override;
+	// 신규 저작 형식으로 생성된 실행 가능한 자료인지 조회한다.
+	bool UsesUnifiedFilter() const { return !bRetiredFilterAsset; }
+
 private:
+	// 재저장/복제해도 이전 자료가 신규 무조건 대화로 바뀌지 않도록 보존한다.
+	UPROPERTY()
+	bool bRetiredFilterAsset = false;
 #if WITH_EDITOR
     friend class UDialogueVersionLibrary;
     bool InitializeContentVersion(const UDialogueGraph* Source, int32 NewVersion);
@@ -81,16 +89,6 @@ public:
 
 	virtual void GetAssetRegistryTags(FAssetRegistryTagsContext Context) const override;
 
-	static FORCEINLINE FName GetSpeakerIDTag()
-	{
-		return GET_MEMBER_NAME_CHECKED(UDialogueGraph, SpeakerID);
-	}
-
-	static FORCEINLINE FName GetChapterIDTag()
-	{
-		return GET_MEMBER_NAME_CHECKED(UDialogueGraph, ChapterID);
-	}
-	
 public:
 	std::function<void()> OnPreSaveListener;
 
@@ -119,26 +117,11 @@ public:	// Properties
         UPROPERTY(VisibleAnywhere, Category = "DialogueKit|DialogueGraph|Runtime", meta = (ToolTip = "편집 그래프에서 생성되는 실행용 그래프 참조입니다. 읽기 전용이며 노드·연결은 왼쪽 그래프에서 편집합니다."))
         TObjectPtr<UDialogueRuntimeGraph> Graph;
 
-        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Default", meta = (ToolTip = "구형 BeginDialogue 화자 검색용 ID입니다. 신규 Block의 대화 대상 태그나 각 Line의 화자 설정을 대신하지 않습니다."))
-        ESpeakerID SpeakerID;
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintReadOnly, Category = "DialogueKit|Selection", meta = (DisplayName = "대화 유형", ToolTip = "퀘스트·스토리·일상 대화를 구분하는 분류입니다. 새 후보 선정의 우선순위·최우선·기본 대화 여부는 바꾸지 않습니다."))
+        EDialogueGraphType DialogueGraphType = EDialogueGraphType::Quest;
 
-        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Default", meta = (ToolTip = "구형 대화 검색용 Chapter enum입니다. 신규 Block의 Chapter/Scene 소속은 소속 선택 메뉴에서 지정합니다."))
-        EChapterID ChapterID;
-	
-	UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraph|Filter - Tags", meta = (ToolTip = "구형 검색에서 모두 보유해야 하는 태그입니다. 값이 남아 있으면 신규 Block 후보에서 제외됩니다. 신규 조건은 Entry Conditions에 옮긴 뒤 이 목록을 비웁니다."))
-	FGameplayTagContainer RequiredAllTags;
-
-	UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraph|Filter - Tags", meta = (ToolTip = "구형 검색에서 하나 이상 보유해야 하는 태그입니다. 값이 남아 있으면 신규 Block 후보에서 제외됩니다. 신규 조건은 Entry Conditions에 작성합니다."))
-	FGameplayTagContainer RequiredAnyTags;
-
-	UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraph|Filter - Tags", meta = (ToolTip = "구형 검색에서 하나라도 보유하면 제외하는 태그입니다. 값이 남아 있으면 신규 Block 후보에서 제외됩니다. 신규 조건은 Entry Conditions에 작성합니다."))
-	FGameplayTagContainer BlockedAnyTags;
-	
-        UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintReadOnly, Category = "DialogueKit|Selection", meta = (DisplayName = "대화 유형", ToolTip = "퀘스트·스토리·일상 대화를 구분하는 분류입니다. 새 후보 선정의 우선순위·최우선·기본 대화 여부는 바꾸지 않습니다. 구형 BeginDialogue 경로에서는 기존 Quest→Story→DailyChat 정렬에 계속 사용됩니다."))
-        EDialogueGraphType DialogueGraphType;
-
-        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Order", meta = (ToolTip = "대화 선정 우선순위 값입니다. 신규 최우선/일반 그룹에서는 큰 값이 먼저이며 동률은 균등 선정합니다. 기본 대화 순회에는 이 값을 사용하지 않습니다."))
-        int32 DialoguePriorityWeight;
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|Selection", meta = (ToolTip = "대화 선정 우선순위 값입니다. 신규 최우선/일반 그룹에서는 큰 값이 먼저이며 동률은 균등 선정합니다. 기본 대화 순회에는 이 값을 사용하지 않습니다."))
+        int32 DialoguePriorityWeight = 0;
 
         UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Initial Portrait", meta = (ToolTip = "구형 대화 UI에서 시작 시 배치할 화자·표정·위치 목록입니다. 신규 Block 기본 화면은 각 Line의 초상화 설정을 사용합니다."))
         TArray<FPortraitInitData> InitPortraits;

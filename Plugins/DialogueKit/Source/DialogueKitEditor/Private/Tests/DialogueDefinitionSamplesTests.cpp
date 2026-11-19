@@ -132,7 +132,7 @@ bool FDialogueDefinitionSampleStateTest::RunTest(const FString& Parameters)
 	Condition.Comparison = EDialogueComparison::GreaterOrEqual;
 	Condition.CountOperand = 3;
 	FDialogueConditionSet Conditions;
-	Conditions.Conditions.Add(Condition);
+	Conditions.RequiredConditions.Add(Condition);
 	TestTrue(TEXT("Current count satisfies condition"), UDialogueConditionLibrary::EvaluateConditions(Conditions, Provider.Get(), false, FDialogueDiagnosticContext(), nullptr).bPassed);
 	TestFalse(TEXT("Another provider retains zero"), UDialogueConditionLibrary::EvaluateConditions(Conditions, Other.Get(), false, FDialogueDiagnosticContext(), nullptr).bPassed);
 	const auto* Item = Catalog->Items.LoadSynchronous()->FindRow<FDialogueSampleItemRow>(TEXT("HealthPotion"), TEXT("State separation"), false);

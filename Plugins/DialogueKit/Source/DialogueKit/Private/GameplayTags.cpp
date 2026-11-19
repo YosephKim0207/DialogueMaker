@@ -22,8 +22,5 @@ namespace GameplayTags
 
 
 	// TagContainer to Registry용 Tag
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Required_All_Tags, "RequiredAllTags", "Tag for Container to Registry Prefix. Match All Tags");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Required_Any_Tags, "RequiredAnyTags", "Tag for Container to Registry Prefix. Match Any Tags");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Blocked_Any_Tags, "BlockedAnyTags", "Tag for Container to Registry Prefix. Match Any Tags");
 
 }

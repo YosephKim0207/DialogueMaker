@@ -11,7 +11,7 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_GroupTarget, "DialogueKit.Test.GroupTarget");
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDialogueConditionGroupsTest, "DialogueKit.Contracts.Conditions.Groups", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-// 16개 조합과 그룹별 오류·빈 조건·기존 조건의 추가 적용을 검증한다.
+// 단일 조건 체계의 16개 조합과 그룹별 오류·빈 조건을 검증한다.
 bool FDialogueConditionGroupsTest::RunTest(const FString& Parameters)
 {
 	TStrongObjectPtr<UDialogueSampleStateProvider> Provider(NewObject<UDialogueSampleStateProvider>());
@@ -70,25 +70,12 @@ bool FDialogueConditionGroupsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Blocked diagnostic explains handling"), BlockError.Diagnostics[0].Handling, FString(TEXT("ContinueWithoutBlock")));
 	Set.BlockedConditions.Add(Atoms[3]);
 	TestFalse(TEXT("Normal forbidden true still blocks"), Evaluate().bPassed);
-	Set.Combine = static_cast<EDialogueConditionCombine>(255);
-	TestFalse(TEXT("Invalid legacy mode does not skip new blocked"), Evaluate().bPassed);
-	Set.Combine = EDialogueConditionCombine::Any;
-	Set.BlockedConditions.Reset();
-	FDialogueCondition FalseAtom = Atoms[0];
-	FalseAtom.CountOperand = 0;
-	Set.Conditions = {FalseAtom};
-	Set.RequiredConditions = {Atoms[0]};
-	TestFalse(TEXT("Legacy OR group also required"), Evaluate().bPassed);
-	Set.Conditions.Add(Atoms[1]);
-	TestTrue(TEXT("Legacy OR retained"), Evaluate().bPassed);
-	Set.Combine = EDialogueConditionCombine::All;
-	TestFalse(TEXT("Legacy AND retained"), Evaluate().bPassed);
 	return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDialogueConditionGroupsMetadataTest, "DialogueKit.Selection.GroupMetadataCompatibility", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-// 새 payload의 그룹/유형 왕복과 실제 새 필드 없는 v1 텍스트의 이전 의미를 검증한다.
+// 통합 payload의 그룹/유형 왕복과 이전 필터 형식의 거부를 검증한다.
 bool FDialogueConditionGroupsMetadataTest::RunTest(const FString& Parameters)
 {
 	TStrongObjectPtr<UDialogueGraph> Graph(NewObject<UDialogueGraph>());
@@ -104,8 +91,8 @@ bool FDialogueConditionGroupsMetadataTest::RunTest(const FString& Parameters)
 	Graph->EntryConditions.AnyConditions = {Condition};
 	Graph->EntryConditions.BlockedConditions = {Condition};
 	FDialogueBlockMetadata Parsed;
-	TestTrue(TEXT("v2 text roundtrip"), FDialogueBlockMetadata::FromRegistryValue(Graph->GetSelectionMetadata().ToRegistryValue(), Parsed));
-	TestEqual(TEXT("New writer v2"), Parsed.MetadataVersion, 2);
+	TestTrue(TEXT("v3 text roundtrip"), FDialogueBlockMetadata::FromRegistryValue(Graph->GetSelectionMetadata().ToRegistryValue(), Parsed));
+	TestEqual(TEXT("New writer v3"), Parsed.MetadataVersion, 3);
 	TestEqual(TEXT("Classification preserved"), Parsed.DialogueGraphType, EDialogueGraphType::DailyChat);
 	TestEqual(TEXT("Required exact integer"), Parsed.EntryConditions.RequiredConditions[0].CountOperand, MAX_int64 - 1);
 	TestEqual(TEXT("Alternative retained"), Parsed.EntryConditions.AnyConditions.Num(), 1);
@@ -115,39 +102,23 @@ bool FDialogueConditionGroupsMetadataTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("v1 must not silently carry new groups"), WrongVersion.IsValid());
 	FDialogueBlockMetadata WrongType = Parsed;
 	WrongType.DialogueGraphType = static_cast<EDialogueGraphType>(255);
-	TestFalse(TEXT("Corrupt v2 type rejected"), WrongType.IsValid());
+	TestFalse(TEXT("Corrupt v3 type rejected"), WrongType.IsValid());
 	TestFalse(TEXT("Corrupt type can be shown as unknown"), WrongType.HasKnownGraphType());
 	FAssetDataTagMap IdentityTags;
 	IdentityTags.Add(FDialogueBlockMetadata::RegistryKey(), Parsed.ToRegistryValue());
 	FAssetData IdentityAsset(FName(TEXT("/Game/GroupIdentity")), FName(TEXT("/Game")), FName(TEXT("GroupIdentity")), UDialogueGraph::StaticClass()->GetClassPathName(), IdentityTags);
 	FDialogueBlockReference Identity;
-	TestTrue(TEXT("v2 metadata identity fallback"), FDialogueBlockMetadata::ReadIdentity(IdentityAsset, Identity));
-	TestTrue(TEXT("v2 identity unchanged"), Identity == Parsed.Block);
+	TestTrue(TEXT("v3 metadata identity fallback"), FDialogueBlockMetadata::ReadIdentity(IdentityAsset, Identity));
+	TestTrue(TEXT("v3 identity unchanged"), Identity == Parsed.Block);
 	// 이전 필드만 있는 독립 fixture: 새 그룹·유형 이름 자체가 존재하지 않는다.
 	const FString OldText = FString::Printf(TEXT("(MetadataVersion=1,Block=(BlockId=%s,ContentVersion=1),TargetTag=(TagName=\"DialogueKit.Test.GroupTarget\"),StoryScope=(Mode=Unrestricted),EntryConditions=(Combine=Any,Conditions=((Key=(Kind=Count,ItemId=Ticket),CountOperand=0))))"), *Graph->GetBlockId().ToString(EGuidFormats::Digits));
 	TestFalse(TEXT("Fixture omits new members"), OldText.Contains(TEXT("RequiredConditions")) || OldText.Contains(TEXT("DialogueGraphType")));
-	if (!TestTrue(TEXT("Old v1 fixture reads"), FDialogueBlockMetadata::FromRegistryValue(OldText, Parsed))) return false;
-	TestTrue(TEXT("Old groups default empty"), Parsed.EntryConditions.RequiredConditions.IsEmpty() && Parsed.EntryConditions.AnyConditions.IsEmpty() && Parsed.EntryConditions.BlockedConditions.IsEmpty());
-	TestEqual(TEXT("Legacy Any preserved"), Parsed.EntryConditions.Combine, EDialogueConditionCombine::Any);
+	TestFalse(TEXT("Old v1 fixture rejected"), FDialogueBlockMetadata::FromRegistryValue(OldText, Parsed));
+	WrongVersion.MetadataVersion = 2;
+	TestFalse(TEXT("Old v2 metadata rejected"), FDialogueBlockMetadata::FromRegistryValue(WrongVersion.ToRegistryValue(), Parsed));
+	WrongVersion.MetadataVersion = 4;
+	TestFalse(TEXT("Unknown future version rejected"), WrongVersion.IsValid());
 	TStrongObjectPtr<UDialogueSampleStateProvider> Provider(NewObject<UDialogueSampleStateProvider>());
-	FDialogueStateDefinition Definition;
-	Definition.Key = Condition.Key;
-	Provider->AddDefinition(Definition);
-	TestTrue(TEXT("Old zero count condition unchanged"), UDialogueMetadataLibrary::IsEligible(Parsed, TAG_GroupTarget, nullptr, FDialogueStoryProgress(), Provider.Get(), nullptr));
-	Parsed.MetadataVersion = 3;
-	TestFalse(TEXT("Unknown version rejected"), Parsed.IsValid());
-	for (const FString Name : {TEXT("Quest"), TEXT("Story"), TEXT("DailyChat"), TEXT("Broken"), TEXT("")})
-	{
-		FAssetDataTagMap Tags;
-		Tags.Add(FDialogueBlockMetadata::RegistryKey(), OldText);
-		if (!Name.IsEmpty()) Tags.Add(TEXT("DialogueGraphType"), Name);
-		FAssetData OldAsset(FName(TEXT("/Game/OldType")), FName(TEXT("/Game")), FName(TEXT("OldType")), UDialogueGraph::StaticClass()->GetClassPathName(), Tags);
-		FDialogueBlockMetadata OldMetadata;
-		TestTrue(TEXT("v1 remains readable without classification"), FDialogueBlockMetadata::ReadAsset(OldAsset, OldMetadata));
-		const int64 ExpectedType = StaticEnum<EDialogueGraphType>()->GetValueByNameString(Name);
-		if (Name == TEXT("Broken") || Name.IsEmpty()) TestFalse(TEXT("Missing/broken v1 type is unknown"), OldMetadata.HasKnownGraphType());
-		else TestEqual(TEXT("v1 original classification retained"), int64(OldMetadata.DialogueGraphType), ExpectedType);
-	}
 	// 유형이 달라도 같은 후보/우선순위/난수라면 새 선정 결과는 동일하다.
 	FDialogueBlockCandidate Candidate;
 	Candidate.Metadata = Graph->GetSelectionMetadata();

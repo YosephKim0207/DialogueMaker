@@ -19,11 +19,11 @@ bool FDialogueMetadataTest::RunTest(const FString& Parameters)
 	Condition.Key.Kind = EDialogueStateKind::Count;
 	Condition.Key.ItemId = TEXT("Item_With_Punctuation,=()");
 	Condition.CountOperand = MAX_int64 - 1;
-	Graph->EntryConditions.Conditions.Add(Condition);
+	Graph->EntryConditions.RequiredConditions.Add(Condition);
 	FDialogueBlockMetadata Metadata;
 	TestTrue(TEXT("Registry text roundtrip"), FDialogueBlockMetadata::FromRegistryValue(Graph->GetSelectionMetadata().ToRegistryValue(), Metadata));
-	TestEqual(TEXT("int64 preserved"), Metadata.EntryConditions.Conditions[0].CountOperand, MAX_int64 - 1);
-	TestEqual(TEXT("Item ID preserved"), Metadata.EntryConditions.Conditions[0].Key.ItemId, Condition.Key.ItemId);
+	TestEqual(TEXT("int64 preserved"), Metadata.EntryConditions.RequiredConditions[0].CountOperand, MAX_int64 - 1);
+	TestEqual(TEXT("Item ID preserved"), Metadata.EntryConditions.RequiredConditions[0].Key.ItemId, Condition.Key.ItemId);
 	UDialogueSampleStateProvider* Provider = NewObject<UDialogueSampleStateProvider>();
 	FDialogueStateDefinition Definition;
 	Definition.Key = Condition.Key;
@@ -42,8 +42,8 @@ bool FDialogueMetadataTest::RunTest(const FString& Parameters)
 	const FGuid Original = Metadata.Block.BlockId;
 	TestFalse(TEXT("Malformed rejected"), FDialogueBlockMetadata::FromRegistryValue(TEXT("not metadata"), Metadata));
 	TestEqual(TEXT("Failed read preserves output"), Metadata.Block.BlockId, Original);
-	Graph->RequiredAllTags.AddTag(TAG_MetadataTarget);
-	TestFalse(TEXT("Legacy conditions require explicit rewrite"), Graph->GetSelectionMetadata().IsValid());
+	Metadata.MetadataVersion = 2;
+	TestFalse(TEXT("Previous filter metadata cannot be reused"), Metadata.IsValid());
 	return true;
 }
 #endif

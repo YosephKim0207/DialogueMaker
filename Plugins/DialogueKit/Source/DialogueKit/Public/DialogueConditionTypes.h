@@ -25,13 +25,6 @@ enum class EDialogueComparison : uint8
 	GreaterOrEqual
 };
 
-UENUM(BlueprintType)
-enum class EDialogueConditionCombine : uint8
-{
-	All,
-	Any
-};
-
 // 대화 진입 대상과 별개인 게임 상태 대상/항목 키다. None 대상은 게임의 전역 상태로 사용 가능하다.
 USTRUCT(BlueprintType)
 struct DIALOGUEKIT_API FDialogueStateKey
@@ -97,7 +90,7 @@ struct DIALOGUEKIT_API FDialogueConditionSet
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "필수 조건", ToolTip = "모두 만족해야 합니다. 빈 목록은 제한하지 않습니다. 조회 오류 항목은 진단 후 참으로 대체합니다. 대안·금지 및 기존 호환 조건도 함께 적용됩니다."))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "필수 조건", ToolTip = "모두 만족해야 합니다. 빈 목록은 제한하지 않습니다. 조회 오류 항목은 진단 후 참으로 대체합니다. 대안·금지 조건도 함께 적용됩니다."))
 	TArray<FDialogueCondition> RequiredConditions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "대안 조건", ToolTip = "하나 이상 만족해야 합니다. 빈 목록은 제한하지 않습니다. 조회 오류 항목은 진단 후 참으로 대체합니다. 필수 조건을 우회하는 별도 경로가 아닙니다."))
@@ -106,15 +99,9 @@ struct DIALOGUEKIT_API FDialogueConditionSet
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "금지 조건", ToolTip = "정상 평가된 조건 중 하나라도 참이면 전체 조건을 통과하지 못합니다. 빈 목록은 차단하지 않습니다. 조회 오류는 진단하되 그 항목으로 차단하지 않습니다. 예: 적대 태그 Equal True 또는 수배 수치 GreaterOrEqual 1."))
 	TArray<FDialogueCondition> BlockedConditions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "기존 조건 결합", ToolTip = "기존 호환 조건 목록에만 적용합니다. All은 모두 만족, Any는 하나 이상 만족입니다. 그 결과와 새 필수·대안·금지 그룹을 함께 적용합니다."))
-	EDialogueConditionCombine Combine = EDialogueConditionCombine::All;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DialogueKit|Condition", meta = (DisplayName = "기존 호환 조건", ToolTip = "기존 에셋과 API의 조건입니다. 비어 있으면 제한하지 않으며, 값이 있으면 Combine으로 평가한 결과도 반드시 만족해야 합니다. 새 그룹으로 자동 이동·삭제되지 않습니다."))
-	TArray<FDialogueCondition> Conditions;
-
-	// 기존 및 신규 그룹 전체가 비어 있는지 확인한다.
+	// 세 그룹 전체가 비어 있는지 확인한다.
 	bool IsEmpty() const;
-	// 검증·검색 도구용으로 네 그룹의 조건을 원래 순서대로 복사한다.
+	// 검증·검색 도구용으로 세 그룹의 조건을 원래 순서대로 복사한다.
 	TArray<FDialogueCondition> GetAllConditions() const;
 };
 
