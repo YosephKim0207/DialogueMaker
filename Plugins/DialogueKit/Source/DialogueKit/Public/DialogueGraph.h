@@ -13,15 +13,8 @@
 #include "GameplayTagContainer.h"
 #include "Enum/PlayerProgress.h"
 #include "Enum/Portrait.h"
+#include "Enum/DialogueGraphType.h"
 #include "DialogueGraph.generated.h"
-
-UENUM(BlueprintType)
-enum class EDialogueGraphType : uint8
-{
-	Quest = 0 UMETA(DisplayName = "Quest"),
-	Story = 10 UMETA(DisplayName = "Story"),
-	DailyChat = 100 UMETA(DisplayName = "DailyChat"),
-};
 
 USTRUCT(BlueprintType)
 struct FPortraitInitData
@@ -141,7 +134,7 @@ public:	// Properties
 	UPROPERTY(EditAnywhere, Category = "DialogueKit|DialogueGraph|Filter - Tags", meta = (ToolTip = "구형 검색에서 하나라도 보유하면 제외하는 태그입니다. 값이 남아 있으면 신규 Block 후보에서 제외됩니다. 신규 조건은 Entry Conditions에 작성합니다."))
 	FGameplayTagContainer BlockedAnyTags;
 	
-        UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Order", meta = (ToolTip = "구형 검색의 대화 분류입니다. Quest, Story, DailyChat 순으로 정렬합니다. 신규 Block 선정은 이 분류 대신 기본/최우선 여부와 우선순위 값을 사용합니다."))
+        UPROPERTY(EditAnywhere, AssetRegistrySearchable, BlueprintReadOnly, Category = "DialogueKit|Selection", meta = (DisplayName = "대화 유형", ToolTip = "퀘스트·스토리·일상 대화를 구분하는 분류입니다. 새 후보 선정의 우선순위·최우선·기본 대화 여부는 바꾸지 않습니다. 구형 BeginDialogue 경로에서는 기존 Quest→Story→DailyChat 정렬에 계속 사용됩니다."))
         EDialogueGraphType DialogueGraphType;
 
         UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = "DialogueKit|DialogueGraph|Filter - Order", meta = (ToolTip = "대화 선정 우선순위 값입니다. 신규 최우선/일반 그룹에서는 큰 값이 먼저이며 동률은 균등 선정합니다. 기본 대화 순회에는 이 값을 사용하지 않습니다."))

@@ -5,7 +5,9 @@
 // 소속 없음은 유효한 저작 상태지만 신규 후보 평가에서는 제외된다.
 bool FDialogueBlockMetadata::IsValid() const
 {
-	return MetadataVersion == 1 && bRequiresManualRewrite == false && Block.IsValid() && TargetTag.IsValid() &&
+	if (MetadataVersion == 1 && (!EntryConditions.RequiredConditions.IsEmpty() || !EntryConditions.AnyConditions.IsEmpty() || !EntryConditions.BlockedConditions.IsEmpty())) return false;
+	if (MetadataVersion == 2 && !HasKnownGraphType()) return false;
+	return (MetadataVersion == 1 || MetadataVersion == 2) && bRequiresManualRewrite == false && Block.IsValid() && TargetTag.IsValid() &&
 		(Availability == EDialogueBlockAvailability::Active || Availability == EDialogueBlockAvailability::RestoreOnly) &&
 		uint8(StoryScope.Mode) <= uint8(EDialogueStoryScope::Scene) && (bDefault && bTopPriority) == false;
 }
@@ -41,10 +43,12 @@ bool FDialogueBlockMetadata::FromRegistryValue(const FString& Value, FDialogueBl
 bool FDialogueBlockMetadata::ReadAsset(const FAssetData& Asset, FDialogueBlockMetadata& OutMetadata)
 {
 	FString Value;
-	return Asset.GetTagValue(RegistryKey(), Value) && FromRegistryValue(Value, OutMetadata);
+	if (!Asset.GetTagValue(RegistryKey(), Value) || !FromRegistryValue(Value, OutMetadata)) return false;
+	OutMetadata.ReadLegacyGraphType(Asset);
+	return true;
 }
 
-// 메타데이터 버전과 저장 게임 스키마 버전은 서로 독립적이다.
+// 색인 키 이름은 유지하며 payload 버전 및 저장 게임 스키마 버전과 구분한다.
 FName FDialogueBlockMetadata::RegistryKey()
 {
 	return TEXT("DialogueKit.MetadataV1");
@@ -106,7 +110,26 @@ bool FDialogueBlockMetadata::ReadIdentity(const FAssetData& Asset, FDialogueBloc
 	Parsed.MetadataVersion = 0;
 	FStringOutputDevice Errors;
 	const TCHAR* End = StaticStruct()->ImportText(*Value, &Parsed, nullptr, PPF_None, &Errors, TEXT("DialogueRestoreIdentity"));
-	if (End == nullptr || *End != 0 || Errors.IsEmpty() == false || Parsed.MetadataVersion != 1 || Parsed.Block.IsValid() == false) return false;
+	if (End == nullptr || *End != 0 || Errors.IsEmpty() == false || (Parsed.MetadataVersion != 1 && Parsed.MetadataVersion != 2) || Parsed.Block.IsValid() == false) return false;
 	OutReference = Parsed.Block;
 	return true;
+}
+
+// 기존 v1 메타데이터에는 유형이 없지만 에셋 원래 필드는 Registry에 저장되어 있다.
+void FDialogueBlockMetadata::ReadLegacyGraphType(const FAssetData& Asset)
+{
+	if (MetadataVersion != 1) return;
+	DialogueGraphType = static_cast<EDialogueGraphType>(255);
+	FString Value;
+	if (Asset.GetTagValue(TEXT("DialogueGraphType"), Value))
+	{
+		const int64 Type = StaticEnum<EDialogueGraphType>()->GetValueByNameString(Value);
+		if (Type == 0 || Type == 10 || Type == 100) DialogueGraphType = static_cast<EDialogueGraphType>(Type);
+	}
+}
+
+// 손상된 분류는 정상 Quest로 표시하지 않는다.
+bool FDialogueBlockMetadata::HasKnownGraphType() const
+{
+	return DialogueGraphType == EDialogueGraphType::Quest || DialogueGraphType == EDialogueGraphType::Story || DialogueGraphType == EDialogueGraphType::DailyChat;
 }

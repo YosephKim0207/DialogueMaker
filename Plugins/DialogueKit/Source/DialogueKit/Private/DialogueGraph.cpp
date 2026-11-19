@@ -95,6 +95,7 @@ FDialogueBlockMetadata UDialogueGraph::GetSelectionMetadata() const
 	Metadata.TargetTag = DialogueTarget;
 	Metadata.StoryScope = StoryScope;
 	Metadata.EntryConditions = EntryConditions;
+	Metadata.DialogueGraphType = DialogueGraphType;
 	Metadata.Availability = Availability;
 	Metadata.bDefault = bDefaultBlock;
 	Metadata.bTopPriority = bTopPriorityBlock;
