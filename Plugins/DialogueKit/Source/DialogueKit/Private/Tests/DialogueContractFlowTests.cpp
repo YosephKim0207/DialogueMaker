@@ -49,7 +49,7 @@ bool FDialogueContractFlowTest::RunTest(const FString& Parameters)
 	Condition.Comparison = EDialogueComparison::GreaterOrEqual;
 	Condition.CountOperand = 1;
 	FDialogueConditionSet Conditions;
-	Conditions.Conditions.Add(Condition);
+	Conditions.RequiredConditions.Add(Condition);
 	TestTrue(TEXT("Game query permits choice"), UDialogueConditionLibrary::EvaluateConditions(Conditions, Game, false, Context, nullptr).bPassed);
 	FDialogueEffect Effect;
 	Effect.Key = Item.Key;

@@ -122,95 +122,10 @@ void UDialogueSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 }
 
-// NPC의 호출로 현재 노출 가능한 Dialogue를 Show하기 위한 함수
-void UDialogueSubsystem::BeginDialogue(ESpeakerID SpeakerID)
-{
-	CheckDelegates();	
-	GetDialogueGraph(SpeakerID);
-}
-
-// Player가 갖고 있는 GameplayTagContainer을 통해 현재의 Condition을 점검하여 현 상황에서 노출 가능한 DialogueGraph 에셋들을 추출한다. 
-void UDialogueSubsystem::GetDialogueGraph(ESpeakerID SpeakerID)
-{
-	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Enter"));
-	
-	// SpeakerID, ChapterID 기준 필터 제작
-	
-	EChapterID TEMPChapterID = GetCurrentChapter();
-
-	// TODO 테스트용 코드
-#if UE_BUILD_DEVELOPMENT
-	TEMPChapterID = EChapterID::Chapter01;
-#endif
-	
-	FARFilter ARFilter = GetDialogueGraphAssetFilter(SpeakerID, TEMPChapterID);
-
-	// 제작된 필터로부터 Assets 가져오기
-	TArray<FAssetData> AssetDatas;
-	IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
-	AssetRegistry.GetAssets(ARFilter, AssetDatas);
-	
-	TArray<FAssetData> CandidateAssetDatas;
-	for (const FAssetData& AssetData : AssetDatas)
-	{
-		if (IsCandidateDialogueGraphAsset(AssetData) == false)
-		{
-			continue;
-		}
-
-		const FPrimaryAssetId AssetId = AssetData.GetPrimaryAssetId();
-		if (AssetId.IsValid())
-		{
-			CandidateAssetDatas.Add(AssetData);
-			
-			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::GetDialogueGraph : Add Candidate %s"), *AssetId.ToString());
-		}
-		else
-		{
-			UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::GetDialogueGraph : Valid Error %s"), *AssetData.GetSoftObjectPath().ToString());
-		}
-	}
-	
-	// 우선순위에 따른 정렬
-	CandidateAssetDatas.Sort([] (const FAssetData& A, const FAssetData& B)
-	{
-		FString DialogueGraphTypeStringA = A.GetTagValueRef<FString>("DialogueGraphType");
-		FString DialogueGraphTypeStringB = B.GetTagValueRef<FString>("DialogueGraphType");
-
-		const UEnum* Enum = StaticEnum<EDialogueGraphType>();
-		int32 DialogueGraphTypeA = Enum->GetValueByNameString(DialogueGraphTypeStringA);
-		int32 DialogueGraphTypeB = Enum->GetValueByNameString(DialogueGraphTypeStringB);
-
-		// Enum값이 낮을 경우 높은 우선순위 (추가되는 Enum목록 가능성 대비)
-		if (DialogueGraphTypeA != DialogueGraphTypeB)
-		{
-			return DialogueGraphTypeA < DialogueGraphTypeB;	
-		}
-
-		// 가중치가 높은 경우 높은 우선순위
-		const int32 PriorityWeightA = A.GetTagValueRef<int32>("DialoguePriorityWeight");
-		const int32 PriorityWeightB = B.GetTagValueRef<int32>("DialoguePriorityWeight");
-		return PriorityWeightA > PriorityWeightB;
-	});
-
-	// PrimaryId 리스트화
-	TArray<FPrimaryAssetId> AssetIds;
-	for (const FAssetData& AssetData : CandidateAssetDatas)
-	{
-		AssetIds.Add(AssetData.GetPrimaryAssetId());
-	}
-
-	// DialogueGraph Asset Load
-	UAssetManager& AssetManager = UAssetManager::Get();
-	TArray<FName> Bundles;
-	FStreamableDelegate OnDialogueLoaded = FStreamableDelegate::CreateUObject(this, &UDialogueSubsystem::OnDialogueLoaded);
-	CurrentHandle = AssetManager.LoadPrimaryAssets(AssetIds, Bundles, OnDialogueLoaded);
-}
-
 // 해당 NPC Actor와 대화 시작
 void UDialogueSubsystem::StartDialogue(UDialogueGraph* DialogueGraph)
 {
-	if (DialogueGraph == nullptr || DialogueGraph->Graph == nullptr)
+	if (DialogueGraph == nullptr || !DialogueGraph->UsesUnifiedFilter() || DialogueGraph->Graph == nullptr)
 	{
 		return;
 	}
@@ -570,10 +485,6 @@ void UDialogueSubsystem::CheckDelegates()
 		OnCurrentDialogueChanged.BindUObject(this, &UDialogueSubsystem::UpdateCurrentDialogueNode);
 	}
 
-	if (OnDialogueReady.IsBound() == false)
-	{
-		OnDialogueReady.BindUObject(this, &UDialogueSubsystem::StartDialogue);
-	}
 }
 
 // 현재 진행 중인 Dialogue Node의 Info를 반환
@@ -866,20 +777,6 @@ void UDialogueSubsystem::SetInputSettings(bool bIsShowUI) const
 	
 }
 
-// DialogueGraph Asset을 SpeakerID ChapterID를 기준으로 하는 1차 필터 반환
-FARFilter UDialogueSubsystem::GetDialogueGraphAssetFilter(ESpeakerID SpeakerID, EChapterID ChapterID) const
-{
-	FARFilter ARFilter;
-	ARFilter.ClassPaths.Add(UDialogueGraph::StaticClass()->GetClassPathName());
-
-	FString SpeakerEnumName = GetEnumNameString<ESpeakerID>(SpeakerID);
-	ARFilter.TagsAndValues.Add(UDialogueGraph::GetSpeakerIDTag(), SpeakerEnumName);
-	// 	FString ChapterEnumName = EGetEnumNameString<EChapterID>(ChapterID);
-	// 	ARFilter.TagsAndValues.Add(UDialogueGraph::GetChapterIDTag(), ChapterEnumName);
-
-	return ARFilter;
-}
-
 void UDialogueSubsystem::InitializeDialogueData()
 {
 	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::InitializeDialogueData : Enter"));
@@ -903,119 +800,6 @@ void UDialogueSubsystem::InitializeDialogueData()
 	}
 }
 
-bool UDialogueSubsystem::IsCandidateDialogueGraphAsset(const FAssetData& AssetData) const
-{
-	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : Enter"));
-	
-	bool bPossibleCondition = false;	
-	FGameplayTagContainer PlayersTagContainer = GetPlayerOwnedTags();
-
-#if UE_BUILD_DEVELOPMENT
-	// TODO 테스트를 위해 임시로 Tag 추가
-	PlayersTagContainer.AddTag(GameplayTags::Chapter_01_Complete);
-	PlayersTagContainer.AddTag(GameplayTags::Chapter_02_Complete);
-	PlayersTagContainer.AddTag(GameplayTags::Item_Weapon_LegendarySword);
-	PlayersTagContainer.AddTag(GameplayTags::Player_Tier_E);
-	PlayersTagContainer.AddTag(GameplayTags::Quest_Chapter_01_VisitHome_Complete);
-#endif
-	
-	FString Csv;
-	// All Condition인 Tag를 모두 갖고있지 않다면 해당 Dialogue Asset은 후보 제외
-	if (AssetData.GetTagValue(*GameplayTags::Required_All_Tags.GetTag().ToString(), Csv))
-	{
-		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AllTag Check"));
-		
-		FGameplayTagContainer RequiredAllTags;
-		RequiredAllTags.FromExportString(Csv, PPF_None);
-		bPossibleCondition = PlayersTagContainer.HasAllExact(RequiredAllTags);
-		
-		if (bPossibleCondition == false)
-		{
-			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AllTags false"));
-			return false;
-		}
-	}
-
-	// Block Condition인 Tag를 하나라도 갖고 있다면 해당 Dialogue Asset은 후보 제외
-	if (AssetData.GetTagValue(*GameplayTags::Blocked_Any_Tags.GetTag().ToString(), Csv))
-	{
-		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : BlockTag Check"));
-
-		FGameplayTagContainer BlockedAllTags;
-		BlockedAllTags.FromExportString(Csv, PPF_None);
-		bPossibleCondition = !PlayersTagContainer.HasAnyExact(BlockedAllTags);
-		
-		// Dialogue 노출을 위해 갖고 있으면 안될 Tag가 하나라도 있는 경우 해당 Dialogue Asset 통과 
-		if (bPossibleCondition == false)
-		{
-			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : BlockTags false"));
-			return false;
-		}
-	}
-
-	// AnyCondition인 Tag를 하나라도 갖고 있다면 해당 Dialogue Asset은 후보 제외
-	if (AssetData.GetTagValue(*GameplayTags::Required_Any_Tags.GetTag().ToString(), Csv))
-	{
-		UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AnyTag Check"));
-
-		FGameplayTagContainer RequiredAnyTags;
-		RequiredAnyTags.FromExportString(Csv, PPF_None);
-		bPossibleCondition = PlayersTagContainer.HasAnyExact(RequiredAnyTags);
-		
-		// Dialogue 노출을 위해 갖고 있으면 안될 Tag가 하나라도 있는 경우 해당 Dialogue Asset 통과 
-		if (bPossibleCondition == false)
-		{
-			UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : AnyTags false"));
-			return false;
-		}
-	}
-
-	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::IsCandidateDialogueGraphAsset : true"));
-
-	return true;
-}
-
-// GameplayTags에 따라 필터링 된 Dialogue Asset Load가 완료된 이후의 콜백 함수
-void UDialogueSubsystem::OnDialogueLoaded()
-{
-	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::OnDialogueLoaded : Enter"));
-	
-	TArray<UObject*> LoadedObjects;
-	if (CurrentHandle.IsValid())
-	{
-		CurrentHandle->GetLoadedAssets(LoadedObjects);
-		CurrentHandle.Reset();
-	}
-	else
-	{
-		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::OnDialogueLoaded : Valid Error"));
-		return;
-	}
-
-	PossibleDialogueGraphs.Reset();
-	for (UObject* LoadedObject : LoadedObjects)
-	{
-		if (UDialogueGraph* DialogueGraph = Cast<UDialogueGraph>(LoadedObject))
-		{
-			PossibleDialogueGraphs.Add(DialogueGraph);
-		}
-	}
-	
-	// Dialogue Show Event 호출
-	if (OnDialogueReady.IsBound() && PossibleDialogueGraphs.Num() > 0)
-	{
-		// 대화의 첫 시작은 최우선순위 DialgoueGraph
-		OnDialogueReady.Execute(PossibleDialogueGraphs[0]);
-	}
-	else
-	{
-		UE_LOG(DialogueSubSystemLog, Error, TEXT("UDialogueSubsystem::OnDialogueLoaded : Show Dialogue Bind Error"));
-		return;
-	}
-	
-	UE_LOG(DialogueSubSystemLog, Display, TEXT("UDialogueSubsystem::OnDialogueLoaded : PossibleDialogueGraphs Count = %d"), PossibleDialogueGraphs.Num());
-}
-
 FGameplayTagContainer UDialogueSubsystem::GetPlayerOwnedTags() const
 {
 	UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this);
@@ -1030,14 +814,6 @@ int32 UDialogueSubsystem::GetPlayerLevel() const
 	check(PlayerProgressSubsystem);
 
 	return PlayerProgressSubsystem->GetPlayerLevel();
-}
-
-EChapterID UDialogueSubsystem::GetCurrentChapter() const
-{
-	UPlayerProgressSubsystem* PlayerProgressSubsystem = UPlayerProgressSubsystem::Get(this);
-	check(PlayerProgressSubsystem);
-
-	return PlayerProgressSubsystem->GetCurrentChapter();
 }
 
 // DialogueGraph 에셋 내 사용되는 Portrait들을 메모리에 사전 탑재
@@ -1231,6 +1007,7 @@ bool UDialogueSubsystem::StartDialogueBlock(UDialogueGraph* Block)
 // 에셋 대상과 요청 대상을 구분하여 전역 공통 인사도 올바른 재개 대상에 연결한다.
 bool UDialogueSubsystem::StartDialogueBlockForTarget(UDialogueGraph* Block, FGameplayTag RequestTarget)
 {
+	if (!IsValid(Block) || !Block->UsesUnifiedFilter()) return false;
 	UDialogueBlockRunner* Runner = GetBlockRunner();
 	if (Runner->CanStartBlock() == false)
 	{

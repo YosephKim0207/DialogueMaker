@@ -82,7 +82,7 @@ bool FDialogueBlockLoaderTest::RunTest(const FString& Parameters)
 	State.Key = Condition.Key;
 	State.Count = 1;
 	Provider->SetSampleState(State);
-	CandidateB.Metadata.EntryConditions.Conditions.Add(Condition);
+	CandidateB.Metadata.EntryConditions.RequiredConditions.Add(Condition);
 	const FGuid Eligible = Loader->RequestCandidates({CandidateB}, TAG_LoadTarget, nullptr, FDialogueStoryProgress(), Provider, nullptr);
 	State.Count = 0;
 	Provider->SetSampleState(State);
@@ -109,7 +109,7 @@ bool FDialogueBlockLoaderReentryTest::RunTest(const FString& Parameters)
 	FDialogueCondition Missing;
 	Missing.Key.Kind = EDialogueStateKind::Count;
 	Missing.Key.ItemId = TEXT("Missing");
-	CandidateA.Metadata.EntryConditions.Conditions.Add(Missing);
+	CandidateA.Metadata.EntryConditions.RequiredConditions.Add(Missing);
 	UDialogueDiagnosticRouter* Router = NewObject<UDialogueDiagnosticRouter>();
 	FGuid Latest;
 	bool bReentered = false;

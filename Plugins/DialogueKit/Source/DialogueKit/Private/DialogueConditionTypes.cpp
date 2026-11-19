@@ -27,14 +27,13 @@ uint32 GetTypeHash(const FDialogueStateKey& Key)
 // 빈 Branch/Choice 판정은 모든 그룹을 함께 고려한다.
 bool FDialogueConditionSet::IsEmpty() const
 {
-	return Conditions.IsEmpty() && RequiredConditions.IsEmpty() && AnyConditions.IsEmpty() && BlockedConditions.IsEmpty();
+	return RequiredConditions.IsEmpty() && AnyConditions.IsEmpty() && BlockedConditions.IsEmpty();
 }
 
 // 에디터 검증에서 새 그룹을 누락하지 않도록 공통 순회를 제공한다.
 TArray<FDialogueCondition> FDialogueConditionSet::GetAllConditions() const
 {
-	TArray<FDialogueCondition> Result = Conditions;
-	Result.Append(RequiredConditions);
+	TArray<FDialogueCondition> Result = RequiredConditions;
 	Result.Append(AnyConditions);
 	Result.Append(BlockedConditions);
 	return Result;

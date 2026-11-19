@@ -26,8 +26,5 @@ namespace GameplayTags
 
 
 	// TagContainer to Registry용 Tag
-	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Required_All_Tags)
-	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Required_Any_Tags)
-	DIALOGUEKIT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Blocked_Any_Tags)
 
 };

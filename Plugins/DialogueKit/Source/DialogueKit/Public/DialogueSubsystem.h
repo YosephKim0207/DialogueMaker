@@ -15,7 +15,6 @@
 #include "Subsystems/Subsystem.h"
 #include "DialogueSubsystem.generated.h"
 
-DECLARE_DELEGATE_OneParam(FOnDialogueReady, UDialogueGraph*);
 DECLARE_DELEGATE_OneParam(FOnCurrentDialogueNodeChange, FGuid);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDialogueEnd);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStopSkip);
@@ -45,7 +44,6 @@ public:
 	static UDialogueSubsystem* Get(const UObject* WorldContextObject);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-	void BeginDialogue(ESpeakerID SpeakerID);
 
 	// 신규 Graph의 게임 제공자를 등록한다. 자동 후보 시작도 이 설정을 사용한다.
 	UFUNCTION(BlueprintCallable, Category = "DialogueKit|Block")
@@ -148,7 +146,6 @@ private:
 
 	void CheckDelegates();
 	
-	void GetDialogueGraph(ESpeakerID NPCID);
 	void StartDialogue(UDialogueGraph* DialogueGraph);
 	void CreateDialogueUI();
 	UDialogueRuntimeNode* GetFirstNode();
@@ -163,14 +160,10 @@ private:
 	bool IsPossibleToShowTrueCondition(UDialogueRuntimeNode* BranchNode) const;
 	UDialogueRuntimeNode* GetDialogueNode(FGuid DialogueNodeGuid);
 
-	FARFilter GetDialogueGraphAssetFilter(ESpeakerID NPCID, EChapterID ChapterID) const;
 	void InitializeDialogueData();
-	bool IsCandidateDialogueGraphAsset(const FAssetData& AssetData) const;
-	void OnDialogueLoaded();
 
 	FGameplayTagContainer GetPlayerOwnedTags() const;
 	int32 GetPlayerLevel() const;
-	EChapterID GetCurrentChapter() const;
 
 	void PreloadPortraits();
 
@@ -221,9 +214,7 @@ private:
 	UPROPERTY()
 	TMap<FGuid, UDialogueRuntimeNode*> IdToNodeMap;
 
-	TSharedPtr<FStreamableHandle> CurrentHandle;
 
-	FOnDialogueReady OnDialogueReady;
 	
 	FOnCurrentDialogueNodeChange OnCurrentDialogueChanged;
 
@@ -239,8 +230,6 @@ private:
 	UPROPERTY()
 	FTimerHandle OnShownDialogueSkipTimerHandle;
 	
-	UPROPERTY()
-	TArray<UDialogueGraph*> PossibleDialogueGraphs;
 
 	UPROPERTY()
 	TMap<ESpeakerID, EEmoteType> CurrentNPCEmote;

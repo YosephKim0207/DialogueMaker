@@ -38,7 +38,7 @@ bool FDialogueConditionContractTest::RunTest(const FString& Parameters)
 	State.Value = 5.0;
 	TestTrue(TEXT("Set value"), Provider->SetSampleState(State));
 	FDialogueConditionSet Set;
-	Set.Conditions = {Tag, Value, Count};
+	Set.RequiredConditions = {Tag, Value, Count};
 	const FDialogueDiagnosticContext Context;
 	auto Evaluate = [&]() { return UDialogueConditionLibrary::EvaluateConditions(Set, Provider, false, Context, nullptr); };
 	FDialogueConditionResult Result = Evaluate();
@@ -51,46 +51,42 @@ bool FDialogueConditionContractTest::RunTest(const FString& Parameters)
 	FDialogueCondition Missing = Count;
 	Missing.Key.ItemId = TEXT("Unknown");
 	Count.CountOperand = 1;
-	Set.Conditions = {Missing, Count};
+	Set.RequiredConditions = {Missing, Count};
 	Result = Evaluate();
 	TestTrue(TEXT("Missing definition is error"), Result.bHadErrors);
 	TestFalse(TEXT("Error true does not hide another AND false"), Result.bPassed);
-	Set.Combine = EDialogueConditionCombine::Any;
+	Set.AnyConditions = MoveTemp(Set.RequiredConditions);
 	TestTrue(TEXT("Error true participates in OR"), Evaluate().bPassed);
-	Set.Combine = EDialogueConditionCombine::All;
+	Set.AnyConditions.Reset();
 	Count.CountOperand = 9007199254740993LL;
-	Set.Conditions = {Count};
+	Set.RequiredConditions = {Count};
 	State.Key = Count.Key;
 	State.Count = Count.CountOperand;
 	Provider->SetSampleState(State);
 	TestTrue(TEXT("Exact int64 equality"), Evaluate().bPassed);
-	Set.Conditions[0].CountOperand -= 1;
+	Set.RequiredConditions[0].CountOperand -= 1;
 	TestFalse(TEXT("Adjacent int64 not rounded equal"), Evaluate().bPassed);
-	Set.Conditions.Reset();
+	Set.RequiredConditions.Reset();
 	Result = Evaluate();
 	TestTrue(TEXT("Empty normal set allows"), Result.bPassed && Result.bHadErrors == false);
 	Result = UDialogueConditionLibrary::EvaluateConditions(Set, nullptr, true, Context, nullptr);
 	TestTrue(TEXT("Empty branch allows with diagnostic"), Result.bPassed && Result.bHadErrors);
-	Set.Conditions = {Value};
+	Set.RequiredConditions = {Value};
 	Result = UDialogueConditionLibrary::EvaluateConditions(Set, nullptr, false, Context, nullptr);
 	TestTrue(TEXT("Missing provider is reported, not sample fallback"), Result.bPassed && Result.bHadErrors);
-	Set.Conditions = {Value};
+	Set.RequiredConditions = {Value};
 	const bool Expected[] = {true, false, false, true, false, true};
 	for (int32 Index = 0; Index < 6; ++Index)
 	{
-		Set.Conditions[0].Comparison = static_cast<EDialogueComparison>(Index);
+		Set.RequiredConditions[0].Comparison = static_cast<EDialogueComparison>(Index);
 		TestEqual(TEXT("Comparison boundary"), Evaluate().bPassed, Expected[Index]);
 	}
-	Set.Conditions[0].ValueOperand = std::numeric_limits<double>::quiet_NaN();
+	Set.RequiredConditions[0].ValueOperand = std::numeric_limits<double>::quiet_NaN();
 	TestTrue(TEXT("NaN operand is diagnosed"), Evaluate().bHadErrors);
-	Set.Conditions = {Value};
-	Set.Conditions[0].Key.TargetId = TEXT("OtherActor");
+	Set.RequiredConditions = {Value};
+	Set.RequiredConditions[0].Key.TargetId = TEXT("OtherActor");
 	TestTrue(TEXT("Targets are isolated"), Evaluate().bHadErrors);
-	Set.Combine = static_cast<EDialogueConditionCombine>(255);
-	Result = Evaluate();
-	TestTrue(TEXT("Invalid combine true with error"), Result.bHadErrors && Result.bPassed);
-	Set.Combine = EDialogueConditionCombine::All;
-	Set.Conditions = {Value};
+	Set.RequiredConditions = {Value};
 	int64 UnimplementedCount = 9;
 	TestFalse(TEXT("Base missing implementation fails"), Provider->IDialogueStateProvider::QueryDialogueCount_Implementation(NAME_None, TEXT("Gift"), UnimplementedCount));
 	TestEqual(TEXT("Base missing output initialized"), UnimplementedCount, int64(0));
@@ -100,7 +96,7 @@ bool FDialogueConditionContractTest::RunTest(const FString& Parameters)
 	FDialogueConditionSet Loaded;
 	FMemoryReader Reader(Bytes);
 	FDialogueConditionSet::StaticStruct()->SerializeItem(Reader, &Loaded, nullptr);
-	TestEqual(TEXT("Serialized condition key"), Loaded.Conditions[0].Key.ItemId, Value.Key.ItemId);
+	TestEqual(TEXT("Serialized condition key"), Loaded.RequiredConditions[0].Key.ItemId, Value.Key.ItemId);
 	TestTrue(TEXT("Serialized condition evaluates"), UDialogueConditionLibrary::EvaluateConditions(Loaded, Provider, false, Context, nullptr).bPassed);
 	return true;
 }
