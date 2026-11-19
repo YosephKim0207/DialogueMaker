@@ -132,6 +132,8 @@ bool FDialogueBlockPreview::CheckEntry(UDialogueGraph* InBlock, UObject* InProvi
 {
     if (!InBlock || !InProvider || !InProvider->GetClass()->ImplementsInterface(UDialogueStateProvider::StaticClass()))
     { Explanation = TEXT("Block 또는 상태 제공자가 없습니다."); return false; }
+    if (!InBlock->UsesUnifiedFilter())
+    { Explanation = TEXT("이전 필터 형식의 에셋은 실행 대상이 아닙니다. 새 DialogueGraph를 작성하세요."); return false; }
     FDialogueDiagnosticContext Context;
     Context.Block = InBlock->GetBlockReference();
     const auto Result = UDialogueConditionLibrary::EvaluateConditions(InBlock->EntryConditions, InProvider, false, Context, nullptr);
@@ -174,7 +176,6 @@ bool FDialogueBlockPreview::CheckEntry(UDialogueGraph* InBlock, UObject* InProvi
                 *Operand, Verdict.bPassed ? TEXT("True") : TEXT("False"), Verdict.bHadErrors ? TEXT(" (오류 대체)") : TEXT(""));
         }
     };
-    ExplainGroup(InBlock->EntryConditions.Conditions, TEXT("기존"), false);
     ExplainGroup(InBlock->EntryConditions.RequiredConditions, TEXT("필수"), false);
     ExplainGroup(InBlock->EntryConditions.AnyConditions, TEXT("대안"), false);
     ExplainGroup(InBlock->EntryConditions.BlockedConditions, TEXT("금지: 참이면 차단"), true);

@@ -31,8 +31,12 @@ void FDialogueGraphDetails::CustomizeDetails(IDetailLayoutBuilder& Builder)
 	if (Objects.Num() != 1) return;
 	TWeakObjectPtr<UDialogueGraph> Graph = Cast<UDialogueGraph>(Objects[0].Get());
 	if (Graph.IsValid() == false) return;
-	Builder.EditCategory("DialogueKit|Legacy 안내").AddCustomRow(FText::FromString(TEXT("구형 조건"))).WholeRowContent()
-	[SNew(STextBlock).AutoWrapText(true).ToolTipText(NSLOCTEXT("DialogueKit", "LegacyPropertyHelp", "구형 설정과 신규 Block 설정은 서로 다른 실행 경로에서 사용합니다. 신규 진입 조건은 Entry Conditions에 작성하세요.")).Text(FText::FromString(TEXT("신규 Block 진입 조건은 Entry Conditions에서 편집합니다. 구형 Required All/Any/Blocked Tags가 남으면 수동 재작성 대상으로 신규 후보에서 제외됩니다. 내용을 옮긴 뒤 구형 태그를 비우세요. SpeakerID/ChapterID는 신규 대상·소속을 대신하지 않습니다.")))];
+	if (!Graph->UsesUnifiedFilter())
+	{
+		Builder.EditCategory("DialogueKit|Selection").AddCustomRow(FText::FromString(TEXT("이전 에셋"))).WholeRowContent()
+		[SNew(STextBlock).AutoWrapText(true).Text(FText::FromString(TEXT("이전 필터 형식의 에셋입니다. 실행 대상에서 제외됩니다. 새 DialogueGraph를 만들어 조건을 작성하세요.")))
+		.ToolTipText(FText::FromString(TEXT("기존 에셋은 재사용하지 않습니다. 저장하거나 복제해도 신규 실행 대상으로 변환하지 않습니다.")))];
+	}
 	Builder.HideProperty(GET_MEMBER_NAME_CHECKED(UDialogueGraph, DialogueTarget));
 	Builder.HideProperty(GET_MEMBER_NAME_CHECKED(UDialogueGraph, StoryScope));
 	TSharedRef<FString> Root = MakeShared<FString>();

@@ -39,7 +39,7 @@ public:
 	{
 		Utilities = Builder.GetPropertyUtilities();
 		TSharedRef<IPropertyHandle> Entry = Builder.GetProperty(TEXT("EntryConditions"));
-		const TSharedPtr<IPropertyHandle> Array = Entry->GetChildHandle(TEXT("Conditions"));
+		const TSharedPtr<IPropertyHandle> Array = Entry->GetChildHandle(TEXT("RequiredConditions"));
 		Key = Array->AsArray()->GetElement(0)->GetChildHandle(TEXT("Key"));
 		Builder.HideProperty(Entry);
 		Builder.EditCategory(TEXT("PickerTest")).AddProperty(Key).ShouldAutoExpand(true);
@@ -117,8 +117,8 @@ bool FDialogueConditionIdDetailsTest::RunTest(const FString& Parameters)
 	FDialogueDefinitionOptions Options;
 	if (!TestTrue(TEXT("Source loads"), Options.LoadConfigured())) return false;
 	TStrongObjectPtr<UDialogueGraph> Graph(NewObject<UDialogueGraph>(GetTransientPackage(), NAME_None, RF_Transactional));
-	Graph->EntryConditions.Conditions.AddDefaulted();
-	FDialogueStateKey& Initial = Graph->EntryConditions.Conditions[0].Key;
+	Graph->EntryConditions.RequiredConditions.AddDefaulted();
+	FDialogueStateKey& Initial = Graph->EntryConditions.RequiredConditions[0].Key;
 	Initial.Kind = EDialogueStateKind::Count;
 	Initial.TargetId = TEXT("LegacyTarget");
 	Initial.ItemId = TEXT("LegacyItem");
@@ -133,8 +133,8 @@ bool FDialogueConditionIdDetailsTest::RunTest(const FString& Parameters)
 	FSlateApplication::Get().Tick();
 	TestTrue(TEXT("Actual Key details has refresh"), ContainsPickerText(View, TEXT("정의 목록 새로고침")));
 	TestTrue(TEXT("Actual Key details has advanced manual group"), ContainsPickerText(View, TEXT("고급: ID 직접 입력")));
-	TestEqual(TEXT("Opening details preserves unknown Target"), Graph->EntryConditions.Conditions[0].Key.TargetId, FName(TEXT("LegacyTarget")));
-	TestEqual(TEXT("Opening details preserves unknown Item"), Graph->EntryConditions.Conditions[0].Key.ItemId, FName(TEXT("LegacyItem")));
+	TestEqual(TEXT("Opening details preserves unknown Target"), Graph->EntryConditions.RequiredConditions[0].Key.TargetId, FName(TEXT("LegacyTarget")));
+	TestEqual(TEXT("Opening details preserves unknown Item"), Graph->EntryConditions.RequiredConditions[0].Key.ItemId, FName(TEXT("LegacyItem")));
 	const TSharedRef<IPropertyHandle> Key = Capture->Key.ToSharedRef();
 	// 참조는 Undo 시 컨테이너 재할당될 수 있어 매번 객체에서 읽는다.
 	auto Apply = [&](bool bTarget, FName Id)
@@ -142,14 +142,14 @@ bool FDialogueConditionIdDetailsTest::RunTest(const FString& Parameters)
 		return FDialogueStateKeyCustomization::ApplySelection(Key, Options, bTarget, Id, Capture->Utilities->IsPropertyEditingEnabled());
 	};
 	TestTrue(TEXT("Select Player"), Apply(true, TEXT("Player")) == FPropertyAccess::Success);
-	TestEqual(TEXT("Target selection preserves legacy Item"), Graph->EntryConditions.Conditions[0].Key.ItemId, FName(TEXT("LegacyItem")));
+	TestEqual(TEXT("Target selection preserves legacy Item"), Graph->EntryConditions.RequiredConditions[0].Key.ItemId, FName(TEXT("LegacyItem")));
 	TestTrue(TEXT("One Undo restores Target"), GEditor->UndoTransaction());
-	TestEqual(TEXT("Legacy Target restored"), Graph->EntryConditions.Conditions[0].Key.TargetId, FName(TEXT("LegacyTarget")));
+	TestEqual(TEXT("Legacy Target restored"), Graph->EntryConditions.RequiredConditions[0].Key.TargetId, FName(TEXT("LegacyTarget")));
 	TestTrue(TEXT("One Redo restores selection"), GEditor->RedoTransaction());
-	TestEqual(TEXT("Player restored"), Graph->EntryConditions.Conditions[0].Key.TargetId, FName(TEXT("Player")));
+	TestEqual(TEXT("Player restored"), Graph->EntryConditions.RequiredConditions[0].Key.TargetId, FName(TEXT("Player")));
 	TestTrue(TEXT("Select item"), Apply(false, TEXT("Item.HealthPotion")) == FPropertyAccess::Success);
 	TestTrue(TEXT("Undo item"), GEditor->UndoTransaction());
-	TestEqual(TEXT("Legacy Item restored"), Graph->EntryConditions.Conditions[0].Key.ItemId, FName(TEXT("LegacyItem")));
+	TestEqual(TEXT("Legacy Item restored"), Graph->EntryConditions.RequiredConditions[0].Key.ItemId, FName(TEXT("LegacyItem")));
 	TestTrue(TEXT("Redo item"), GEditor->RedoTransaction());
 	View->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateLambda([]() { return false; }));
 	TestTrue(TEXT("Details editing lock rejects callback"), Apply(true, TEXT("Player")) == FPropertyAccess::Fail);
@@ -163,26 +163,26 @@ bool FDialogueConditionIdDetailsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Unknown option rejected"), Apply(false, TEXT("Unknown")) == FPropertyAccess::Fail);
 	TestTrue(TEXT("Wrong kind item rejected"), Apply(false, TEXT("Skill.Firebolt")) == FPropertyAccess::Fail);
 	TestTrue(TEXT("Change Kind through property"), Key->GetChildHandle(TEXT("Kind"))->SetValue(uint8(EDialogueStateKind::Value)) == FPropertyAccess::Success);
-	TestEqual(TEXT("Kind change preserves Item"), Graph->EntryConditions.Conditions[0].Key.ItemId, FName(TEXT("Item.HealthPotion")));
+	TestEqual(TEXT("Kind change preserves Item"), Graph->EntryConditions.RequiredConditions[0].Key.ItemId, FName(TEXT("Item.HealthPotion")));
 	TestTrue(TEXT("Select NPC"), Apply(true, TEXT("NPC.Merchant")) == FPropertyAccess::Success);
-	TestEqual(TEXT("NPC change preserves old Item"), Graph->EntryConditions.Conditions[0].Key.ItemId, FName(TEXT("Item.HealthPotion")));
+	TestEqual(TEXT("NPC change preserves old Item"), Graph->EntryConditions.RequiredConditions[0].Key.ItemId, FName(TEXT("Item.HealthPotion")));
 	TestTrue(TEXT("Select Affection"), Apply(false, TEXT("Affection")) == FPropertyAccess::Success);
-	const FDialogueStateKey Expected = Graph->EntryConditions.Conditions[0].Key;
+	const FDialogueStateKey Expected = Graph->EntryConditions.RequiredConditions[0].Key;
 	Options.ReadSource(nullptr);
 	TestTrue(TEXT("Source error rejects selection"), Apply(false, TEXT("Affection")) == FPropertyAccess::Fail);
-	TestTrue(TEXT("Source error preserves key"), Graph->EntryConditions.Conditions[0].Key == Expected);
+	TestTrue(TEXT("Source error preserves key"), Graph->EntryConditions.RequiredConditions[0].Key == Expected);
 	Options.LoadConfigured();
 	TStrongObjectPtr<UDialogueGraph> Other(NewObject<UDialogueGraph>(GetTransientPackage(), NAME_None, RF_Transactional));
 	Other->EntryConditions = Graph->EntryConditions;
-	Other->EntryConditions.Conditions[0].Key.Kind = EDialogueStateKind::Count;
+	Other->EntryConditions.RequiredConditions[0].Key.Kind = EDialogueStateKind::Count;
 	const TArray<UObject*> Selected = {Graph.Get(), Other.Get()};
 	View->SetObjects(Selected);
 	TestTrue(TEXT("Mixed Kind cannot choose Target"), FDialogueStateKeyCustomization::ApplySelection(Capture->Key.ToSharedRef(), Options, true, TEXT("Player"), true) == FPropertyAccess::Fail);
 	Capture->Key->GetChildHandle(TEXT("Kind"))->SetValue(uint8(EDialogueStateKind::Value));
-	Other->EntryConditions.Conditions[0].Key.TargetId = TEXT("Player");
+	Other->EntryConditions.RequiredConditions[0].Key.TargetId = TEXT("Player");
 	View->ForceRefresh();
 	TestTrue(TEXT("Mixed Target cannot choose Item"), FDialogueStateKeyCustomization::ApplySelection(Capture->Key.ToSharedRef(), Options, false, TEXT("Affection"), true) == FPropertyAccess::Fail);
-	TestTrue(TEXT("Mixed edit preserves first key"), Graph->EntryConditions.Conditions[0].Key == Expected);
+	TestTrue(TEXT("Mixed edit preserves first key"), Graph->EntryConditions.RequiredConditions[0].Key == Expected);
 	View->SetObject(nullptr);
 	FSlateApplication::Get().RequestDestroyWindow(Window);
 	FSlateApplication::Get().Tick();
@@ -206,9 +206,9 @@ bool FDialogueConditionIdDetailsTest::RunTest(const FString& Parameters)
 		const auto* Loaded = Reloaded ? FindObject<UDialogueGraph>(Reloaded, TEXT("Graph")) : nullptr;
 		if (TestNotNull(TEXT("Reload selected key"), Loaded))
 		{
-			if (TestEqual(TEXT("Condition retained"), Loaded->EntryConditions.Conditions.Num(), 1))
+			if (TestEqual(TEXT("Condition retained"), Loaded->EntryConditions.RequiredConditions.Num(), 1))
 			{
-				TestTrue(TEXT("Exact selected key retained"), Loaded->EntryConditions.Conditions[0].Key == Expected);
+				TestTrue(TEXT("Exact selected key retained"), Loaded->EntryConditions.RequiredConditions[0].Key == Expected);
 			}
 		}
 	}

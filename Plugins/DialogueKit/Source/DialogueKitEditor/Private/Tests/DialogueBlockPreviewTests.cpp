@@ -63,7 +63,7 @@ bool FDialogueBlockPreviewCopyTest::RunTest(const FString& Parameters)
     Condition.Key = Definition.Key;
     Condition.Comparison = EDialogueComparison::GreaterOrEqual;
     Condition.ValueOperand = 5;
-    Copy->EntryConditions.Conditions.Add(Condition);
+    Copy->EntryConditions.RequiredConditions.Add(Condition);
     TestFalse(TEXT("Entry blocked"), FDialogueBlockPreview::CheckEntry(Copy, Provider, Error));
     TestTrue(TEXT("Explanation includes item"), Error.Contains(TEXT("Level")));
     TestTrue(TEXT("Explanation includes false"), Error.Contains(TEXT("False")));
